@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "package": "de.horizon.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ChatScreenMixin",
+    "ExperienceBarMixin",
+    "InGameHudMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "ClientPlayerInteractionManagerMixin",
+    "ParticleManagerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

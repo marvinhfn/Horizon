@@ -1,0 +1,15 @@
+.gradle/
+.idea/
+build/
+run/
+out/
+net/
+*.iml
+
+backend/.gradle/
+backend/build/
+backend/out/
+backend/.env
+
+hs_err_pid*
+replay_pid*

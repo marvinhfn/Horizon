@@ -1,0 +1,116 @@
+
+plugins {
+    id 'fabric-loom' version '1.14-SNAPSHOT'
+    id 'maven-publish'
+}
+
+group = 'de.horizon'
+version = '1.0.0'
+
+def minecraftTargets = [
+    '1.21.10': [
+        yarn      : '1.21.10+build.3',
+        fabricApi : '0.138.4+1.21.10'
+    ],
+    '1.21.11': [
+        yarn      : '1.21.11+build.3',
+        fabricApi : '0.140.2+1.21.11'
+    ]
+]
+
+def allSupportedMinecraftVersions = minecraftTargets.keySet().toList()
+def multiVersionBuildRequested = !providers.gradleProperty('mcVersion').isPresent()
+def requestedMinecraftVersion = providers.gradleProperty('mcVersion').orElse('1.21.11').get()
+def targetMinecraftVersion = [
+    '12110'  : '1.21.10',
+    '1_21_10': '1.21.10',
+    '12111'  : '1.21.11',
+    '1_21_11': '1.21.11'
+].getOrDefault(requestedMinecraftVersion, requestedMinecraftVersion)
+if (!minecraftTargets.containsKey(targetMinecraftVersion)) {
+    throw new GradleException("Unsupported mcVersion '${requestedMinecraftVersion}'. Supported: ${minecraftTargets.keySet().join(', ')} plus aliases 12110, 1_21_10, 12111, 1_21_11")
+}
+def target = minecraftTargets[targetMinecraftVersion]
+def defaultPrismModsDirs = [
+    '1.21.10': 'C:/Users/marvi/AppData/Roaming/PrismLauncher/instances/1.21.10(1)/minecraft/mods'
+]
+def prismModsDir = providers.gradleProperty('prismModsDir')
+    .orElse(defaultPrismModsDirs.get(targetMinecraftVersion, ''))
+    .get()
+
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.fabricmc.net/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${targetMinecraftVersion}"
+    mappings "net.fabricmc:yarn:${target.yarn}:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.18.6"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${target.fabricApi}"
+    implementation "com.github.oshi:oshi-core:6.6.5"
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    archiveClassifier = targetMinecraftVersion
+}
+
+processResources {
+    inputs.property 'mod_version', project.version
+    filesMatching('fabric.mod.json') {
+        expand(
+            mod_version: project.version
+        )
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+def deployToPrismMods = tasks.register('deployToPrismMods') {
+    dependsOn tasks.named('remapJar')
+    onlyIf {
+        prismModsDir != null && !prismModsDir.isBlank()
+    }
+    doLast {
+        def modsDir = file(prismModsDir)
+        modsDir.mkdirs()
+        try {
+            delete fileTree(modsDir) {
+                include 'horizon-mod-*.jar'
+            }
+            copy {
+                from tasks.named('remapJar').flatMap { it.archiveFile }
+                into modsDir
+            }
+            logger.lifecycle("Deployed ${tasks.named('remapJar').get().archiveFileName.get()} to ${modsDir}")
+        } catch (Exception exception) {
+            logger.warn("Could not deploy Horizon jar to ${modsDir}. The file is likely locked by a running Minecraft instance. Close the game and run build again to update the mods folder automatically.")
+        }
+    }
+}
+
+tasks.named('build') {
+    finalizedBy(deployToPrismMods)
+}
+
+if (multiVersionBuildRequested) {
+    def additionalVersions = allSupportedMinecraftVersions.findAll { it != targetMinecraftVersion }
+    additionalVersions.each { version ->
+        def taskSuffix = version.replace('.', '_')
+        tasks.register("buildMinecraft_${taskSuffix}", GradleBuild) {
+            group = 'build'
+            description = "Builds Horizon for Minecraft ${version}."
+            tasks = ['build']
+            startParameter.projectProperties = new LinkedHashMap<>(gradle.startParameter.projectProperties)
+            startParameter.projectProperties.put('mcVersion', version)
+        }
+
+        tasks.named('build') {
+            finalizedBy(tasks.named("buildMinecraft_${taskSuffix}"))
+        }
+    }
+}
