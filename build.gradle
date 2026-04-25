@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'de.horizon'
-version = '1.0.0'
+version = '0.1.0'
 
 def minecraftTargets = [
     '1.21.10': [
