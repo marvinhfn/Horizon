@@ -24,7 +24,7 @@ public final class HorizonBackendApplication {
             response.addProperty("service", "horizon-backend");
             response.addProperty("appName", config.hypixelAppName());
             response.addProperty("hypixelConfigured", !config.hypixelApiKey().isBlank());
-            context.json(response.toString());
+            context.contentType("application/json").result(response.toString());
         });
 
         app.post("/v1/auth/token", context -> {
@@ -39,19 +39,19 @@ public final class HorizonBackendApplication {
             response.addProperty("expiresAt", tokenService.expiresAtEpochSeconds());
             response.addProperty("tokenType", "Bearer");
             response.addProperty("mode", "development");
-            context.json(response.toString());
+            context.contentType("application/json").result(response.toString());
         });
 
         app.get("/v1/skyblock/profile", context -> {
             try {
                 String player = context.queryParam("player");
-                context.json(hypixelProfileService.loadProfileSummary(player == null ? "" : player).toString());
+                context.contentType("application/json").result(hypixelProfileService.loadProfile(player == null ? "" : player).toString());
             } catch (Exception exception) {
                 context.status(HttpStatus.BAD_GATEWAY);
                 JsonObject response = new JsonObject();
                 response.addProperty("error", "Failed to load Hypixel profile.");
                 response.addProperty("detail", exception.getMessage());
-                context.json(response.toString());
+                context.contentType("application/json").result(response.toString());
             }
         });
 

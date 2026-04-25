@@ -31,11 +31,13 @@ public final class HorizonProfileGateway {
             stringValue(profile, "playerUuid"),
             stringValue(profile, "profileId"),
             stringValue(profile, "profileName"),
+            stringValue(profile, "gameMode"),
             intValue(profile, "skyblockLevel"),
             intValue(profile, "catacombsLevel"),
             doubleValue(profile, "purse"),
             doubleValue(profile, "bank"),
             doubleValue(profile, "networth"),
+            parseProfileNames(arrayValue(profile, "profileNames")),
             parseStorages(arrayValue(profile, "storages")),
             parseAccessories(arrayValue(profile, "accessories")),
             parsePets(arrayValue(profile, "pets")),
@@ -43,6 +45,16 @@ public final class HorizonProfileGateway {
             parseSlayers(arrayValue(profile, "slayers")),
             parseMetadata(objectValue(profile, "metadata"))
         );
+    }
+
+    private List<String> parseProfileNames(JsonArray profiles) {
+        List<String> values = new ArrayList<>();
+        for (JsonElement element : profiles) {
+            if (element.isJsonPrimitive()) {
+                values.add(element.getAsString());
+            }
+        }
+        return List.copyOf(values);
     }
 
     private List<HorizonStoragePage> parseStorages(JsonArray storages) {

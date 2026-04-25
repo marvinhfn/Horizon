@@ -1,32 +1,78 @@
 # Horizon
 
-Fabric Client Mod fuer Hypixel SkyBlock QoL.
+Horizon ist ein clientseitiger Fabric-Mod fuer Hypixel SkyBlock. Das Projekt kombiniert Ingame-Overlays, HUD-Elemente, Dungeon-Hilfen, Profilansichten und eine optionale Backend-Anbindung fuer serverseitig geladene Profildaten.
 
-## Status
+## Projektstand
 
-Dieses Projekt ist auf Minecraft `1.21.1` ausgelegt. Die von dir genannte Version `1.21.11` existiert fuer Java Edition so nicht, deshalb ist das Projekt auf `1.21.1` aufgebaut.
+Der Mod ist aktuell fuer Minecraft `1.21.10` und `1.21.11` ausgelegt. Gebaut wird mit Fabric Loom, Yarn-Mappings und Java 21. Standardmaessig laeuft der Build auf `1.21.11`; ohne `mcVersion` wird zusaetzlich auch die zweite unterstuetzte Version gebaut.
 
-## Vorhandene Funktionen
+## Funktionsumfang
 
-- Client-Command `/horizon` oeffnet ein Ingame-Optionsmenue
-- Verschiebbares HUD-System mit explizit freigegebenen HUD-Elementen
-- Erstes HUD fuer:
-  - Spirit Mask
-  - Bonzo Mask
-  - Phoenix Pet
-- Gruener Ready-Status oder Cooldown-Timer pro Eintrag
-- Persistente Konfiguration in `config/horizon.json`
+- Ingame-Konfiguration ueber `/horizon` und den Hotkey `H`
+- Profilansicht ueber `/hv` und `/hv <spieler>`
+- Verschiebbares HUD-System mit Zeit-, Performance-, System- und Revive-Anzeigen
+- Dungeon-Funktionen mit Raum-Erkennung, Puzzle-Overlays und Alerts
+- Party-Finder-Overlay fuer Dungeon-Runs
+- Ersetzende Hypixel-Sidebar als kompakte Statusleiste
+- Chat- und Particle-Filter fuer SkyBlock-spezifische Stoerquellen
+- Spotify-Steuerung direkt aus Inventar-Screens
+- Optionale Backend-Anbindung fuer authentifizierte Profil- und Inventardaten
 
-## Projektstruktur
+## Architektur
 
-- `de.horizon.HorizonClient`: Client-Einstiegspunkt
-- `de.horizon.config`: Laden/Speichern der Konfiguration
-- `de.horizon.hud`: HUD-Registry und HUD-Elemente
-- `de.horizon.feature.revive`: Cooldown-Tracking fuer Death-Save-Abilities
-- `de.horizon.screen`: Config-Screen und HUD-Layout-Screen
+Das Repository besteht aus zwei Teilen:
 
-## Hinweise
+- `src/`: Fabric-Client-Mod mit allen Ingame-Funktionen
+- `backend/`: kleines Javalin-Backend fuer Dev-Auth und serverseitige Hypixel-Profilabfragen
 
-- Die Erkennung der Cooldowns laeuft aktuell ueber Hypixel-Chatnachrichten.
-- Bonzo Mask verwendet einen konfigurierbaren Cooldown, weil der echte Wert von deinem Dungeoneering-Level abhaengt.
-- Neue HUD-Elemente koennen ueber `HudRegistry` registriert werden. Verschiebbar sind nur Elemente, bei denen `isMovable()` `true` liefert.
+Wichtige Einstiegspunkte:
+
+- `src/main/java/de/horizon/HorizonClient.java`: registriert Commands, Keybinds, Tick-Hooks, HUDs und Overlays
+- `src/main/java/de/horizon/screen/HorizonConfigScreen.java`: textorientierte Ingame-Konfiguration
+- `src/main/java/de/horizon/screen/PlayerProfileScreen.java`: Profilansicht im Client
+- `src/main/java/de/horizon/feature/dungeon/`: Dungeon-State, Solver und Alerts
+- `src/main/java/de/horizon/spotify/`: Spotify-Integration im Inventar
+- `backend/src/main/java/de/horizon/backend/HorizonBackendApplication.java`: Startpunkt des Backends
+
+## Build
+
+Client kompilieren:
+
+```powershell
+.\gradlew.bat compileJava -PmcVersion=12110
+.\gradlew.bat compileJava -PmcVersion=12111
+```
+
+JARs bauen:
+
+```powershell
+.\gradlew.bat build -PmcVersion=12110 --rerun-tasks
+.\gradlew.bat build -PmcVersion=12111 --rerun-tasks
+```
+
+Ohne gesetzte `mcVersion` wird nach dem ersten Build automatisch auch die jeweils andere unterstuetzte Minecraft-Version gebaut.
+
+Fuer lokale Entwicklung kann der Build die remappte Mod-Datei direkt in eine PrismLauncher-Instanz kopieren. Der Zielpfad laesst sich ueber `-PprismModsDir=...` ueberschreiben.
+
+## Backend
+
+Das Backend ist fuer lokale oder eigene Deployments gedacht und haelt sensible Server-Konfiguration ausserhalb des Clients. Aktuell stellt es drei Endpunkte bereit:
+
+- `GET /health`
+- `POST /v1/auth/token`
+- `GET /v1/skyblock/profile?player=<name>`
+
+Konfiguration erfolgt ueber Umgebungsvariablen oder lokal ueber `backend/.env`. Eine Vorlage liegt in `backend/.env.example`.
+
+Start:
+
+```powershell
+cd backend
+..\gradlew.bat run
+```
+
+## Hinweise zum Repository
+
+- `CLAUDE.md` dient als projektinterne Referenz und ist bewusst nicht fuer das Public-Repository vorgesehen.
+- Lokale `.env`-, Key-, Zertifikats- und Laufzeitdateien sollten nicht versioniert werden.
+- Bereits veroeffentlichte sensible Dateien oder Inhalte muessen zusaetzlich aus der Git-Historie entfernt und gegebenenfalls rotiert werden; eine `.gitignore` verhindert nur neue Commits.

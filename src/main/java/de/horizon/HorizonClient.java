@@ -1,7 +1,9 @@
 package de.horizon;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
+import de.horizon.api.HorizonApiClient;
 import de.horizon.api.auth.HorizonApiAuthService;
+import de.horizon.api.profile.HorizonProfileGateway;
 import de.horizon.config.ConfigManager;
 import de.horizon.feature.chat.SpamHider;
 import de.horizon.feature.dungeon.DungeonAlertService;
@@ -67,6 +69,8 @@ public final class HorizonClient implements ClientModInitializer {
     private final SpotifyInventoryOverlay spotifyInventoryOverlay = new SpotifyInventoryOverlay(spotifyService);
     private final HypixelProfileService hypixelProfileService = new HypixelProfileService(configManager);
     private final HorizonApiAuthService horizonApiAuthService = new HorizonApiAuthService(configManager);
+    private final HorizonApiClient horizonApiClient = new HorizonApiClient(configManager, horizonApiAuthService);
+    private final HorizonProfileGateway horizonProfileGateway = new HorizonProfileGateway(horizonApiClient);
     private final PartyFinderOverlay partyFinderOverlay = new PartyFinderOverlay(hypixelProfileService);
     private final HypixelSidebarOverlay hypixelSidebarOverlay = new HypixelSidebarOverlay();
     private KeyBinding openConfigKeyBinding;
@@ -245,7 +249,7 @@ public final class HorizonClient implements ClientModInitializer {
         }
 
         String target = player == null || player.isBlank() ? client.player.getName().getString() : player.trim();
-        pendingScreen = new PlayerProfileScreen(normalizeCommandParent(parent), target, hypixelProfileService);
+        pendingScreen = new PlayerProfileScreen(normalizeCommandParent(parent), target, horizonProfileGateway);
         return 1;
     }
 

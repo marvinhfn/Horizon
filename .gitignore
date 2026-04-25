@@ -5,11 +5,31 @@ run/
 out/
 net/
 *.iml
+CLAUDE.md
+CLAUDE.local.md
+*.env
+*.env.*
+!.env.example
+!backend/.env.example
+*.local
+*.secret
+secrets.*
+credentials.*
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.crt
+*.cer
+*.der
+*.pfx
 
 backend/.gradle/
 backend/build/
 backend/out/
 backend/.env
+backend/run/
 
 hs_err_pid*
 replay_pid*
