@@ -29,3 +29,17 @@ application {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
+
+def copyJarToBuildRoot = tasks.register('copyJarToBuildRoot') {
+    dependsOn tasks.named('jar')
+    doLast {
+        copy {
+            from tasks.named('jar').flatMap { it.archiveFile }
+            into layout.buildDirectory
+        }
+    }
+}
+
+tasks.named('build') {
+    finalizedBy(copyJarToBuildRoot)
+}

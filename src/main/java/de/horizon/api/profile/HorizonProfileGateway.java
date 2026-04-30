@@ -29,6 +29,8 @@ public final class HorizonProfileGateway {
         return new HorizonProfileData(
             stringValue(profile, "playerName"),
             stringValue(profile, "playerUuid"),
+            stringValue(profile, "playerSkinTexture"),
+            stringValue(profile, "playerSkinTextureSignature"),
             stringValue(profile, "profileId"),
             stringValue(profile, "profileName"),
             stringValue(profile, "gameMode"),
@@ -40,7 +42,9 @@ public final class HorizonProfileGateway {
             parseProfileNames(arrayValue(profile, "profileNames")),
             parseStorages(arrayValue(profile, "storages")),
             parseAccessories(arrayValue(profile, "accessories")),
+            parseAccessoryStorage(objectValue(profile, "accessoryStorage")),
             parsePets(arrayValue(profile, "pets")),
+            parseDungeons(objectValue(profile, "dungeons")),
             parseSkills(arrayValue(profile, "skills")),
             parseSlayers(arrayValue(profile, "slayers")),
             parseMetadata(objectValue(profile, "metadata"))
@@ -82,6 +86,7 @@ public final class HorizonProfileGateway {
                 stringValue(page, "title"),
                 intValue(page, "columns"),
                 intValue(page, "rows"),
+                parseItem(objectValue(page, "buttonItem")),
                 List.copyOf(slots)
             ));
         }
@@ -94,11 +99,14 @@ public final class HorizonProfileGateway {
         }
         return new HorizonInventoryItem(
             stringValue(item, "itemId"),
+            stringValue(item, "minecraftItemId"),
             stringValue(item, "displayName"),
             stringValue(item, "rarity"),
             intValue(item, "count"),
             stringValue(item, "lore"),
             stringValue(item, "iconTexture"),
+            stringValue(item, "iconTextureSignature"),
+            intValue(item, "leatherColor", -1),
             booleanValue(item, "enchanted")
         );
     }
@@ -121,6 +129,19 @@ public final class HorizonProfileGateway {
         return List.copyOf(values);
     }
 
+    private HorizonAccessoryStorage parseAccessoryStorage(JsonObject accessoryStorage) {
+        if (accessoryStorage.entrySet().isEmpty()) {
+            return HorizonAccessoryStorage.empty();
+        }
+        return new HorizonAccessoryStorage(
+            stringValue(accessoryStorage, "selectedPower"),
+            intValue(accessoryStorage, "highestMagicalPower"),
+            intValue(accessoryStorage, "bagUpgradesPurchased"),
+            parseStrings(arrayValue(accessoryStorage, "unlockedPowers")),
+            parseMetadata(objectValue(accessoryStorage, "tuning"))
+        );
+    }
+
     private List<HorizonPet> parsePets(JsonArray pets) {
         List<HorizonPet> values = new ArrayList<>();
         for (JsonElement element : pets) {
@@ -133,11 +154,61 @@ public final class HorizonProfileGateway {
                 stringValue(pet, "displayName"),
                 stringValue(pet, "tier"),
                 intValue(pet, "level"),
+                doubleValue(pet, "experience"),
                 booleanValue(pet, "active"),
-                stringValue(pet, "heldItem")
+                stringValue(pet, "heldItem"),
+                stringValue(pet, "heldItemDisplayName"),
+                intValue(pet, "candyUsed"),
+                booleanValue(pet, "soulbound"),
+                stringValue(pet, "skin"),
+                stringValue(pet, "skinDisplayName"),
+                stringValue(pet, "minecraftItemId"),
+                stringValue(pet, "iconTexture"),
+                stringValue(pet, "iconTextureSignature")
             ));
         }
         return List.copyOf(values);
+    }
+
+    private HorizonDungeonData parseDungeons(JsonObject dungeons) {
+        if (dungeons.entrySet().isEmpty()) {
+            return HorizonDungeonData.empty();
+        }
+        List<HorizonDungeonClass> classes = new ArrayList<>();
+        for (JsonElement element : arrayValue(dungeons, "classes")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject dungeonClass = element.getAsJsonObject();
+            classes.add(new HorizonDungeonClass(
+                stringValue(dungeonClass, "id"),
+                stringValue(dungeonClass, "displayName"),
+                intValue(dungeonClass, "level"),
+                doubleValue(dungeonClass, "experience"),
+                booleanValue(dungeonClass, "selected")
+            ));
+        }
+        List<HorizonDungeonFloor> floors = new ArrayList<>();
+        for (JsonElement element : arrayValue(dungeons, "floors")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject floor = element.getAsJsonObject();
+            floors.add(new HorizonDungeonFloor(
+                stringValue(floor, "id"),
+                stringValue(floor, "displayName"),
+                intValue(floor, "completions"),
+                intValue(floor, "fastestTimeMs"),
+                intValue(floor, "fastestSPlusTimeMs"),
+                intValue(floor, "bestScore")
+            ));
+        }
+        return new HorizonDungeonData(
+            stringValue(dungeons, "selectedClass"),
+            intValue(dungeons, "secrets"),
+            List.copyOf(classes),
+            List.copyOf(floors)
+        );
     }
 
     private List<HorizonSkill> parseSkills(JsonArray skills) {
@@ -156,6 +227,16 @@ public final class HorizonProfileGateway {
             ));
         }
         return List.copyOf(values);
+    }
+
+    private List<String> parseStrings(JsonArray values) {
+        List<String> parsed = new ArrayList<>();
+        for (JsonElement element : values) {
+            if (element.isJsonPrimitive()) {
+                parsed.add(element.getAsString());
+            }
+        }
+        return List.copyOf(parsed);
     }
 
     private List<HorizonSlayerBoss> parseSlayers(JsonArray slayers) {
@@ -206,10 +287,14 @@ public final class HorizonProfileGateway {
     }
 
     private int intValue(JsonObject object, String key) {
+        return intValue(object, key, 0);
+    }
+
+    private int intValue(JsonObject object, String key, int fallback) {
         try {
-            return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsInt() : 0;
+            return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsInt() : fallback;
         } catch (NumberFormatException ignored) {
-            return 0;
+            return fallback;
         }
     }
 

@@ -6,6 +6,8 @@ import java.util.Map;
 public record HorizonProfileData(
     String playerName,
     String playerUuid,
+    String playerSkinTexture,
+    String playerSkinTextureSignature,
     String profileId,
     String profileName,
     String gameMode,
@@ -17,7 +19,9 @@ public record HorizonProfileData(
     List<String> profileNames,
     List<HorizonStoragePage> storages,
     List<HorizonAccessory> accessories,
+    HorizonAccessoryStorage accessoryStorage,
     List<HorizonPet> pets,
+    HorizonDungeonData dungeons,
     List<HorizonSkill> skills,
     List<HorizonSlayerBoss> slayers,
     Map<String, String> metadata
@@ -29,6 +33,8 @@ public record HorizonProfileData(
             "",
             "",
             "",
+            "",
+            "",
             0,
             0,
             0.0D,
@@ -37,7 +43,9 @@ public record HorizonProfileData(
             List.of(),
             List.of(),
             List.of(),
+            HorizonAccessoryStorage.empty(),
             List.of(),
+            HorizonDungeonData.empty(),
             List.of(),
             List.of(),
             Map.of()

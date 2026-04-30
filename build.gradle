@@ -93,7 +93,18 @@ def deployToPrismMods = tasks.register('deployToPrismMods') {
     }
 }
 
+def copyJarToBuildRoot = tasks.register('copyJarToBuildRoot') {
+    dependsOn tasks.named('remapJar')
+    doLast {
+        copy {
+            from tasks.named('remapJar').flatMap { it.archiveFile }
+            into layout.buildDirectory
+        }
+    }
+}
+
 tasks.named('build') {
+    finalizedBy(copyJarToBuildRoot)
     finalizedBy(deployToPrismMods)
 }
 

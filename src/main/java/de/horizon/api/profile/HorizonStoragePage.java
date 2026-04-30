@@ -7,6 +7,7 @@ public record HorizonStoragePage(
     String title,
     int columns,
     int rows,
+    HorizonInventoryItem buttonItem,
     List<HorizonInventorySlot> slots
 ) {
 }

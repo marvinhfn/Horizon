@@ -21,6 +21,7 @@ import java.util.concurrent.Executors;
 
 public final class HorizonApiAuthService {
     private static final long REFRESH_SKEW_SECONDS = 120L;
+    private static final long FAILURE_RETRY_SECONDS = 60L;
     private static final String USER_AGENT = "HorizonMod/Auth";
 
     private final ConfigManager configManager;
@@ -31,6 +32,7 @@ public final class HorizonApiAuthService {
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     private volatile boolean refreshInFlight;
+    private volatile long lastFailureAtEpochSecond;
 
     public HorizonApiAuthService(ConfigManager configManager) {
         this.configManager = configManager;
@@ -42,7 +44,7 @@ public final class HorizonApiAuthService {
         }
         HorizonAccessToken token = currentToken();
         long now = Instant.now().getEpochSecond();
-        if (!refreshInFlight && token.isExpired(now, REFRESH_SKEW_SECONDS)) {
+        if (!refreshInFlight && token.isExpired(now, REFRESH_SKEW_SECONDS) && now >= lastFailureAtEpochSecond + FAILURE_RETRY_SECONDS) {
             refreshAsync();
         }
     }
@@ -85,6 +87,7 @@ public final class HorizonApiAuthService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300 || response.body().isBlank()) {
+                lastFailureAtEpochSecond = Instant.now().getEpochSecond();
                 HorizonMod.LOGGER.warn("Horizon backend auth failed with status {}", response.statusCode());
                 return false;
             }
@@ -93,6 +96,7 @@ public final class HorizonApiAuthService {
             String accessToken = stringValue(root, "accessToken");
             long expiresAt = longValue(root, "expiresAt");
             if (accessToken.isBlank() || expiresAt <= 0L) {
+                lastFailureAtEpochSecond = Instant.now().getEpochSecond();
                 HorizonMod.LOGGER.warn("Horizon backend auth returned incomplete token payload");
                 return false;
             }
@@ -101,9 +105,11 @@ public final class HorizonApiAuthService {
             config.setHorizonBackendAccessToken(accessToken);
             config.setHorizonBackendTokenExpiresAt(expiresAt);
             configManager.save();
+            lastFailureAtEpochSecond = 0L;
             HorizonMod.LOGGER.info("Refreshed Horizon backend token");
             return true;
         } catch (Exception exception) {
+            lastFailureAtEpochSecond = Instant.now().getEpochSecond();
             HorizonMod.LOGGER.warn("Failed to refresh Horizon backend token", exception);
             return false;
         }

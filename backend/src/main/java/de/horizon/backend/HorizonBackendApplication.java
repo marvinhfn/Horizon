@@ -1,6 +1,7 @@
 package de.horizon.backend;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import de.horizon.backend.auth.DevTokenService;
 import de.horizon.backend.config.BackendConfig;
 import de.horizon.backend.hypixel.HypixelProfileService;
@@ -28,7 +29,17 @@ public final class HorizonBackendApplication {
         });
 
         app.post("/v1/auth/token", context -> {
-            JsonObject request = context.bodyAsClass(JsonObject.class);
+            JsonObject request;
+            try {
+                String body = context.body();
+                request = body == null || body.isBlank() ? new JsonObject() : JsonParser.parseString(body).getAsJsonObject();
+            } catch (Exception exception) {
+                context.status(HttpStatus.BAD_REQUEST);
+                JsonObject response = new JsonObject();
+                response.addProperty("error", "Invalid auth payload.");
+                context.contentType("application/json").result(response.toString());
+                return;
+            }
             String minecraftUuid = stringValue(request, "minecraftUuid");
             String minecraftUsername = stringValue(request, "minecraftUsername");
             String audience = stringValue(request, "audience");

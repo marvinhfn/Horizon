@@ -7,6 +7,7 @@ net/
 *.iml
 CLAUDE.md
 CLAUDE.local.md
+TODO.md
 *.env
 *.env.*
 !.env.example
