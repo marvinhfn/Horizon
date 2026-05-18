@@ -99,7 +99,7 @@ public abstract class ChatScreenMixin extends Screen {
      * using the raw mouse Y. We add TAB_BAR_LIFT to that Y so the re-render operates at the
      * logical (un-shifted) positions, matching the visual rendering.
      */
-    @Redirect(method = "mouseClicked", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Click;y:()D"))
+    @Redirect(method = "mouseClicked", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Click;y()D"))
     private double horizon$adjustClickYForChatLift(Click click) {
         return click.y() + ChatTabManager.TAB_BAR_LIFT;
     }
