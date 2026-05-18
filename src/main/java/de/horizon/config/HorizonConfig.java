@@ -68,6 +68,7 @@ public final class HorizonConfig {
     private String chatBridgeBotName = "catgirlfc";
     private boolean chatBridgeHidden = false;
     private ChatCopyMode chatCopyMode = ChatCopyMode.OFF;
+    private boolean chatCopyFullMessage = true;
     private final Map<String, Boolean> particleStates = new HashMap<>();
     private final Map<String, HudPosition> hudPositions = new HashMap<>();
 
@@ -557,6 +558,14 @@ public final class HorizonConfig {
 
     public void setChatCopyMode(ChatCopyMode chatCopyMode) {
         this.chatCopyMode = chatCopyMode == null ? ChatCopyMode.OFF : chatCopyMode;
+    }
+
+    public boolean isChatCopyFullMessage() {
+        return chatCopyFullMessage;
+    }
+
+    public void setChatCopyFullMessage(boolean chatCopyFullMessage) {
+        this.chatCopyFullMessage = chatCopyFullMessage;
     }
 
     public Map<String, Boolean> getParticleStates() {

@@ -363,7 +363,8 @@ public final class HorizonConfigScreen extends Screen {
         y = drawToggleRow(context, viewport.x, y, "Bridge verstecken", config().isChatBridgeHidden(), "Discord-Bridge-Nachrichten im Guild-Chat ausblenden.");
         y = drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, "Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
         ChatCopyMode copyMode = config().getChatCopyMode();
-        drawCycleRow(context, viewport.x, y, "Nachrichten kopieren", copyMode.label(), copyMode != ChatCopyMode.OFF, "Modus: Aus, Strg+Links, Rechts oder Beides.");
+        y = drawCycleRow(context, viewport.x, y, "Nachrichten kopieren", copyMode.label(), copyMode != ChatCopyMode.OFF, "Modus: Aus, Strg+LK, Rechtsklick oder Beides.");
+        drawToggleRow(context, viewport.x + 16, y, "Gesamte Nachricht", config().isChatCopyFullMessage(), "Alle Zeilen des Eintrags oder nur die angeklickte Zeile.");
     }
 
     private void renderAntiSpamText(DrawContext context, Rect viewport) {
@@ -718,6 +719,12 @@ public final class HorizonConfigScreen extends Screen {
             ChatCopyMode[] modes = ChatCopyMode.values();
             int next = (config().getChatCopyMode().ordinal() + 1) % modes.length;
             config().setChatCopyMode(modes[next]);
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight("Modus: Aus, Strg+LK, Rechtsklick oder Beides.");
+        if (rowRect(viewport.x + 16, y).contains(mouseX, mouseY)) {
+            config().setChatCopyFullMessage(!config().isChatCopyFullMessage());
             horizonClient.getConfigManager().save();
             return true;
         }
@@ -1320,7 +1327,8 @@ public final class HorizonConfigScreen extends Screen {
         return 24
             + toggleRowHeight("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.")
             + fieldRowHeight("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).")
-            + toggleRowHeight("Modus: Aus, Strg+Links, Rechts oder Beides.");
+            + toggleRowHeight("Modus: Aus, Strg+LK, Rechtsklick oder Beides.")
+            + toggleRowHeight("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.");
     }
 
     private void drawWindowChrome(DrawContext context, Rect frame, Rect viewport, int accent) {

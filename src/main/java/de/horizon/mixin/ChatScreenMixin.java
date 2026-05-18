@@ -134,7 +134,8 @@ public abstract class ChatScreenMixin extends Screen {
         if (!triggered) {
             return;
         }
-        String text = ((ChatHudAccess) this.client.inGameHud.getChatHud()).horizon$getVisibleLineTextAt(click.x(), click.y());
+        boolean fullEntry = horizonClient.getConfigManager().getConfig().isChatCopyFullMessage();
+        String text = ((ChatHudAccess) this.client.inGameHud.getChatHud()).horizon$getMessageTextAt(click.x(), click.y(), fullEntry);
         if (text == null || text.isBlank()) {
             return;
         }

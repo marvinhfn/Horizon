@@ -42,7 +42,7 @@ public abstract class ChatHudMixin implements ChatHudAccess {
 
     @Unique
     @Override
-    public String horizon$getVisibleLineTextAt(double mouseX, double mouseY) {
+    public String horizon$getMessageTextAt(double mouseX, double mouseY, boolean fullEntry) {
         if (visibleMessages == null || visibleMessages.isEmpty()) {
             return null;
         }
@@ -56,17 +56,43 @@ public abstract class ChatHudMixin implements ChatHudAccess {
         if (lineIndex < 0 || lineIndex >= visibleMessages.size()) {
             return null;
         }
-        OrderedText line = visibleMessages.get(lineIndex).content();
-        if (line == null) {
-            return null;
+        if (!fullEntry) {
+            String single = horizon$lineToString(visibleMessages.get(lineIndex).content()).trim();
+            return single.isEmpty() ? null : single;
+        }
+        // Full entry: endOfEntry=true marks the last (bottom-most) wrapped line of an entry.
+        // Walk backward to find the first line of this entry.
+        int start = lineIndex;
+        while (start > 0 && !visibleMessages.get(start - 1).endOfEntry()) {
+            start--;
+        }
+        // Walk forward to find the last line of this entry.
+        int end = lineIndex;
+        while (end < visibleMessages.size() - 1 && !visibleMessages.get(end).endOfEntry()) {
+            end++;
         }
         StringBuilder sb = new StringBuilder();
-        line.accept((index, style, codepoint) -> {
+        for (int i = start; i <= end; i++) {
+            if (i > start) {
+                sb.append(' ');
+            }
+            sb.append(horizon$lineToString(visibleMessages.get(i).content()));
+        }
+        String result = sb.toString().trim();
+        return result.isEmpty() ? null : result;
+    }
+
+    @Unique
+    private String horizon$lineToString(OrderedText text) {
+        if (text == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        text.accept((index, style, codepoint) -> {
             sb.appendCodePoint(codepoint);
             return true;
         });
-        String result = sb.toString().trim();
-        return result.isEmpty() ? null : result;
+        return sb.toString();
     }
 
     /**
