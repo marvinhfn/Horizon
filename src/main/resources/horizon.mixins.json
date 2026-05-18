@@ -10,7 +10,8 @@
     "InGameHudMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientPlayerInteractionManagerMixin",
-    "ParticleManagerMixin"
+    "ParticleManagerMixin",
+    "SuggestionWindowAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
