@@ -5,6 +5,7 @@ import de.horizon.api.HorizonApiClient;
 import de.horizon.api.auth.HorizonApiAuthService;
 import de.horizon.api.profile.HorizonProfileGateway;
 import de.horizon.config.ConfigManager;
+import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.feature.chat.SpamHider;
 import de.horizon.feature.dungeon.DungeonAlertService;
 import de.horizon.feature.dungeon.DungeonStateService;
@@ -55,6 +56,7 @@ public final class HorizonClient implements ClientModInitializer {
 
     private final ConfigManager configManager = new ConfigManager();
     private final SpamHider spamHider = new SpamHider();
+    private final ChatTabManager chatTabManager = new ChatTabManager();
     private final ReviveTracker reviveTracker = new ReviveTracker();
     private final DungeonAlertService dungeonAlertService = new DungeonAlertService();
     private final DungeonStateService dungeonStateService = new DungeonStateService();
@@ -106,7 +108,8 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonRoomDetector.handleChatMessage(raw);
             dungeonSolverOverlay.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
-            return !spamHider.shouldHide(raw, configManager.getConfig());
+            return !spamHider.shouldHide(raw, configManager.getConfig())
+                && !chatTabManager.shouldHide(raw, configManager.getConfig());
         });
         ClientReceiveMessageEvents.ALLOW_CHAT.register((message, signedMessage, sender, params, receptionTimestamp) -> {
             String raw = message.getString();
@@ -114,7 +117,8 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonRoomDetector.handleChatMessage(raw);
             dungeonSolverOverlay.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
-            return !spamHider.shouldHide(raw, configManager.getConfig());
+            return !spamHider.shouldHide(raw, configManager.getConfig())
+                && !chatTabManager.shouldHide(raw, configManager.getConfig());
         });
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, MinecraftClient.getInstance() == null ? null : MinecraftClient.getInstance().currentScreen));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -228,6 +232,10 @@ public final class HorizonClient implements ClientModInitializer {
 
     public DungeonRoomDetector getDungeonRoomDetector() {
         return dungeonRoomDetector;
+    }
+
+    public ChatTabManager getChatTabManager() {
+        return chatTabManager;
     }
 
     public DungeonSolverOverlay getDungeonSolverOverlay() {

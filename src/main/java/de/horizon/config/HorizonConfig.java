@@ -63,6 +63,8 @@ public final class HorizonConfig {
     private boolean hideHealingMessages = false;
     private boolean hideDungeonEventMessages = false;
     private boolean hideLockedChestMessages = true;
+    private String chatBridgeBotName = "catgirlfc";
+    private boolean chatBridgeHidden = false;
     private final Map<String, Boolean> particleStates = new HashMap<>();
     private final Map<String, HudPosition> hudPositions = new HashMap<>();
 
@@ -520,6 +522,22 @@ public final class HorizonConfig {
 
     public void setHideLockedChestMessages(boolean hideLockedChestMessages) {
         this.hideLockedChestMessages = hideLockedChestMessages;
+    }
+
+    public String getChatBridgeBotName() {
+        return chatBridgeBotName == null || chatBridgeBotName.isBlank() ? "catgirlfc" : chatBridgeBotName.trim();
+    }
+
+    public void setChatBridgeBotName(String chatBridgeBotName) {
+        this.chatBridgeBotName = chatBridgeBotName == null ? "catgirlfc" : chatBridgeBotName.trim();
+    }
+
+    public boolean isChatBridgeHidden() {
+        return chatBridgeHidden;
+    }
+
+    public void setChatBridgeHidden(boolean chatBridgeHidden) {
+        this.chatBridgeHidden = chatBridgeHidden;
     }
 
     public Map<String, Boolean> getParticleStates() {

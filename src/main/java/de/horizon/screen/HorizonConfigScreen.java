@@ -55,6 +55,7 @@ public final class HorizonConfigScreen extends Screen {
     private String hudAccentColorInput;
     private String spotifyClientIdInput;
     private String hypixelApiKeyInput;
+    private String chatBridgeBotNameInput;
     private String globalSearchInput = "";
     private String particleSearchInput = "";
     private int contentScrollOffset = 0;
@@ -70,6 +71,7 @@ public final class HorizonConfigScreen extends Screen {
         this.hudAccentColorInput = config().getHudAccentColor();
         this.spotifyClientIdInput = config().getSpotifyClientId();
         this.hypixelApiKeyInput = config().getHypixelApiKey();
+        this.chatBridgeBotNameInput = config().getChatBridgeBotName();
     }
 
     @Override
@@ -134,6 +136,7 @@ public final class HorizonConfigScreen extends Screen {
             case PARTICLE -> handleParticleClick(click.x(), click.y(), frame);
             case MISC -> handleMiscClick(click.x(), click.y(), frame);
             case ANTI_SPAM -> handleAntiSpamClick(click.x(), click.y(), frame);
+            case CHAT -> handleChatClick(click.x(), click.y(), frame);
         } || super.mouseClicked(click, doubled);
     }
 
@@ -168,6 +171,12 @@ public final class HorizonConfigScreen extends Screen {
         if (inputFocus == InputFocus.HYPIXEL_API_KEY) {
             if (isAllowedApiKeyChar(input.codepoint()) && hypixelApiKeyInput.length() < 64) {
                 hypixelApiKeyInput += Character.toString(input.codepoint());
+            }
+            return true;
+        }
+        if (inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME) {
+            if (!Character.isISOControl(input.codepoint()) && chatBridgeBotNameInput.length() < 48) {
+                chatBridgeBotNameInput += Character.toString(input.codepoint());
             }
             return true;
         }
@@ -269,6 +278,7 @@ public final class HorizonConfigScreen extends Screen {
                 case PARTICLE -> renderParticleText(context, viewport);
                 case MISC -> renderMiscText(context, viewport);
                 case ANTI_SPAM -> renderAntiSpamText(context, viewport);
+                case CHAT -> renderChatText(context, viewport);
             }
         }
         context.disableScissor();
@@ -343,6 +353,13 @@ public final class HorizonConfigScreen extends Screen {
         y = drawToggleRow(context, viewport.x, y, "System HUD", config().isSystemHudEnabled(), "CPU / GPU / Temperaturen.");
         y = drawToggleRow(context, viewport.x, y, "Solver Debug HUD", config().isSolverDebugHudEnabled(), "Diagnoseanzeige fuer Dungeon Solver.");
         drawToggleRow(context, viewport.x, y, "Defense Bar", config().isHideDefenseBar(), "Blendet die Vanilla-Ruestungsanzeige aus.");
+    }
+
+    private void renderChatText(DrawContext context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        y = drawSectionTitle(context, viewport.x, y, "Chat");
+        y = drawToggleRow(context, viewport.x, y, "Bridge verstecken", config().isChatBridgeHidden(), "Discord-Bridge-Nachrichten im Guild-Chat ausblenden.");
+        drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, "Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
     }
 
     private void renderAntiSpamText(DrawContext context, Rect viewport) {
@@ -656,6 +673,22 @@ public final class HorizonConfigScreen extends Screen {
         return false;
     }
 
+    private boolean handleChatClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24;
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setChatBridgeHidden(!config().isChatBridgeHidden());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.");
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            inputFocus = InputFocus.CHAT_BRIDGE_BOT_NAME;
+            return true;
+        }
+        return false;
+    }
+
     private boolean handleAntiSpamClick(double mouseX, double mouseY, Rect frame) {
         Rect viewport = contentViewportRect(frame);
         int y = viewport.y - contentScrollOffset + 24;
@@ -721,11 +754,26 @@ public final class HorizonConfigScreen extends Screen {
         return horizonClient.getConfigManager().getConfig();
     }
 
+    private void refreshChatBridgeBotNameInput() {
+        chatBridgeBotNameInput = config().getChatBridgeBotName();
+    }
+
+    private void commitChatBridgeBotNameInput() {
+        if (inputFocus != InputFocus.CHAT_BRIDGE_BOT_NAME) {
+            return;
+        }
+        config().setChatBridgeBotName(chatBridgeBotNameInput);
+        refreshChatBridgeBotNameInput();
+        inputFocus = InputFocus.NONE;
+        horizonClient.getConfigManager().save();
+    }
+
     private void refreshInputs() {
         refreshCatacombsInput();
         refreshHudAccentColorInput();
         refreshSpotifyClientIdInput();
         refreshHypixelApiKeyInput();
+        refreshChatBridgeBotNameInput();
         if (inputFocus == InputFocus.GLOBAL_SEARCH) {
             globalSearchInput = "";
         }
@@ -771,6 +819,7 @@ public final class HorizonConfigScreen extends Screen {
         commitHudAccentColorInput();
         commitSpotifyClientIdInput();
         commitHypixelApiKeyInput();
+        commitChatBridgeBotNameInput();
     }
 
     private void commitCatacombsInput() {
@@ -832,6 +881,7 @@ public final class HorizonConfigScreen extends Screen {
             case HUD_ACCENT_COLOR -> hudAccentColorInput = HudStyle.sanitizeHex(clipboard);
             case SPOTIFY_CLIENT_ID -> spotifyClientIdInput = sanitizeClipboard(clipboard, false);
             case HYPIXEL_API_KEY -> hypixelApiKeyInput = sanitizeClipboard(clipboard, false);
+            case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput = sanitizeClipboard(clipboard, false);
             case GLOBAL_SEARCH -> globalSearchInput = sanitizeClipboard(clipboard, false);
             case PARTICLE_SEARCH -> {
                 particleSearchInput = sanitizeClipboard(clipboard, false);
@@ -851,6 +901,7 @@ public final class HorizonConfigScreen extends Screen {
             case HUD_ACCENT_COLOR -> hudAccentColorInput;
             case SPOTIFY_CLIENT_ID -> spotifyClientIdInput;
             case HYPIXEL_API_KEY -> hypixelApiKeyInput;
+            case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput;
             case GLOBAL_SEARCH -> globalSearchInput;
             case PARTICLE_SEARCH -> particleSearchInput;
             case NONE -> "";
@@ -880,6 +931,11 @@ public final class HorizonConfigScreen extends Screen {
             case HYPIXEL_API_KEY -> {
                 if (!hypixelApiKeyInput.isEmpty()) {
                     hypixelApiKeyInput = hypixelApiKeyInput.substring(0, hypixelApiKeyInput.length() - 1);
+                }
+            }
+            case CHAT_BRIDGE_BOT_NAME -> {
+                if (!chatBridgeBotNameInput.isEmpty()) {
+                    chatBridgeBotNameInput = chatBridgeBotNameInput.substring(0, chatBridgeBotNameInput.length() - 1);
                 }
             }
             case GLOBAL_SEARCH -> {
@@ -922,6 +978,7 @@ public final class HorizonConfigScreen extends Screen {
             case PARTICLE -> particleContentHeight();
             case MISC -> miscContentHeight();
             case ANTI_SPAM -> antiSpamContentHeight();
+            case CHAT -> chatContentHeight();
         };
         return Math.max(0, contentHeight - viewport.height);
     }
@@ -982,6 +1039,8 @@ public final class HorizonConfigScreen extends Screen {
         for (SpamFilterOption option : SpamFilterOption.values()) {
             addSearchResult(results, query, option.title(), "Anti Spam", Tab.ANTI_SPAM, null, option.title() + " " + option.description());
         }
+        addSearchResult(results, query, "Bridge verstecken", "Chat", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
+        addSearchResult(results, query, "Bridge Bot Name", "Chat", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
         return results;
     }
 
@@ -1219,6 +1278,12 @@ public final class HorizonConfigScreen extends Screen {
         return height;
     }
 
+    private int chatContentHeight() {
+        return 24
+            + toggleRowHeight("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.")
+            + fieldRowHeight("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
+    }
+
     private void drawWindowChrome(DrawContext context, Rect frame, Rect viewport, int accent) {
         context.fill(frame.x, frame.y, frame.right(), frame.bottom(), CONFIG_WINDOW);
         context.fill(viewport.x - 12, frame.y + 35, frame.right() - 1, frame.bottom() - 1, CONFIG_WINDOW);
@@ -1242,7 +1307,8 @@ public final class HorizonConfigScreen extends Screen {
         DUNGEON("Dungeons"),
         PARTICLE("Particle"),
         MISC("Misc"),
-        ANTI_SPAM("Anti Spam");
+        ANTI_SPAM("Anti Spam"),
+        CHAT("Chat");
 
         private final String label;
 
@@ -1270,6 +1336,7 @@ public final class HorizonConfigScreen extends Screen {
         HUD_ACCENT_COLOR,
         SPOTIFY_CLIENT_ID,
         HYPIXEL_API_KEY,
+        CHAT_BRIDGE_BOT_NAME,
         GLOBAL_SEARCH,
         PARTICLE_SEARCH
     }

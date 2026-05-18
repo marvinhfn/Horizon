@@ -1,7 +1,11 @@
 package de.horizon.mixin;
 
 import de.horizon.HorizonClient;
+import de.horizon.config.HorizonConfig;
+import de.horizon.feature.chat.ChatTab;
+import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.DrawContext;
@@ -13,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ChatScreen.class)
 public abstract class ChatScreenMixin extends Screen {
@@ -53,6 +58,77 @@ public abstract class ChatScreenMixin extends Screen {
     private void horizon$raiseChatInputBackground(DrawContext context, int x1, int y1, int x2, int y2, int color) {
         int offset = HypixelSidebarOverlay.lowerHudOffset(client);
         context.fill(x1, y1 - offset, x2, y2 - offset, color);
+    }
+
+    @Inject(method = "render", at = @At("TAIL"))
+    private void horizon$renderChatTabs(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (chatField == null) {
+            return;
+        }
+        HorizonClient horizonClient = HorizonClient.getInstance();
+        if (horizonClient == null) {
+            return;
+        }
+        ChatTabManager tabManager = horizonClient.getChatTabManager();
+        HorizonConfig config = horizonClient.getConfigManager().getConfig();
+
+        int tabY = chatField.getY() - 14;
+        int x = 2;
+
+        for (ChatTab tab : ChatTab.values()) {
+            boolean active = tab == tabManager.getActiveTab();
+            int bgColor = active ? 0xCC75E7CA : 0x80333333;
+            int textColor = active ? 0xFF1E2A37 : 0xFFCCCCCC;
+            context.fill(x, tabY, x + 12, tabY + 10, bgColor);
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal(tab.key()), x + 6, tabY + 1, textColor);
+            x += 14;
+        }
+
+        // Bridge toggle — highlighted when bridge IS visible (not hidden)
+        x += 4;
+        boolean bridgeHidden = config.isChatBridgeHidden();
+        int bridgeBg = bridgeHidden ? 0x80333333 : 0xCC75E7CA;
+        int bridgeText = bridgeHidden ? 0xFFCCCCCC : 0xFF1E2A37;
+        context.fill(x, tabY, x + 12, tabY + 10, bridgeBg);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("B"), x + 6, tabY + 1, bridgeText);
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void horizon$handleTabClick(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        if (click.button() != 0 || chatField == null) {
+            return;
+        }
+        HorizonClient horizonClient = HorizonClient.getInstance();
+        if (horizonClient == null) {
+            return;
+        }
+
+        int tabY = chatField.getY() - 14;
+        double mx = click.x();
+        double my = click.y();
+
+        if (my < tabY || my > tabY + 10) {
+            return;
+        }
+
+        int x = 2;
+        for (ChatTab tab : ChatTab.values()) {
+            if (mx >= x && mx <= x + 12) {
+                horizonClient.getChatTabManager().setActiveTab(tab);
+                cir.setReturnValue(true);
+                return;
+            }
+            x += 14;
+        }
+
+        // Bridge button
+        x += 4;
+        if (mx >= x && mx <= x + 12) {
+            HorizonConfig config = horizonClient.getConfigManager().getConfig();
+            config.setChatBridgeHidden(!config.isChatBridgeHidden());
+            horizonClient.getConfigManager().save();
+            cir.setReturnValue(true);
+        }
     }
 
     private int adjustedScreenHeight(int originalHeight) {
