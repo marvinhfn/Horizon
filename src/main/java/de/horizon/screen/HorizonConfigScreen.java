@@ -352,7 +352,8 @@ public final class HorizonConfigScreen extends Screen {
         y = drawToggleRow(context, viewport.x, y, "FPS / TPS / Ping", config().isPerformanceHudEnabled(), "Performance-Overlay.");
         y = drawToggleRow(context, viewport.x, y, "System HUD", config().isSystemHudEnabled(), "CPU / GPU / Temperaturen.");
         y = drawToggleRow(context, viewport.x, y, "Solver Debug HUD", config().isSolverDebugHudEnabled(), "Diagnoseanzeige fuer Dungeon Solver.");
-        drawToggleRow(context, viewport.x, y, "Defense Bar", config().isHideDefenseBar(), "Blendet die Vanilla-Ruestungsanzeige aus.");
+        y = drawToggleRow(context, viewport.x, y, "Defense Bar", config().isHideDefenseBar(), "Blendet die Vanilla-Ruestungsanzeige aus.");
+        drawToggleRow(context, viewport.x, y, "Kompakte Herzen", config().isCompactHypixelHealthEnabled(), "Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.");
     }
 
     private void renderChatText(DrawContext context, Rect viewport) {
@@ -667,6 +668,12 @@ public final class HorizonConfigScreen extends Screen {
         y += toggleRowHeight("Diagnoseanzeige fuer Dungeon Solver.");
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setHideDefenseBar(!config().isHideDefenseBar());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight("Blendet die Vanilla-Ruestungsanzeige aus.");
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setCompactHypixelHealthEnabled(!config().isCompactHypixelHealthEnabled());
             horizonClient.getConfigManager().save();
             return true;
         }
@@ -1035,6 +1042,7 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "System HUD", "Misc", Tab.MISC, null, "system hud cpu gpu temperatur");
         addSearchResult(results, query, "Solver Debug HUD", "Misc", Tab.MISC, null, "solver debug hud");
         addSearchResult(results, query, "Defense Bar", "Misc", Tab.MISC, null, "defense bar ruestung armor");
+        addSearchResult(results, query, "Kompakte Herzen", "Misc", Tab.MISC, null, "kompakte herzen hypixel health herz absorption");
         addSearchResult(results, query, "Anti Spam Gesamt", "Anti Spam", Tab.ANTI_SPAM, null, "anti spam gesamt");
         for (SpamFilterOption option : SpamFilterOption.values()) {
             addSearchResult(results, query, option.title(), "Anti Spam", Tab.ANTI_SPAM, null, option.title() + " " + option.description());
@@ -1267,7 +1275,8 @@ public final class HorizonConfigScreen extends Screen {
             + toggleRowHeight("Performance-Overlay.")
             + toggleRowHeight("CPU / GPU / Temperaturen.")
             + toggleRowHeight("Diagnoseanzeige fuer Dungeon Solver.")
-            + toggleRowHeight("Blendet die Vanilla-Ruestungsanzeige aus.");
+            + toggleRowHeight("Blendet die Vanilla-Ruestungsanzeige aus.")
+            + toggleRowHeight("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.");
     }
 
     private int antiSpamContentHeight() {

@@ -63,6 +63,7 @@ public final class HorizonConfig {
     private boolean hideHealingMessages = false;
     private boolean hideDungeonEventMessages = false;
     private boolean hideLockedChestMessages = true;
+    private boolean compactHypixelHealthEnabled = true;
     private String chatBridgeBotName = "catgirlfc";
     private boolean chatBridgeHidden = false;
     private final Map<String, Boolean> particleStates = new HashMap<>();
@@ -522,6 +523,14 @@ public final class HorizonConfig {
 
     public void setHideLockedChestMessages(boolean hideLockedChestMessages) {
         this.hideLockedChestMessages = hideLockedChestMessages;
+    }
+
+    public boolean isCompactHypixelHealthEnabled() {
+        return compactHypixelHealthEnabled;
+    }
+
+    public void setCompactHypixelHealthEnabled(boolean compactHypixelHealthEnabled) {
+        this.compactHypixelHealthEnabled = compactHypixelHealthEnabled;
     }
 
     public String getChatBridgeBotName() {

@@ -95,11 +95,11 @@ public final class SpotifyService {
     }
 
     public void skipNext() {
-        command("POST", "/me/player/next", null, true);
+        commandThenRefresh("POST", "/me/player/next", null);
     }
 
     public void skipPrevious() {
-        command("POST", "/me/player/previous", null, true);
+        commandThenRefresh("POST", "/me/player/previous", null);
     }
 
     public void playPause() {
@@ -238,6 +238,19 @@ public final class SpotifyService {
                 if (refreshAfter) {
                     requestStateRefresh(true);
                 }
+            } catch (Exception exception) {
+                HorizonMod.LOGGER.debug("Spotify command failed", exception);
+            }
+        });
+    }
+
+    /** Like command(), but waits 800 ms before refreshing so Spotify finishes the transition. */
+    private void commandThenRefresh(String method, String path, String body) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                request(method, path, body);
+                Thread.sleep(800L);
+                requestStateRefresh(true);
             } catch (Exception exception) {
                 HorizonMod.LOGGER.debug("Spotify command failed", exception);
             }

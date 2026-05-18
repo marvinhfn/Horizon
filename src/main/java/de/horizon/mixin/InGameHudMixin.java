@@ -66,7 +66,13 @@ public abstract class InGameHudMixin {
 
     @Redirect(method = "renderStatusBars", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;getScaledWindowHeight()I"))
     private int horizon$raiseStatusBars(DrawContext context) {
-        return adjustedHeight(context);
+        if (!HypixelSidebarOverlay.shouldReplaceVanillaSidebar(client)) {
+            return context.getScaledWindowHeight();
+        }
+        // When compact hearts is disabled, vanilla renders many heart rows for Hypixel's high health.
+        // Shift the entire status bar area up by an extra 12 px so it clears our custom sidebar.
+        int extra = isCompactHypixelHealthEnabled() ? 0 : 12;
+        return context.getScaledWindowHeight() - HypixelSidebarOverlay.HOTBAR_OFFSET - extra;
     }
 
     @Redirect(method = "renderStatusBars", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/InGameHud;renderArmor(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/entity/player/PlayerEntity;IIII)V"))
@@ -114,7 +120,15 @@ public abstract class InGameHudMixin {
         if (!HypixelSidebarOverlay.shouldReplaceVanillaSidebar(client)) {
             return false;
         }
+        if (!isCompactHypixelHealthEnabled()) {
+            return false;
+        }
         return maxHealth + absorption > 20.0F;
+    }
+
+    private boolean isCompactHypixelHealthEnabled() {
+        HorizonClient horizon = HorizonClient.getInstance();
+        return horizon == null || horizon.getConfigManager().getConfig().isCompactHypixelHealthEnabled();
     }
 
     private void renderCompactHypixelHealth(DrawContext context, PlayerEntity player, int x, int y, int health, int absorption) {

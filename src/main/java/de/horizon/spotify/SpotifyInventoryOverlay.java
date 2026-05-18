@@ -65,21 +65,17 @@ public final class SpotifyInventoryOverlay {
         int playlistHeaderY = playlistDropdownY(visibleDeviceRows);
         int visiblePlaylistRows = visiblePlaylistRows(screen.height, playlistHeaderY);
         int expandedHeight = panelHeight(visibleDeviceRows, visiblePlaylistRows);
-        int panelHeight = minimized ? 26 : expandedHeight;
+        int panelHeight = expandedHeight;
         int x = panelX(screen.width, panelWidth);
         int y = panelY(screen.height, panelHeight);
 
         if (minimized) {
-            context.fill(x, y, x + panelWidth, y + panelHeight, SPOTIFY_CARD);
-            context.drawStrokedRectangle(x, y, panelWidth, panelHeight, HudStyle.border());
-            context.fill(x, y, x + panelWidth, y + 24, SPOTIFY_CARD_ALT);
-            context.fill(x + 16, y + 12, x + 90, y + 14, HudStyle.accent());
-            context.drawTextWithShadow(client.textRenderer, Text.literal("Spotify"), x + 16, y + 6, SPOTIFY_TEXT);
-            context.drawTextWithShadow(client.textRenderer, Text.literal(state.connected() ? trim(client, state.trackName().isBlank() ? state.statusMessage() : state.trackName(), 164) : state.statusMessage()), x + 88, y + 6, SPOTIFY_MUTED);
-            minimizeButton = new Rect(x + panelWidth - 26, y + 4, 18, 18);
-            context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), SPOTIFY_BUTTON);
+            int btnX = screen.width - 30;
+            int btnY = screen.height - 30;
+            minimizeButton = new Rect(btnX, btnY, 22, 22);
+            context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), SPOTIFY_CARD);
             context.drawStrokedRectangle(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-            context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("+"), minimizeButton.x + 9, minimizeButton.y + 5, SPOTIFY_TEXT);
+            context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, SPOTIFY_TEXT);
             buttons.clear();
             volumeSlider = new Rect(0, 0, 0, 0);
             deviceDropdown = new Rect(0, 0, 0, 0);
@@ -157,6 +153,7 @@ public final class SpotifyInventoryOverlay {
         context.drawTextWithShadow(client.textRenderer, Text.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, SPOTIFY_MUTED);
 
         if (playlistsOpen) {
+            spotifyService.requestRecentPlaylistsRefresh(false);
             List<SpotifyPlaylist> playlists = spotifyService.getRecentPlaylists();
             if (playlists.isEmpty()) {
                 context.drawTextWithShadow(client.textRenderer, Text.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, SPOTIFY_MUTED);
