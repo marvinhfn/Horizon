@@ -114,7 +114,7 @@ public abstract class ChatScreenMixin extends Screen {
         int x = 2;
         for (ChatTab tab : ChatTab.values()) {
             if (mx >= x && mx <= x + 12) {
-                horizonClient.getChatTabManager().setActiveTab(tab);
+                horizonClient.getChatTabManager().setActiveTabAndRepopulate(tab, horizonClient.getConfigManager().getConfig());
                 cir.setReturnValue(true);
                 return;
             }
@@ -127,6 +127,7 @@ public abstract class ChatScreenMixin extends Screen {
             HorizonConfig config = horizonClient.getConfigManager().getConfig();
             config.setChatBridgeHidden(!config.isChatBridgeHidden());
             horizonClient.getConfigManager().save();
+            horizonClient.getChatTabManager().repopulateAfterBridgeToggle(config);
             cir.setReturnValue(true);
         }
     }

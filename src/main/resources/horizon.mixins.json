@@ -3,6 +3,7 @@
   "package": "de.horizon.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ChatHudMixin",
     "ChatScreenMixin",
     "ExperienceBarMixin",
     "InGameHudMixin",
