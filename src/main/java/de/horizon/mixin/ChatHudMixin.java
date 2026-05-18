@@ -6,11 +6,13 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ChatHud.class)
@@ -62,5 +64,18 @@ public abstract class ChatHudMixin {
         if (focused) {
             context.getMatrices().popMatrix();
         }
+    }
+
+    // ── 1.21.10: fix click detection for chat links.
+    // getTextStyleAt calls toChatLineY(y) to map screen Y to a chat line index.
+    // The visual render applies translate(0, -TAB_BAR_LIFT), so messages appear
+    // TAB_BAR_LIFT pixels higher than their logical positions. We compensate by
+    // adding TAB_BAR_LIFT to y before toChatLineY converts it, so the line index
+    // matches the visual position. require=0: toChatLineY does not exist in 1.21.11.
+    @ModifyArg(method = "getTextStyleAt",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;toChatLineY:(D)D"),
+            require = 0)
+    private double horizon$liftChatLinkClickY(double y) {
+        return (client.currentScreen instanceof ChatScreen) ? y + ChatTabManager.TAB_BAR_LIFT : y;
     }
 }

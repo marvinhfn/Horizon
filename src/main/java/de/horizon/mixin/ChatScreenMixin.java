@@ -113,15 +113,8 @@ public abstract class ChatScreenMixin extends Screen {
         return y + ChatTabManager.TAB_BAR_LIFT;
     }
 
-    // ── 1.21.10: click detection also calls getTextStyleAt(x, y) for link clicks.
-    @ModifyArg(method = "mouseClicked", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/screen/ChatScreen;getTextStyleAt(DD)Lnet/minecraft/text/Style;"),
-            index = 1, require = 0)
-    private double horizon$adjustGetTextStyleClickY(double y) {
-        return y + ChatTabManager.TAB_BAR_LIFT;
-    }
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void horizon$handleTabClick(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (click.button() != 0 || chatField == null) {
             return;
