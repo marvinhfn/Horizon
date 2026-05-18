@@ -93,6 +93,17 @@ public abstract class ChatScreenMixin extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("B"), x + 6, tabY + 1, bridgeText);
     }
 
+    /**
+     * The chat HUD is rendered 14 px higher via a matrix translate in {@link ChatHudMixin}.
+     * When MC detects which message was clicked it re-renders the chat with a hit-test consumer
+     * using the raw mouse Y. We add TAB_BAR_LIFT to that Y so the re-render operates at the
+     * logical (un-shifted) positions, matching the visual rendering.
+     */
+    @Redirect(method = "mouseClicked", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Click;y:()D"))
+    private double horizon$adjustClickYForChatLift(Click click) {
+        return click.y() + ChatTabManager.TAB_BAR_LIFT;
+    }
+
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void horizon$handleTabClick(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (click.button() != 0 || chatField == null) {
