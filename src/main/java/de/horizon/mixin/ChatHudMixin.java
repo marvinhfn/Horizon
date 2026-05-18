@@ -73,7 +73,7 @@ public abstract class ChatHudMixin {
     // adding TAB_BAR_LIFT to y before toChatLineY converts it, so the line index
     // matches the visual position. require=0: toChatLineY does not exist in 1.21.11.
     @ModifyArg(method = "getTextStyleAt",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;toChatLineY:(D)D"),
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;toChatLineY(D)D"),
             require = 0)
     private double horizon$liftChatLinkClickY(double y) {
         return (client.currentScreen instanceof ChatScreen) ? y + ChatTabManager.TAB_BAR_LIFT : y;
