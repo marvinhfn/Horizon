@@ -11,7 +11,6 @@ import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.Window;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -96,13 +95,15 @@ public abstract class ChatScreenMixin extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("B"), x + 6, tabY + 1, bridgeText);
     }
 
-    // ── 1.21.11: click detection re-renders the chat with a hit-test consumer using
-    // scaledHeight to position messages. Subtracting TAB_BAR_LIFT matches the visual
-    // translate(-14) applied in ChatHudMixin, so click areas align with visual positions.
-    @Redirect(method = "mouseClicked", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/util/Window;getScaledHeight()I"), require = 0)
-    private int horizon$liftClickDetectionHeight(Window window) {
-        return window.getScaledHeight() - ChatTabManager.TAB_BAR_LIFT;
+    // ── 1.21.11: click detection creates DrawnTextConsumer$ClickHandler(textRenderer, clickX, clickY).
+    // The handler checks raw screen coordinates against text bounds positioned without the
+    // TAB_BAR_LIFT translate. Adding TAB_BAR_LIFT to clickY shifts the check up to match visual.
+    // require=0: DrawnTextConsumer$ClickHandler does not exist in 1.21.10.
+    @ModifyArg(method = "mouseClicked", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/font/DrawnTextConsumer$ClickHandler;<init>(Lnet/minecraft/client/font/TextRenderer;II)V"),
+            index = 2, require = 0)
+    private int horizon$adjustClickHandlerY(int y) {
+        return y + ChatTabManager.TAB_BAR_LIFT;
     }
 
     // ── 1.21.10: click detection calls ChatHud.mouseClicked(x, y) directly.
@@ -113,8 +114,7 @@ public abstract class ChatScreenMixin extends Screen {
         return y + ChatTabManager.TAB_BAR_LIFT;
     }
 
-
-@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void horizon$handleTabClick(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (click.button() != 0 || chatField == null) {
             return;
