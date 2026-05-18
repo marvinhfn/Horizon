@@ -60,20 +60,25 @@ public abstract class ChatHudMixin implements ChatHudAccess {
             String single = horizon$lineToString(visibleMessages.get(lineIndex).content()).trim();
             return single.isEmpty() ? null : single;
         }
-        // Full entry: endOfEntry=true marks the last (bottom-most) wrapped line of an entry.
-        // Walk backward to find the first line of this entry.
-        int start = lineIndex;
-        while (start > 0 && !visibleMessages.get(start - 1).endOfEntry()) {
-            start--;
+        // visibleMessages stores entries newest-first. Within each entry, the bottom-most
+        // visible line is at the LOWEST index (endOfEntry=true), and higher indices hold
+        // lines further up (reading order: highest index = top line of message).
+        //
+        // Find the bottom of this entry (walk toward lower indices until endOfEntry=true).
+        int bottom = lineIndex;
+        while (bottom > 0 && !visibleMessages.get(bottom).endOfEntry()) {
+            bottom--;
         }
-        // Walk forward to find the last line of this entry.
-        int end = lineIndex;
-        while (end < visibleMessages.size() - 1 && !visibleMessages.get(end).endOfEntry()) {
-            end++;
+        // Find the top of this entry (walk toward higher indices until the next element
+        // starts a new entry via endOfEntry=true, or we hit the end of the list).
+        int top = lineIndex;
+        while (top + 1 < visibleMessages.size() && !visibleMessages.get(top + 1).endOfEntry()) {
+            top++;
         }
+        // Collect from top down to bottom (high index → low index) for correct reading order.
         StringBuilder sb = new StringBuilder();
-        for (int i = start; i <= end; i++) {
-            if (i > start) {
+        for (int i = top; i >= bottom; i--) {
+            if (i < top) {
                 sb.append(' ');
             }
             sb.append(horizon$lineToString(visibleMessages.get(i).content()));
