@@ -3,6 +3,7 @@ package de.horizon.mixin;
 import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.chat.ChatCopyMode;
+import de.horizon.feature.chat.ChatHudAccess;
 import de.horizon.feature.chat.ChatTab;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;

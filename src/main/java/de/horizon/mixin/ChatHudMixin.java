@@ -1,6 +1,7 @@
 package de.horizon.mixin;
 
 import de.horizon.HorizonClient;
+import de.horizon.feature.chat.ChatHudAccess;
 import de.horizon.feature.chat.ChatTabManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
