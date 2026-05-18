@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ChatHud.class)
@@ -77,5 +78,21 @@ public abstract class ChatHudMixin {
             require = 0)
     private double horizon$liftChatLinkClickY(double y) {
         return (client.currentScreen instanceof ChatScreen) ? y + ChatTabManager.TAB_BAR_LIFT : y;
+    }
+
+    // ── 1.21.11: fix click detection for chat links.
+    // ChatScreen.mouseClicked passes Window.getScaledHeight() as scaledHeight to
+    // ChatHud.render(DrawnTextConsumer, scaledHeight, ...) for hit-testing. Messages
+    // are positioned at (scaledHeight - 40 - lineIdx*lineHeight). The visual render
+    // applies translate(0, -TAB_BAR_LIFT), shifting messages up by TAB_BAR_LIFT pixels.
+    // Reducing scaledHeight by TAB_BAR_LIFT shifts hit-test positions by the same amount,
+    // aligning click areas with the visual chat. require=0: this overload does not exist
+    // in 1.21.10.
+    @ModifyVariable(method = "render(Lnet/minecraft/client/font/DrawnTextConsumer;IIZ)V",
+            at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
+    private int horizon$liftClickRenderScaledHeight(int scaledHeight) {
+        return (client.currentScreen instanceof ChatScreen)
+                ? scaledHeight - ChatTabManager.TAB_BAR_LIFT
+                : scaledHeight;
     }
 }

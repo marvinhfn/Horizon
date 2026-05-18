@@ -95,16 +95,6 @@ public abstract class ChatScreenMixin extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("B"), x + 6, tabY + 1, bridgeText);
     }
 
-    // ── 1.21.11: click detection creates DrawnTextConsumer$ClickHandler(textRenderer, clickX, clickY).
-    // The handler checks raw screen coordinates against text bounds positioned without the
-    // TAB_BAR_LIFT translate. Adding TAB_BAR_LIFT to clickY shifts the check up to match visual.
-    // require=0: DrawnTextConsumer$ClickHandler does not exist in 1.21.10.
-    @ModifyArg(method = "mouseClicked", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/font/DrawnTextConsumer$ClickHandler;<init>(Lnet/minecraft/client/font/TextRenderer;II)V"),
-            index = 2, require = 0)
-    private int horizon$adjustClickHandlerY(int y) {
-        return y + ChatTabManager.TAB_BAR_LIFT;
-    }
 
     // ── 1.21.10: click detection calls ChatHud.mouseClicked(x, y) directly.
     @ModifyArg(method = "mouseClicked", at = @At(value = "INVOKE",
