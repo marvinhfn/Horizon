@@ -2,6 +2,7 @@ package de.horizon.screen;
 
 import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
+import de.horizon.feature.chat.ChatCopyMode;
 import de.horizon.feature.chat.SpamFilterOption;
 import de.horizon.feature.dungeon.PuzzleSolverOption;
 import de.horizon.feature.dungeon.TerminalSolverOption;
@@ -360,7 +361,9 @@ public final class HorizonConfigScreen extends Screen {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Chat");
         y = drawToggleRow(context, viewport.x, y, "Bridge verstecken", config().isChatBridgeHidden(), "Discord-Bridge-Nachrichten im Guild-Chat ausblenden.");
-        drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, "Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
+        y = drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, "Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
+        ChatCopyMode copyMode = config().getChatCopyMode();
+        drawCycleRow(context, viewport.x, y, "Nachrichten kopieren", copyMode.label(), copyMode != ChatCopyMode.OFF, "Modus: Aus, Strg+Links, Rechts oder Beides.");
     }
 
     private void renderAntiSpamText(DrawContext context, Rect viewport) {
@@ -403,6 +406,23 @@ public final class HorizonConfigScreen extends Screen {
         drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, TEXT);
         drawWrappedText(context, contentX, y + CARD_PADDING_TOP + LINE_HEIGHT, description, contentWidth, MUTED);
         return y + rowHeight;
+    }
+
+    private int drawCycleRow(DrawContext context, int x, int y, String title, String modeLabel, boolean active, String description) {
+        int rowHeight = toggleRowHeight(description);
+        drawSettingCard(context, x, y, rowHeight, active ? 0xFF2DBA68 : 0xFF8A97A8, false);
+        Rect badge = cycleBadgeRect(x, y);
+        context.fill(badge.x, badge.y, badge.right(), badge.bottom(), active ? 0xFF2DBA68 : 0xFF667487);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(modeLabel), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        int contentX = badge.right() + 10;
+        int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
+        drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, TEXT);
+        drawWrappedText(context, contentX, y + CARD_PADDING_TOP + LINE_HEIGHT, description, contentWidth, MUTED);
+        return y + rowHeight;
+    }
+
+    private Rect cycleBadgeRect(int x, int y) {
+        return new Rect(x, y + CARD_PADDING_TOP - 1, 54, 18);
     }
 
     private int drawActionRow(DrawContext context, int x, int y, String left, String right, String description) {
@@ -691,6 +711,14 @@ public final class HorizonConfigScreen extends Screen {
         y += toggleRowHeight("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.");
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             inputFocus = InputFocus.CHAT_BRIDGE_BOT_NAME;
+            return true;
+        }
+        y += fieldRowHeight("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            ChatCopyMode[] modes = ChatCopyMode.values();
+            int next = (config().getChatCopyMode().ordinal() + 1) % modes.length;
+            config().setChatCopyMode(modes[next]);
+            horizonClient.getConfigManager().save();
             return true;
         }
         return false;
@@ -1049,6 +1077,7 @@ public final class HorizonConfigScreen extends Screen {
         }
         addSearchResult(results, query, "Bridge verstecken", "Chat", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
         addSearchResult(results, query, "Bridge Bot Name", "Chat", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
+        addSearchResult(results, query, "Nachrichten kopieren", "Chat", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
         return results;
     }
 
@@ -1290,7 +1319,8 @@ public final class HorizonConfigScreen extends Screen {
     private int chatContentHeight() {
         return 24
             + toggleRowHeight("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.")
-            + fieldRowHeight("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
+            + fieldRowHeight("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).")
+            + toggleRowHeight("Modus: Aus, Strg+Links, Rechts oder Beides.");
     }
 
     private void drawWindowChrome(DrawContext context, Rect frame, Rect viewport, int accent) {

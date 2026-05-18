@@ -6,21 +6,67 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
+
 @Mixin(ChatHud.class)
-public abstract class ChatHudMixin {
+public abstract class ChatHudMixin implements ChatHudAccess {
 
     @Shadow
     MinecraftClient client;
+
+    @Shadow
+    private List<ChatHudLine.Visible> visibleMessages;
+
+    @Shadow
+    private int scrolledLines;
+
+    @Shadow
+    abstract double getChatScale();
+
+    @Shadow
+    abstract int getLineHeight();
+
+    @Unique
+    @Override
+    public String horizon$getVisibleLineTextAt(double mouseX, double mouseY) {
+        if (visibleMessages == null || visibleMessages.isEmpty()) {
+            return null;
+        }
+        int scaledHeight = client.getWindow().getScaledHeight();
+        double adjustedY = mouseY + ChatTabManager.TAB_BAR_LIFT;
+        double d = (scaledHeight - adjustedY - 40.0) / ((double) getLineHeight() * getChatScale());
+        if (d < 0.0) {
+            return null;
+        }
+        int lineIndex = (int) d + scrolledLines;
+        if (lineIndex < 0 || lineIndex >= visibleMessages.size()) {
+            return null;
+        }
+        OrderedText line = visibleMessages.get(lineIndex).content();
+        if (line == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        line.accept((index, style, codepoint) -> {
+            sb.appendCodePoint(codepoint);
+            return true;
+        });
+        String result = sb.toString().trim();
+        return result.isEmpty() ? null : result;
+    }
 
     /**
      * Intercept every game message before it is added to the visible chat.

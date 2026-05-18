@@ -2,6 +2,7 @@ package de.horizon.mixin;
 
 import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
+import de.horizon.feature.chat.ChatCopyMode;
 import de.horizon.feature.chat.ChatTab;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;
@@ -12,6 +13,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -102,6 +104,41 @@ public abstract class ChatScreenMixin extends Screen {
             index = 1, require = 0)
     private double horizon$adjustChatHudClickY(double y) {
         return y + ChatTabManager.TAB_BAR_LIFT;
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void horizon$handleChatCopy(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        if (this.client == null || chatField == null) {
+            return;
+        }
+        HorizonClient horizonClient = HorizonClient.getInstance();
+        if (horizonClient == null) {
+            return;
+        }
+        ChatCopyMode mode = horizonClient.getConfigManager().getConfig().getChatCopyMode();
+        if (mode == ChatCopyMode.OFF) {
+            return;
+        }
+        boolean isLeft = click.button() == 0;
+        boolean isRight = click.button() == 1;
+        long handle = this.client.getWindow().getHandle();
+        boolean ctrlHeld = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+            || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+        boolean triggered = switch (mode) {
+            case CTRL_LEFT -> isLeft && ctrlHeld;
+            case RIGHT -> isRight;
+            case BOTH -> (isLeft && ctrlHeld) || isRight;
+            default -> false;
+        };
+        if (!triggered) {
+            return;
+        }
+        String text = ((ChatHudAccess) this.client.inGameHud.getChatHud()).horizon$getVisibleLineTextAt(click.x(), click.y());
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        this.client.keyboard.setClipboard(text);
+        cir.setReturnValue(true);
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)

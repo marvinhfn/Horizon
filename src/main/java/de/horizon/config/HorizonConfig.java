@@ -1,5 +1,6 @@
 package de.horizon.config;
 
+import de.horizon.feature.chat.ChatCopyMode;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -66,6 +67,7 @@ public final class HorizonConfig {
     private boolean compactHypixelHealthEnabled = true;
     private String chatBridgeBotName = "catgirlfc";
     private boolean chatBridgeHidden = false;
+    private ChatCopyMode chatCopyMode = ChatCopyMode.OFF;
     private final Map<String, Boolean> particleStates = new HashMap<>();
     private final Map<String, HudPosition> hudPositions = new HashMap<>();
 
@@ -547,6 +549,14 @@ public final class HorizonConfig {
 
     public void setChatBridgeHidden(boolean chatBridgeHidden) {
         this.chatBridgeHidden = chatBridgeHidden;
+    }
+
+    public ChatCopyMode getChatCopyMode() {
+        return chatCopyMode == null ? ChatCopyMode.OFF : chatCopyMode;
+    }
+
+    public void setChatCopyMode(ChatCopyMode chatCopyMode) {
+        this.chatCopyMode = chatCopyMode == null ? ChatCopyMode.OFF : chatCopyMode;
     }
 
     public Map<String, Boolean> getParticleStates() {
