@@ -25,8 +25,8 @@ public abstract class InGameHudMixin {
     private static final Identifier HEART_CONTAINER_HARDCORE = Identifier.ofVanilla("hud/heart/container_hardcore");
     private static final Identifier HEART_FULL = Identifier.ofVanilla("hud/heart/full");
     private static final Identifier HEART_HALF = Identifier.ofVanilla("hud/heart/half");
-    private static final Identifier PURPLE_HEART_FULL = Identifier.of("horizon", "textures/gui/heart/purple_full.png");
-    private static final Identifier PURPLE_HEART_HALF = Identifier.of("horizon", "textures/gui/heart/purple_half.png");
+    private static final Identifier ABSORBING_HEART_FULL = Identifier.ofVanilla("hud/heart/absorbing_full");
+    private static final Identifier ABSORBING_HEART_HALF = Identifier.ofVanilla("hud/heart/absorbing_half");
 
     @Shadow
     @Final
@@ -66,13 +66,19 @@ public abstract class InGameHudMixin {
 
     @Redirect(method = "renderStatusBars", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;getScaledWindowHeight()I"))
     private int horizon$raiseStatusBars(DrawContext context) {
-        if (!HypixelSidebarOverlay.shouldReplaceVanillaSidebar(client)) {
+        return adjustedHeight(context);
+    }
+
+    /**
+     * Raise the Hypixel action-bar health/defense/mana overlay when the compact-hearts
+     * feature is off, so it sits above the vanilla heart rows instead of overlapping them.
+     */
+    @Redirect(method = "renderOverlayMessage", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;getScaledWindowHeight()I"))
+    private int horizon$raiseHypixelBar(DrawContext context) {
+        if (!HypixelSidebarOverlay.shouldReplaceVanillaSidebar(client) || isCompactHypixelHealthEnabled()) {
             return context.getScaledWindowHeight();
         }
-        // When compact hearts is disabled, vanilla renders many heart rows for Hypixel's high health.
-        // Shift the entire status bar area up by an extra 12 px so it clears our custom sidebar.
-        int extra = isCompactHypixelHealthEnabled() ? 0 : 12;
-        return context.getScaledWindowHeight() - HypixelSidebarOverlay.HOTBAR_OFFSET - extra;
+        return context.getScaledWindowHeight() - HypixelSidebarOverlay.HOTBAR_OFFSET;
     }
 
     @Redirect(method = "renderStatusBars", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/InGameHud;renderArmor(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/entity/player/PlayerEntity;IIII)V"))
@@ -133,35 +139,30 @@ public abstract class InGameHudMixin {
 
     private void renderCompactHypixelHealth(DrawContext context, PlayerEntity player, int x, int y, int health, int absorption) {
         boolean hardcore = player.getEntityWorld().getLevelProperties().isHardcore();
-        int combinedHealth = Math.max(health + absorption, 0);
-        int overflowUnits = MathHelper.clamp(combinedHealth - 20, 0, 20);
-        int baseUnits = MathHelper.clamp(combinedHealth, 0, 20);
+        // Show up to 10 red hearts for current health, then golden absorption hearts on top.
+        int baseUnits = MathHelper.clamp(health, 0, 20);
+        int absUnits  = MathHelper.clamp(absorption, 0, 20);
 
         for (int slot = 9; slot >= 0; slot--) {
             int heartX = x + slot * 8;
-            int heartY = y;
             int unitStart = slot * 2;
 
-            drawVanillaHeart(context, hardcore ? HEART_CONTAINER_HARDCORE : HEART_CONTAINER, heartX, heartY);
+            drawVanillaHeart(context, hardcore ? HEART_CONTAINER_HARDCORE : HEART_CONTAINER, heartX, y);
 
             int baseRemainder = baseUnits - unitStart;
             if (baseRemainder > 0) {
-                drawVanillaHeart(context, baseRemainder == 1 ? HEART_HALF : HEART_FULL, heartX, heartY);
+                drawVanillaHeart(context, baseRemainder == 1 ? HEART_HALF : HEART_FULL, heartX, y);
             }
 
-            int overflowRemainder = overflowUnits - unitStart;
-            if (overflowRemainder > 0) {
-                drawPurpleHeart(context, overflowRemainder == 1 ? PURPLE_HEART_HALF : PURPLE_HEART_FULL, heartX, heartY);
+            int absRemainder = absUnits - unitStart;
+            if (absRemainder > 0) {
+                drawVanillaHeart(context, absRemainder == 1 ? ABSORBING_HEART_HALF : ABSORBING_HEART_FULL, heartX, y);
             }
         }
     }
 
     private void drawVanillaHeart(DrawContext context, Identifier texture, int x, int y) {
         context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, 9, 9);
-    }
-
-    private void drawPurpleHeart(DrawContext context, Identifier texture, int x, int y) {
-        context.drawTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, 0.0F, 0.0F, 9, 9, 9, 9, 0xFFFFFFFF);
     }
 
     private boolean shouldHideDefenseBar() {
