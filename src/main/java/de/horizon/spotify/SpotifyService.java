@@ -244,15 +244,25 @@ public final class SpotifyService {
         });
     }
 
-    /** Like command(), but waits 800 ms before refreshing so Spotify finishes the transition. */
+    /**
+     * Sends a playback command and then immediately refreshes the state after a short
+     * delay, bypassing the in-flight check so the HUD updates quickly after skip.
+     */
     private void commandThenRefresh(String method, String path, String body) {
         CompletableFuture.runAsync(() -> {
             try {
                 request(method, path, body);
-                Thread.sleep(800L);
-                requestStateRefresh(true);
+                Thread.sleep(300L);
+                stateFetchInFlight = true;
+                try {
+                    playbackState = fetchPlaybackState();
+                    lastStateFetch = Instant.now().toEpochMilli();
+                } finally {
+                    stateFetchInFlight = false;
+                }
             } catch (Exception exception) {
                 HorizonMod.LOGGER.debug("Spotify command failed", exception);
+                stateFetchInFlight = false;
             }
         });
     }

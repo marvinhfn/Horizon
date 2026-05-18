@@ -340,7 +340,9 @@ public final class SpotifyInventoryOverlay {
 
     private int visiblePlaylistRows(int screenHeight, int playlistHeaderY) {
         int deviceRows = visibleDeviceRows(screenHeight);
-        int y = panelY(screenHeight, panelHeight(deviceRows, 0));
+        // Use the maximum possible playlist rows (6) to compute panel height and y,
+        // so the panel is positioned high enough to actually fit the rows.
+        int y = panelY(screenHeight, panelHeight(deviceRows, 6));
         int available = Math.max(0, screenHeight - 16 - (y + playlistHeaderY + DROPDOWN_HEADER_HEIGHT + 6));
         return Math.max(0, Math.min(6, available / ROW_HEIGHT));
     }

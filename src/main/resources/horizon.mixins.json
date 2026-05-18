@@ -4,14 +4,14 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "ChatHudMixin",
-    "ChatInputSuggestorMixin",
     "ChatScreenMixin",
     "ExperienceBarMixin",
     "InGameHudMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientPlayerInteractionManagerMixin",
     "ParticleManagerMixin",
-    "SuggestionWindowAccessor"
+    "SuggestionWindowAccessor",
+    "SuggestionWindowMixin"
   ],
   "injectors": {
     "defaultRequire": 1
