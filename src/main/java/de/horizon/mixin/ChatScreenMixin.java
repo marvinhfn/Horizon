@@ -6,15 +6,18 @@ import de.horizon.feature.chat.ChatTab;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;
 import net.minecraft.client.gui.Click;
+import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.util.Window;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -93,15 +96,29 @@ public abstract class ChatScreenMixin extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("B"), x + 6, tabY + 1, bridgeText);
     }
 
-    /**
-     * The chat HUD is rendered 14 px higher via a matrix translate in {@link ChatHudMixin}.
-     * When MC detects which message was clicked it re-renders the chat with a hit-test consumer
-     * using the raw mouse Y. We add TAB_BAR_LIFT to that Y so the re-render operates at the
-     * logical (un-shifted) positions, matching the visual rendering.
-     */
-    @Redirect(method = "mouseClicked", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Click;y()D"))
-    private double horizon$adjustClickYForChatLift(Click click) {
-        return click.y() + ChatTabManager.TAB_BAR_LIFT;
+    // ── 1.21.11: click detection re-renders the chat with a hit-test consumer using
+    // scaledHeight to position messages. Subtracting TAB_BAR_LIFT matches the visual
+    // translate(-14) applied in ChatHudMixin, so click areas align with visual positions.
+    @Redirect(method = "mouseClicked", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/util/Window;getScaledHeight()I"), require = 0)
+    private int horizon$liftClickDetectionHeight(Window window) {
+        return window.getScaledHeight() - ChatTabManager.TAB_BAR_LIFT;
+    }
+
+    // ── 1.21.10: click detection calls ChatHud.mouseClicked(x, y) directly.
+    @ModifyArg(method = "mouseClicked", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/hud/ChatHud;mouseClicked(DD)Z"),
+            index = 1, require = 0)
+    private double horizon$adjustChatHudClickY(double y) {
+        return y + ChatTabManager.TAB_BAR_LIFT;
+    }
+
+    // ── 1.21.10: click detection also calls getTextStyleAt(x, y) for link clicks.
+    @ModifyArg(method = "mouseClicked", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/screen/ChatScreen;getTextStyleAt(DD)Lnet/minecraft/text/Style;"),
+            index = 1, require = 0)
+    private double horizon$adjustGetTextStyleClickY(double y) {
+        return y + ChatTabManager.TAB_BAR_LIFT;
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
