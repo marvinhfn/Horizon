@@ -138,6 +138,7 @@ public final class HorizonConfigScreen extends Screen {
             case MISC -> handleMiscClick(click.x(), click.y(), frame);
             case ANTI_SPAM -> handleAntiSpamClick(click.x(), click.y(), frame);
             case CHAT -> handleChatClick(click.x(), click.y(), frame);
+            case SCOREBOARD -> handleScoreboardClick(click.x(), click.y(), frame);
         } || super.mouseClicked(click, doubled);
     }
 
@@ -280,6 +281,7 @@ public final class HorizonConfigScreen extends Screen {
                 case MISC -> renderMiscText(context, viewport);
                 case ANTI_SPAM -> renderAntiSpamText(context, viewport);
                 case CHAT -> renderChatText(context, viewport);
+                case SCOREBOARD -> renderScoreboardText(context, viewport);
             }
         }
         context.disableScissor();
@@ -365,6 +367,11 @@ public final class HorizonConfigScreen extends Screen {
         ChatCopyMode copyMode = config().getChatCopyMode();
         y = drawCycleRow(context, viewport.x, y, "Nachrichten kopieren", copyMode.label(), copyMode != ChatCopyMode.OFF, "Modus: Aus, Strg+LK, Rechtsklick oder Beides.");
         drawToggleRow(context, viewport.x + 16, y, "Gesamte Nachricht", config().isChatCopyFullMessage(), "Alle Zeilen des Eintrags oder nur die angeklickte Zeile.");
+    }
+
+    private void renderScoreboardText(DrawContext context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        drawSectionTitle(context, viewport.x, y, "Scoreboard");
     }
 
     private void renderAntiSpamText(DrawContext context, Rect viewport) {
@@ -751,6 +758,10 @@ public final class HorizonConfigScreen extends Screen {
         return false;
     }
 
+    private boolean handleScoreboardClick(double mouseX, double mouseY, Rect frame) {
+        return false;
+    }
+
     private boolean handleSearchClick(double mouseX, double mouseY, Rect viewport) {
         int y = viewport.y;
         List<SearchResult> results = searchResults();
@@ -1021,6 +1032,7 @@ public final class HorizonConfigScreen extends Screen {
             case MISC -> miscContentHeight();
             case ANTI_SPAM -> antiSpamContentHeight();
             case CHAT -> chatContentHeight();
+            case SCOREBOARD -> scoreboardContentHeight();
         };
         return Math.max(0, contentHeight - viewport.height);
     }
@@ -1085,6 +1097,7 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Bridge verstecken", "Chat", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
         addSearchResult(results, query, "Bridge Bot Name", "Chat", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
         addSearchResult(results, query, "Nachrichten kopieren", "Chat", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
+        addSearchResult(results, query, "Scoreboard", "Scoreboard", Tab.SCOREBOARD, null, "scoreboard custom sidebar hypixel");
         return results;
     }
 
@@ -1331,6 +1344,10 @@ public final class HorizonConfigScreen extends Screen {
             + toggleRowHeight("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.");
     }
 
+    private int scoreboardContentHeight() {
+        return 24;
+    }
+
     private void drawWindowChrome(DrawContext context, Rect frame, Rect viewport, int accent) {
         context.fill(frame.x, frame.y, frame.right(), frame.bottom(), CONFIG_WINDOW);
         context.fill(viewport.x - 12, frame.y + 35, frame.right() - 1, frame.bottom() - 1, CONFIG_WINDOW);
@@ -1355,7 +1372,8 @@ public final class HorizonConfigScreen extends Screen {
         PARTICLE("Particle"),
         MISC("Misc"),
         ANTI_SPAM("Anti Spam"),
-        CHAT("Chat");
+        CHAT("Chat"),
+        SCOREBOARD("Scoreboard");
 
         private final String label;
 
