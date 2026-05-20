@@ -80,6 +80,7 @@ public final class HorizonConfig {
     private final Map<String, HudPosition> hudPositions = new HashMap<>();
     private Map<String, Set<String>> scoreboardHiddenKeys = new HashMap<>();
     private Map<String, Map<String, String>> scoreboardKnownLines = new HashMap<>();
+    private Set<String> scoreboardGlobalHiddenKeys = new HashSet<>();
 
     public boolean isReviveHudEnabled() {
         return reviveHudEnabled;
@@ -649,6 +650,20 @@ public final class HorizonConfig {
 
     public Map<String, Set<String>> getScoreboardHiddenKeys() {
         return scoreboardHiddenKeys;
+    }
+
+    public boolean isScoreboardGlobalLineHidden(String lineKey) {
+        return scoreboardGlobalHiddenKeys.contains(lineKey);
+    }
+
+    public void toggleScoreboardGlobalLine(String lineKey) {
+        if (!scoreboardGlobalHiddenKeys.remove(lineKey)) {
+            scoreboardGlobalHiddenKeys.add(lineKey);
+        }
+    }
+
+    public Set<String> getScoreboardGlobalHiddenKeys() {
+        return scoreboardGlobalHiddenKeys;
     }
 
     private String normalizeHudAccentColor(String value) {

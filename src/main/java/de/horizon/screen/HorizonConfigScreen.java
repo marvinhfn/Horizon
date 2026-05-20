@@ -42,6 +42,13 @@ public final class HorizonConfigScreen extends Screen {
     private static final int CONFIG_CARD_FOCUSED = 0x60F7F8FA;
     private static final int CONFIG_BUTTON = 0x60E6E8EC;
     private static final int CONFIG_BUTTON_TEXT = 0xFF1E2A37;
+    private static final String[][] GLOBAL_SCOREBOARD_LINES = {
+        {"location", "Standort (⏣-Zeile)"},
+        {"date", "Datum"},
+        {"time", "Uhrzeit"},
+        {"profile", "Profil"},
+    };
+
     private static final String[] HUD_COLOR_SWATCHES = {
         "#75E7CA", "#60A5FA", "#FBBF24", "#FB7185", "#F472B6", "#A78BFA",
         "#34D399", "#F97316", "#F87171", "#22D3EE", "#C4B5FD", "#E5E7EB"
@@ -54,7 +61,10 @@ public final class HorizonConfigScreen extends Screen {
 
     private Tab activeTab = Tab.HUD;
     private DungeonSection activeDungeonSection = DungeonSection.GENERAL;
+    private boolean scoreboardGeneralActive = true;
     private SkyBlockIsland activeScoreboardIsland = SkyBlockIsland.HUB;
+    private String pendingGlobalToggleKey = null;
+    private String pendingGlobalToggleLabel = null;
     private InputFocus inputFocus = InputFocus.NONE;
     private String catacombsInput;
     private String hudAccentColorInput;
@@ -99,6 +109,19 @@ public final class HorizonConfigScreen extends Screen {
             return super.mouseClicked(click, doubled);
         }
 
+        if (pendingGlobalToggleKey != null) {
+            if (confirmYesRect(frame).contains(click.x(), click.y())) {
+                config().toggleScoreboardGlobalLine(pendingGlobalToggleKey);
+                horizonClient.getConfigManager().save();
+                pendingGlobalToggleKey = null;
+                pendingGlobalToggleLabel = null;
+            } else {
+                pendingGlobalToggleKey = null;
+                pendingGlobalToggleLabel = null;
+            }
+            return true;
+        }
+
         if (closeRect(frame).contains(click.x(), click.y())) {
             close();
             return true;
@@ -133,9 +156,15 @@ public final class HorizonConfigScreen extends Screen {
 
         if (activeTab == Tab.SCOREBOARD) {
             Rect bar = scoreboardSubTabBarRect(frame);
+            if (scoreboardSubTabRect(bar, 0).contains(click.x(), click.y())) {
+                scoreboardGeneralActive = true;
+                contentScrollOffset = 0;
+                return true;
+            }
             SkyBlockIsland[] islands = SkyBlockIsland.knownIslands();
             for (int index = 0; index < islands.length; index++) {
-                if (scoreboardSubTabRect(bar, index).contains(click.x(), click.y())) {
+                if (scoreboardSubTabRect(bar, index + 1).contains(click.x(), click.y())) {
+                    scoreboardGeneralActive = false;
                     activeScoreboardIsland = islands[index];
                     contentScrollOffset = 0;
                     return true;
@@ -288,10 +317,13 @@ public final class HorizonConfigScreen extends Screen {
 
         if (activeTab == Tab.SCOREBOARD) {
             Rect bar = scoreboardSubTabBarRect(frame);
+            drawTextLine(context, scoreboardSubTabRect(bar, 0).x, scoreboardSubTabRect(bar, 0).y,
+                (scoreboardGeneralActive ? "[" : "") + "General" + (scoreboardGeneralActive ? "]" : ""),
+                scoreboardGeneralActive ? accent : TEXT);
             SkyBlockIsland[] islands = SkyBlockIsland.knownIslands();
             for (int index = 0; index < islands.length; index++) {
-                boolean active = islands[index] == activeScoreboardIsland;
-                Rect rect = scoreboardSubTabRect(bar, index);
+                boolean active = !scoreboardGeneralActive && islands[index] == activeScoreboardIsland;
+                Rect rect = scoreboardSubTabRect(bar, index + 1);
                 drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + islands[index].label() + (active ? "]" : ""), active ? accent : TEXT);
             }
         }
@@ -311,6 +343,9 @@ public final class HorizonConfigScreen extends Screen {
             }
         }
         context.disableScissor();
+        if (pendingGlobalToggleKey != null) {
+            drawConfirmationOverlay(context, frame, accent);
+        }
         drawHeaderMask(context, frame, accent);
 
         super.render(context, mouseX, mouseY, delta);
@@ -396,16 +431,35 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private void renderScoreboardText(DrawContext context, Rect viewport) {
+        if (scoreboardGeneralActive) {
+            renderGeneralScoreboardText(context, viewport);
+        } else {
+            renderIslandScoreboardText(context, viewport);
+        }
+    }
+
+    private void renderGeneralScoreboardText(DrawContext context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        y = drawSectionTitle(context, viewport.x, y, "Scoreboard / General");
+        y = drawToggleRow(context, viewport.x, y, "Custom Scoreboard", config().isCustomScoreboardEnabled(), "Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        y = drawSectionTitle(context, viewport.x, y, "Globale Zeilenfilter");
+        for (String[] entry : GLOBAL_SCOREBOARD_LINES) {
+            boolean visible = !config().isScoreboardGlobalLineHidden(entry[0]);
+            y = drawScoreboardLineRow(context, viewport.x, y, entry[1], visible);
+        }
+    }
+
+    private void renderIslandScoreboardText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Scoreboard / " + activeScoreboardIsland.label());
-        y = drawToggleRow(context, viewport.x, y, "Custom Scoreboard", config().isCustomScoreboardEnabled(), "Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
         Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
         if (known.isEmpty()) {
             drawTextLine(context, viewport.x, y, "Keine Daten gespeichert. Besuche diese Island ingame.", MUTED);
             return;
         }
         for (Map.Entry<String, String> entry : known.entrySet()) {
-            boolean visible = !config().isScoreboardLineHidden(activeScoreboardIsland.id(), entry.getKey());
+            boolean visible = !config().isScoreboardLineHidden(activeScoreboardIsland.id(), entry.getKey())
+                && !config().isScoreboardGlobalLineHidden(entry.getKey());
             y = drawScoreboardLineRow(context, viewport.x, y, entry.getValue(), visible);
         }
     }
@@ -795,14 +849,39 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private boolean handleScoreboardClick(double mouseX, double mouseY, Rect frame) {
+        if (scoreboardGeneralActive) {
+            return handleGeneralScoreboardClick(mouseX, mouseY, frame);
+        } else {
+            return handleIslandScoreboardClick(mouseX, mouseY, frame);
+        }
+    }
+
+    private boolean handleGeneralScoreboardClick(double mouseX, double mouseY, Rect frame) {
         Rect viewport = contentViewportRect(frame);
-        int y = viewport.y - contentScrollOffset + 24;
+        int y = viewport.y - contentScrollOffset;
+        y += 24; // section title
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setCustomScoreboardEnabled(!config().isCustomScoreboardEnabled());
             horizonClient.getConfigManager().save();
             return true;
         }
         y += toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        y += 24; // section title "Globale Zeilenfilter"
+        for (String[] entry : GLOBAL_SCOREBOARD_LINES) {
+            if (rowRect(viewport.x, y, scoreboardLineRowHeight()).contains(mouseX, mouseY)) {
+                pendingGlobalToggleKey = entry[0];
+                pendingGlobalToggleLabel = entry[1];
+                return true;
+            }
+            y += scoreboardLineRowHeight();
+        }
+        return false;
+    }
+
+    private boolean handleIslandScoreboardClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset;
+        y += 24; // section title
         Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
         for (Map.Entry<String, String> entry : known.entrySet()) {
             if (rowRect(viewport.x, y, scoreboardLineRowHeight()).contains(mouseX, mouseY)) {
@@ -1221,8 +1300,10 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private Rect subTabRect(Rect bar, int index) {
-        int width = 120;
-        return new Rect(bar.x + index * (width + 8), bar.y, width, 14);
+        int count = DungeonSection.values().length;
+        int gap = 8;
+        int width = Math.max(60, (bar.width - gap * (count - 1)) / count);
+        return new Rect(bar.x + index * (width + gap), bar.y, width, 14);
     }
 
     private int accentColor() {
@@ -1408,7 +1489,13 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private int scoreboardContentHeight() {
-        int height = 24 + toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        if (scoreboardGeneralActive) {
+            return 24 // section title
+                + toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.")
+                + 24 // section title "Globale Zeilenfilter"
+                + GLOBAL_SCOREBOARD_LINES.length * scoreboardLineRowHeight();
+        }
+        int height = 24; // section title
         Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
         if (known.isEmpty()) {
             height += LINE_HEIGHT;
@@ -1443,12 +1530,42 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private Rect scoreboardSubTabRect(Rect bar, int index) {
-        int width = 110;
         int gap = 8;
         int perRow = 6;
+        int width = Math.max(60, (bar.width - gap * (perRow - 1)) / perRow);
         int row = index / perRow;
         int col = index % perRow;
         return new Rect(bar.x + col * (width + gap), bar.y + row * 18, width, 14);
+    }
+
+    private void drawConfirmationOverlay(DrawContext context, Rect frame, int accent) {
+        int w = 320, h = 94;
+        int ox = frame.x + (frame.width - w) / 2;
+        int oy = frame.y + (frame.height - h) / 2;
+        context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
+        context.drawStrokedRectangle(ox, oy, w, h, HudStyle.border());
+        drawTextLine(context, ox + 12, oy + 12, "Globale Aenderung", accent);
+        drawTextLine(context, ox + 12, oy + 28, "\"" + pendingGlobalToggleLabel + "\" fuer alle Islands toggeln?", MUTED);
+        Rect yes = confirmYesRect(frame);
+        Rect no = confirmNoRect(frame);
+        context.fill(yes.x, yes.y, yes.right(), yes.bottom(), 0xFF2DBA68);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("JA"), yes.centerX(), yes.y + 5, 0xFFF7FBFF);
+        context.fill(no.x, no.y, no.right(), no.bottom(), 0xFF8A3A3A);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("NEIN"), no.centerX(), no.y + 5, 0xFFF7FBFF);
+    }
+
+    private Rect confirmYesRect(Rect frame) {
+        int w = 320, h = 94;
+        int ox = frame.x + (frame.width - w) / 2;
+        int oy = frame.y + (frame.height - h) / 2;
+        return new Rect(ox + 12, oy + 58, 110, 22);
+    }
+
+    private Rect confirmNoRect(Rect frame) {
+        int w = 320, h = 94;
+        int ox = frame.x + (frame.width - w) / 2;
+        int oy = frame.y + (frame.height - h) / 2;
+        return new Rect(ox + 198, oy + 58, 110, 22);
     }
 
     private void drawWindowChrome(DrawContext context, Rect frame, Rect viewport, int accent) {

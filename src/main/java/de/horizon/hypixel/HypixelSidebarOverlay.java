@@ -222,16 +222,20 @@ public final class HypixelSidebarOverlay {
 
     private static SidebarSnapshot filterHiddenLines(SidebarSnapshot snapshot, SkyBlockIsland island) {
         HorizonClient horizon = HorizonClient.getInstance();
-        if (horizon == null || island == SkyBlockIsland.UNKNOWN) {
+        if (horizon == null) {
             return snapshot;
         }
         HorizonConfig config = horizon.getConfigManager().getConfig();
         List<String> visible = new ArrayList<>();
         for (String line : snapshot.lines()) {
             String key = HorizonConfig.scoreboardLineKey(line);
-            if (!config.isScoreboardLineHidden(island.id(), key)) {
-                visible.add(line);
+            if (config.isScoreboardGlobalLineHidden(key)) {
+                continue;
             }
+            if (island != SkyBlockIsland.UNKNOWN && config.isScoreboardLineHidden(island.id(), key)) {
+                continue;
+            }
+            visible.add(line);
         }
         return new SidebarSnapshot(snapshot.title(), visible);
     }
