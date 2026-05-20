@@ -1,5 +1,6 @@
 package de.horizon.hypixel;
 
+import de.horizon.HorizonClient;
 import de.horizon.hud.HudStyle;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -70,6 +71,10 @@ public final class HypixelSidebarOverlay {
     }
 
     public static boolean shouldReplaceVanillaSidebar(MinecraftClient client) {
+        HorizonClient horizon = HorizonClient.getInstance();
+        if (horizon != null && !horizon.getConfigManager().getConfig().isCustomScoreboardEnabled()) {
+            return false;
+        }
         return snapshot(client) != null;
     }
 

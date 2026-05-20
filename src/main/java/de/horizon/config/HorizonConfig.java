@@ -65,6 +65,7 @@ public final class HorizonConfig {
     private boolean hideDungeonEventMessages = false;
     private boolean hideLockedChestMessages = true;
     private boolean compactHypixelHealthEnabled = true;
+    private boolean customScoreboardEnabled = true;
     private String chatBridgeBotName = "catgirlfc";
     private boolean chatBridgeHidden = false;
     private ChatCopyMode chatCopyMode = ChatCopyMode.OFF;
@@ -534,6 +535,14 @@ public final class HorizonConfig {
 
     public void setCompactHypixelHealthEnabled(boolean compactHypixelHealthEnabled) {
         this.compactHypixelHealthEnabled = compactHypixelHealthEnabled;
+    }
+
+    public boolean isCustomScoreboardEnabled() {
+        return customScoreboardEnabled;
+    }
+
+    public void setCustomScoreboardEnabled(boolean customScoreboardEnabled) {
+        this.customScoreboardEnabled = customScoreboardEnabled;
     }
 
     public String getChatBridgeBotName() {

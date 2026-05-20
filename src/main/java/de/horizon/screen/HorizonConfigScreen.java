@@ -371,7 +371,8 @@ public final class HorizonConfigScreen extends Screen {
 
     private void renderScoreboardText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
-        drawSectionTitle(context, viewport.x, y, "Scoreboard");
+        y = drawSectionTitle(context, viewport.x, y, "Scoreboard");
+        drawToggleRow(context, viewport.x, y, "Custom Scoreboard", config().isCustomScoreboardEnabled(), "Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
     }
 
     private void renderAntiSpamText(DrawContext context, Rect viewport) {
@@ -759,6 +760,13 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private boolean handleScoreboardClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24;
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setCustomScoreboardEnabled(!config().isCustomScoreboardEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
         return false;
     }
 
@@ -1097,7 +1105,7 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Bridge verstecken", "Chat", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
         addSearchResult(results, query, "Bridge Bot Name", "Chat", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
         addSearchResult(results, query, "Nachrichten kopieren", "Chat", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
-        addSearchResult(results, query, "Scoreboard", "Scoreboard", Tab.SCOREBOARD, null, "scoreboard custom sidebar hypixel");
+        addSearchResult(results, query, "Custom Scoreboard", "Scoreboard", Tab.SCOREBOARD, null, "custom scoreboard sidebar hypixel leiste");
         return results;
     }
 
@@ -1345,7 +1353,7 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private int scoreboardContentHeight() {
-        return 24;
+        return 24 + toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
     }
 
     private void drawWindowChrome(DrawContext context, Rect frame, Rect viewport, int accent) {
