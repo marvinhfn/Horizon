@@ -30,9 +30,10 @@ public final class ConfigManager {
         try (Reader reader = Files.newBufferedReader(path)) {
             HorizonConfig loaded = GSON.fromJson(reader, HorizonConfig.class);
             config = loaded != null ? loaded : new HorizonConfig();
-        } catch (IOException exception) {
-            HorizonMod.LOGGER.error("Failed to load config from {}", path, exception);
+        } catch (IOException | RuntimeException exception) {
+            HorizonMod.LOGGER.error("Failed to load config from {}, resetting to defaults", path, exception);
             config = new HorizonConfig();
+            save();
         }
     }
 
