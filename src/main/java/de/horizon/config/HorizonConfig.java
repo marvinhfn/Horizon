@@ -1,8 +1,14 @@
 package de.horizon.config;
 
 import de.horizon.feature.chat.ChatCopyMode;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public final class HorizonConfig {
     private static final String DEFAULT_HUD_ACCENT_COLOR = "#75E7CA";
@@ -72,6 +78,8 @@ public final class HorizonConfig {
     private boolean chatCopyFullMessage = true;
     private final Map<String, Boolean> particleStates = new HashMap<>();
     private final Map<String, HudPosition> hudPositions = new HashMap<>();
+    private Map<String, Set<String>> scoreboardHiddenKeys = new HashMap<>();
+    private Map<String, Map<String, String>> scoreboardKnownLines = new HashMap<>();
 
     public boolean isReviveHudEnabled() {
         return reviveHudEnabled;
@@ -583,6 +591,51 @@ public final class HorizonConfig {
 
     public Map<String, HudPosition> getHudPositions() {
         return hudPositions;
+    }
+
+    public static String scoreboardLineKey(String line) {
+        if (line == null || line.isBlank()) {
+            return "";
+        }
+        String clean = line.replaceAll("§[0-9a-fklmnorA-FK-LMN-OR]", "").trim();
+        if (clean.contains("⏣")) {
+            return "location";
+        }
+        int colon = clean.indexOf(':');
+        if (colon > 0) {
+            return clean.substring(0, colon).toLowerCase(Locale.ROOT).trim();
+        }
+        return clean.toLowerCase(Locale.ROOT).trim();
+    }
+
+    public boolean isScoreboardLineHidden(String islandId, String lineKey) {
+        Set<String> hidden = scoreboardHiddenKeys.get(islandId);
+        return hidden != null && hidden.contains(lineKey);
+    }
+
+    public void toggleScoreboardLine(String islandId, String lineKey) {
+        Set<String> hidden = scoreboardHiddenKeys.computeIfAbsent(islandId, k -> new HashSet<>());
+        if (!hidden.remove(lineKey)) {
+            hidden.add(lineKey);
+        }
+    }
+
+    public void recordScoreboardLines(String islandId, List<String> lines) {
+        Map<String, String> known = scoreboardKnownLines.computeIfAbsent(islandId, k -> new LinkedHashMap<>());
+        for (String line : lines) {
+            String key = scoreboardLineKey(line);
+            if (!key.isBlank()) {
+                known.put(key, line);
+            }
+        }
+    }
+
+    public Map<String, String> getScoreboardKnownLines(String islandId) {
+        return scoreboardKnownLines.getOrDefault(islandId, new LinkedHashMap<>());
+    }
+
+    public Map<String, Set<String>> getScoreboardHiddenKeys() {
+        return scoreboardHiddenKeys;
     }
 
     private String normalizeHudAccentColor(String value) {

@@ -1,6 +1,7 @@
 package de.horizon.hypixel;
 
 import de.horizon.HorizonClient;
+import de.horizon.config.HorizonConfig;
 import de.horizon.hud.HudStyle;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -110,6 +111,13 @@ public final class HypixelSidebarOverlay {
             return cachedSnapshot(client);
         }
         SidebarSnapshot snapshot = new SidebarSnapshot(title, lines);
+        HorizonClient horizon = HorizonClient.getInstance();
+        if (horizon != null) {
+            SkyBlockIsland island = SkyBlockIsland.detect(title, lines);
+            if (island != SkyBlockIsland.UNKNOWN) {
+                horizon.getConfigManager().getConfig().recordScoreboardLines(island.id(), lines);
+            }
+        }
         cachedSnapshot = snapshot;
         cachedSnapshotAt = now(client);
         return snapshot;
@@ -160,21 +168,23 @@ public final class HypixelSidebarOverlay {
     }
 
     private static List<String> buildSegments(SidebarSnapshot snapshot) {
+        SkyBlockIsland island = SkyBlockIsland.detect(snapshot.title(), snapshot.lines());
+        SidebarSnapshot filtered = filterHiddenLines(snapshot, island);
         if (isDungeonSnapshot(snapshot)) {
-            return buildDungeonSegments(snapshot);
+            return buildDungeonSegments(filtered);
         }
 
         List<String> segments = new ArrayList<>();
-        if (!snapshot.title().isBlank()) {
-            segments.add(snapshot.title());
+        if (!filtered.title().isBlank()) {
+            segments.add(filtered.title());
         }
 
-        List<String> prioritized = new ArrayList<>(snapshot.lines().stream()
+        List<String> prioritized = new ArrayList<>(filtered.lines().stream()
             .filter(HypixelSidebarOverlay::shouldKeepLine)
             .sorted(Comparator.comparingInt(HypixelSidebarOverlay::priority).reversed())
             .toList());
         if (prioritized.isEmpty()) {
-            prioritized.addAll(snapshot.lines().stream().filter(HypixelSidebarOverlay::isUsefulFallbackLine).limit(4).toList());
+            prioritized.addAll(filtered.lines().stream().filter(HypixelSidebarOverlay::isUsefulFallbackLine).limit(4).toList());
         }
 
         for (String line : prioritized) {
@@ -208,6 +218,22 @@ public final class HypixelSidebarOverlay {
             }
         }
         return segments;
+    }
+
+    private static SidebarSnapshot filterHiddenLines(SidebarSnapshot snapshot, SkyBlockIsland island) {
+        HorizonClient horizon = HorizonClient.getInstance();
+        if (horizon == null || island == SkyBlockIsland.UNKNOWN) {
+            return snapshot;
+        }
+        HorizonConfig config = horizon.getConfigManager().getConfig();
+        List<String> visible = new ArrayList<>();
+        for (String line : snapshot.lines()) {
+            String key = HorizonConfig.scoreboardLineKey(line);
+            if (!config.isScoreboardLineHidden(island.id(), key)) {
+                visible.add(line);
+            }
+        }
+        return new SidebarSnapshot(snapshot.title(), visible);
     }
 
     private static boolean shouldKeepLine(String line) {

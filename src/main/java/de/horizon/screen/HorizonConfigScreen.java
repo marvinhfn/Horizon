@@ -3,6 +3,7 @@ package de.horizon.screen;
 import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.chat.ChatCopyMode;
+import de.horizon.hypixel.SkyBlockIsland;
 import de.horizon.feature.chat.SpamFilterOption;
 import de.horizon.feature.dungeon.PuzzleSolverOption;
 import de.horizon.feature.dungeon.TerminalSolverOption;
@@ -16,11 +17,13 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public final class HorizonConfigScreen extends Screen {
     private static final int TEXT = 0xFFFFFFFF;
@@ -51,6 +54,7 @@ public final class HorizonConfigScreen extends Screen {
 
     private Tab activeTab = Tab.HUD;
     private DungeonSection activeDungeonSection = DungeonSection.GENERAL;
+    private SkyBlockIsland activeScoreboardIsland = SkyBlockIsland.HUB;
     private InputFocus inputFocus = InputFocus.NONE;
     private String catacombsInput;
     private String hudAccentColorInput;
@@ -121,6 +125,18 @@ public final class HorizonConfigScreen extends Screen {
                 if (subTabRect(bar, index).contains(click.x(), click.y())) {
                     commitCatacombsInput();
                     activeDungeonSection = DungeonSection.values()[index];
+                    contentScrollOffset = 0;
+                    return true;
+                }
+            }
+        }
+
+        if (activeTab == Tab.SCOREBOARD) {
+            Rect bar = scoreboardSubTabBarRect(frame);
+            SkyBlockIsland[] islands = SkyBlockIsland.knownIslands();
+            for (int index = 0; index < islands.length; index++) {
+                if (scoreboardSubTabRect(bar, index).contains(click.x(), click.y())) {
+                    activeScoreboardIsland = islands[index];
                     contentScrollOffset = 0;
                     return true;
                 }
@@ -270,6 +286,16 @@ public final class HorizonConfigScreen extends Screen {
             }
         }
 
+        if (activeTab == Tab.SCOREBOARD) {
+            Rect bar = scoreboardSubTabBarRect(frame);
+            SkyBlockIsland[] islands = SkyBlockIsland.knownIslands();
+            for (int index = 0; index < islands.length; index++) {
+                boolean active = islands[index] == activeScoreboardIsland;
+                Rect rect = scoreboardSubTabRect(bar, index);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + islands[index].label() + (active ? "]" : ""), active ? accent : TEXT);
+            }
+        }
+
         context.enableScissor(contentClip.x, contentClip.y, contentClip.right(), contentClip.bottom());
         if (!globalSearchInput.isBlank()) {
             renderSearchResults(context, viewport);
@@ -371,8 +397,17 @@ public final class HorizonConfigScreen extends Screen {
 
     private void renderScoreboardText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
-        y = drawSectionTitle(context, viewport.x, y, "Scoreboard");
-        drawToggleRow(context, viewport.x, y, "Custom Scoreboard", config().isCustomScoreboardEnabled(), "Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        y = drawSectionTitle(context, viewport.x, y, "Scoreboard / " + activeScoreboardIsland.label());
+        y = drawToggleRow(context, viewport.x, y, "Custom Scoreboard", config().isCustomScoreboardEnabled(), "Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
+        if (known.isEmpty()) {
+            drawTextLine(context, viewport.x, y, "Keine Daten gespeichert. Besuche diese Island ingame.", MUTED);
+            return;
+        }
+        for (Map.Entry<String, String> entry : known.entrySet()) {
+            boolean visible = !config().isScoreboardLineHidden(activeScoreboardIsland.id(), entry.getKey());
+            y = drawScoreboardLineRow(context, viewport.x, y, entry.getValue(), visible);
+        }
     }
 
     private void renderAntiSpamText(DrawContext context, Rect viewport) {
@@ -767,6 +802,16 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
+        y += toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
+        for (Map.Entry<String, String> entry : known.entrySet()) {
+            if (rowRect(viewport.x, y, scoreboardLineRowHeight()).contains(mouseX, mouseY)) {
+                config().toggleScoreboardLine(activeScoreboardIsland.id(), entry.getKey());
+                horizonClient.getConfigManager().save();
+                return true;
+            }
+            y += scoreboardLineRowHeight();
+        }
         return false;
     }
 
@@ -1106,6 +1151,9 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Bridge Bot Name", "Chat", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
         addSearchResult(results, query, "Nachrichten kopieren", "Chat", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
         addSearchResult(results, query, "Custom Scoreboard", "Scoreboard", Tab.SCOREBOARD, null, "custom scoreboard sidebar hypixel leiste");
+        for (SkyBlockIsland island : SkyBlockIsland.knownIslands()) {
+            addSearchResult(results, query, island.label(), "Scoreboard", Tab.SCOREBOARD, null, "scoreboard " + island.label().toLowerCase(Locale.ROOT) + " island zeilen filter");
+        }
         return results;
     }
 
@@ -1140,7 +1188,14 @@ public final class HorizonConfigScreen extends Screen {
 
     private Rect contentViewportRect(Rect frame) {
         int left = sidebarRect(frame).right() + 18;
-        int top = frame.y + (activeTab == Tab.DUNGEON ? 62 : 40);
+        int top;
+        if (activeTab == Tab.DUNGEON) {
+            top = frame.y + 62;
+        } else if (activeTab == Tab.SCOREBOARD) {
+            top = frame.y + 80;
+        } else {
+            top = frame.y + 40;
+        }
         return new Rect(left, top, frame.right() - left - 12, frame.bottom() - top - 12);
     }
 
@@ -1353,7 +1408,47 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private int scoreboardContentHeight() {
-        return 24 + toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        int height = 24 + toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
+        if (known.isEmpty()) {
+            height += LINE_HEIGHT;
+        } else {
+            height += known.size() * scoreboardLineRowHeight();
+        }
+        return height;
+    }
+
+    private int scoreboardLineRowHeight() {
+        return CARD_PADDING_TOP + LINE_HEIGHT + 6 + CARD_PADDING_BOTTOM + CARD_GAP;
+    }
+
+    private int drawScoreboardLineRow(DrawContext context, int x, int y, String lineText, boolean visible) {
+        int rowHeight = scoreboardLineRowHeight();
+        drawSettingCard(context, x, y, rowHeight, visible ? 0xFF2DBA68 : 0xFF8A97A8, false);
+        Rect badge = toggleBadgeRect(x, y);
+        context.fill(badge.x, badge.y, badge.right(), badge.bottom(), visible ? 0xFF2DBA68 : 0xFF667487);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(visible ? "AN" : "AUS"), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        int contentX = badge.right() + 10;
+        if (visible) {
+            drawTextLine(context, contentX, y + CARD_PADDING_TOP, lineText, TEXT);
+        } else {
+            context.drawTextWithShadow(textRenderer, Text.literal(lineText).formatted(Formatting.STRIKETHROUGH), contentX, y + CARD_PADDING_TOP, MUTED);
+        }
+        return y + rowHeight;
+    }
+
+    private Rect scoreboardSubTabBarRect(Rect frame) {
+        int left = sidebarRect(frame).right() + 18;
+        return new Rect(left, frame.y + 40, frame.right() - left - 12, 36);
+    }
+
+    private Rect scoreboardSubTabRect(Rect bar, int index) {
+        int width = 110;
+        int gap = 8;
+        int perRow = 6;
+        int row = index / perRow;
+        int col = index % perRow;
+        return new Rect(bar.x + col * (width + gap), bar.y + row * 18, width, 14);
     }
 
     private void drawWindowChrome(DrawContext context, Rect frame, Rect viewport, int accent) {
