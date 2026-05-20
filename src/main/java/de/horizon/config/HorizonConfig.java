@@ -1,5 +1,6 @@
 package de.horizon.config;
 
+import de.horizon.Lang;
 import de.horizon.feature.chat.ChatCopyMode;
 
 import java.util.LinkedHashMap;
@@ -173,6 +174,9 @@ public final class HorizonConfig {
 
     // ── MISC ──────────────────────────────────────────────────────────────────
 
+    public Lang.Language getLanguage() { return misc.language == null ? Lang.Language.DE : misc.language; }
+    public void setLanguage(Lang.Language v) { misc.language = v == null ? Lang.Language.DE : v; }
+
     public String getHypixelApiKey() { return misc.hypixelApiKey == null ? "" : misc.hypixelApiKey; }
     public void setHypixelApiKey(String v) { misc.hypixelApiKey = v == null ? "" : v.trim(); }
 
@@ -295,9 +299,13 @@ public final class HorizonConfig {
         if (clean.matches("\\d{1,2}:\\d{2}.*")) {
             return "time";
         }
-        // Date line: contains ordinal number suffix (e.g. "Early Spring 3rd", "Late Summer 28th")
+        // Season line: contains a SkyBlock season word (e.g. "Autum 22", "Early Spring", "Late Summer 3rd")
+        if (clean.toLowerCase(Locale.ROOT).matches(".*(spring|summer|autumm?|fall|winter).*")) {
+            return "season";
+        }
+        // Ordinal date line (fallback for lines like "3rd" without season word)
         if (clean.toLowerCase(Locale.ROOT).matches(".*\\d+(st|nd|rd|th).*")) {
-            return "date";
+            return "season";
         }
         // Server code line: MM/DD/YY followed by server code (e.g. "05/20/26 m99AJ")
         if (clean.matches("\\d{2}/\\d{2}/\\d{2}\\s+\\w+")) {

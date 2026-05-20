@@ -1,6 +1,7 @@
 package de.horizon.screen;
 
 import de.horizon.HorizonClient;
+import de.horizon.Lang;
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.chat.ChatCopyMode;
 import de.horizon.hypixel.SkyBlockIsland;
@@ -44,9 +45,9 @@ public final class HorizonConfigScreen extends Screen {
     private static final int CONFIG_BUTTON_TEXT = 0xFF1E2A37;
     private static final String[][] GLOBAL_SCOREBOARD_LINES = {
         {"location", "Standort (⏣-Zeile)"},
-        {"date", "Datum"},
+        {"season", "Season"},
         {"time", "Uhrzeit"},
-        {"server_code", "Server-Code (z.B. 05/20/26 m99AJ)"},
+        {"server_code", "Datum"},
         {"profile", "Profil"},
         {"www.hypixel.net", "www.hypixel.net"},
     };
@@ -61,7 +62,7 @@ public final class HorizonConfigScreen extends Screen {
     private final SpotifyService spotifyService;
     private final ParticleFilterService particleFilterService;
 
-    private Tab activeTab = Tab.HUD;
+    private Tab activeTab = Tab.GENERAL;
     private DungeonSection activeDungeonSection = DungeonSection.GENERAL;
     private MusicSection activeMusicSection = MusicSection.SPOTIFY;
     private boolean scoreboardGeneralActive = true;
@@ -189,6 +190,7 @@ public final class HorizonConfigScreen extends Screen {
         }
 
         return switch (activeTab) {
+            case GENERAL -> handleGeneralClick(click.x(), click.y(), frame);
             case HUD -> handleHudClick(click.x(), click.y(), frame);
             case DUNGEON -> handleDungeonClick(click.x(), click.y(), frame);
             case PARTICLE -> handleParticleClick(click.x(), click.y(), frame);
@@ -349,6 +351,7 @@ public final class HorizonConfigScreen extends Screen {
             renderSearchResults(context, viewport);
         } else {
             switch (activeTab) {
+                case GENERAL -> renderGeneralText(context, viewport);
                 case HUD -> renderHudText(context, viewport);
                 case DUNGEON -> renderDungeonText(context, viewport);
                 case PARTICLE -> renderParticleText(context, viewport);
@@ -368,10 +371,40 @@ public final class HorizonConfigScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
     }
 
+    private void renderGeneralText(DrawContext context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        y = drawSectionTitle(context, viewport.x, y, "General");
+        Lang.Language lang = config().getLanguage();
+        String langLabel = lang == Lang.Language.EN ? "English" : "Deutsch";
+        drawCycleRow(context, viewport.x, y,
+            Lang.t("Sprache", "Language"),
+            langLabel,
+            true,
+            Lang.t("Sprache des Mods umschalten: Deutsch oder Englisch.", "Switch the mod language: German or English."));
+    }
+
+    private boolean handleGeneralClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24;
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            Lang.Language[] langs = Lang.Language.values();
+            int next = (config().getLanguage().ordinal() + 1) % langs.length;
+            config().setLanguage(langs[next]);
+            Lang.set(config().getLanguage());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        return false;
+    }
+
+    private int generalContentHeight() {
+        return 24 + toggleRowHeight(Lang.t("Sprache des Mods umschalten: Deutsch oder Englisch.", "Switch the mod language: German or English."));
+    }
+
     private void renderHudText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "HUD");
-        y = drawActionRow(context, viewport.x, y, "HUD bearbeiten", "HUD reset", "Layout bearbeiten oder Positionen zuruecksetzen.");
+        y = drawActionRow(context, viewport.x, y, Lang.t("HUD bearbeiten", "Edit HUD"), "HUD reset", Lang.t("Layout bearbeiten oder Positionen zuruecksetzen.", "Edit layout or reset positions."));
         drawHudColorRow(context, viewport.x, y);
     }
 
@@ -380,15 +413,15 @@ public final class HorizonConfigScreen extends Screen {
         switch (activeDungeonSection) {
             case GENERAL -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeons / General");
-                y = drawToggleRow(context, viewport.x, y, "Party Finder Overlay", config().isDungeonPartyFinderOverlayEnabled(), "Zeigt beste S+ Zeiten im Party Finder.");
-                drawToggleRow(context, viewport.x, y, "Rare Room Alerts", config().isDungeonRareRoomAlertsEnabled(), "Alert fuer Trinity, Tomioka und Duncan.");
+                y = drawToggleRow(context, viewport.x, y, "Party Finder Overlay", config().isDungeonPartyFinderOverlayEnabled(), Lang.t("Zeigt beste S+ Zeiten im Party Finder.", "Shows best S+ times in Party Finder."));
+                drawToggleRow(context, viewport.x, y, "Rare Room Alerts", config().isDungeonRareRoomAlertsEnabled(), Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
             }
             case REVIVAL -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeons / Revive");
-                y = drawToggleRow(context, viewport.x, y, "Revive HUD", config().isReviveHudEnabled(), "Spirit, Bonzo und Phoenix als Status-Panel.");
-                y = drawNumberRow(context, viewport.x, y, "Catacombs Level", catacombsInput, inputFocus == InputFocus.CATACOMBS_LEVEL, "Nutze [-] und [+] oder tippe direkt.");
-                y = drawToggleRow(context, viewport.x, y, "Boss Only", config().isReviveHudOnlyInBoss(), "Nur waehrend Bossphasen.");
-                y = drawToggleRow(context, viewport.x, y, "Always Visible", config().isReviveHudAlwaysVisible(), "Auch ausserhalb des Kampfes sichtbar.");
+                y = drawToggleRow(context, viewport.x, y, "Revive HUD", config().isReviveHudEnabled(), Lang.t("Spirit, Bonzo und Phoenix als Status-Panel.", "Spirit, Bonzo and Phoenix as status panel."));
+                y = drawNumberRow(context, viewport.x, y, "Catacombs Level", catacombsInput, inputFocus == InputFocus.CATACOMBS_LEVEL, Lang.t("Nutze [-] und [+] oder tippe direkt.", "Use [-] and [+] or type directly."));
+                y = drawToggleRow(context, viewport.x, y, "Boss Only", config().isReviveHudOnlyInBoss(), Lang.t("Nur waehrend Bossphasen.", "Only during boss phases."));
+                y = drawToggleRow(context, viewport.x, y, "Always Visible", config().isReviveHudAlwaysVisible(), Lang.t("Auch ausserhalb des Kampfes sichtbar.", "Visible even outside combat."));
                 for (ReviveSource source : ReviveSource.values()) {
                     y = drawToggleRow(context, viewport.x, y, source.displayName(), source.isEnabled(config()), source.cooldownLabel() + ": " + source.configuredCooldown(config()) + "s");
                 }
@@ -410,14 +443,14 @@ public final class HorizonConfigScreen extends Screen {
 
     private void renderParticleText(DrawContext context, Rect viewport) {
         int y = viewport.y;
-        drawFieldRow(context, viewport.x, y, "Particle Suche", particleSearchInput, inputFocus == InputFocus.PARTICLE_SEARCH, "Liste filtern.");
-        y += fieldRowHeight("Liste filtern.");
+        drawFieldRow(context, viewport.x, y, Lang.t("Particle Suche", "Particle Search"), particleSearchInput, inputFocus == InputFocus.PARTICLE_SEARCH, Lang.t("Liste filtern.", "Filter list."));
+        y += fieldRowHeight(Lang.t("Liste filtern.", "Filter list."));
         int baseY = y - particleScrollOffset;
         List<String> particles = filteredParticleIds();
         for (String particleId : particles) {
             String name = particleFilterService.displayName(particleId);
             boolean enabled = particleFilterService.isEnabled(particleId);
-            drawTextLine(context, viewport.x, baseY, "[" + (enabled ? "AN" : "AUS") + "] " + name + " - " + particleId, enabled ? TEXT : MUTED);
+            drawTextLine(context, viewport.x, baseY, "[" + Lang.t(enabled ? "AN" : "AUS", enabled ? "ON" : "OFF") + "] " + name + " - " + particleId, enabled ? TEXT : MUTED);
             baseY += 14;
         }
     }
@@ -425,22 +458,22 @@ public final class HorizonConfigScreen extends Screen {
     private void renderMiscText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Misc");
-        y = drawToggleRow(context, viewport.x, y, "Zeit HUD", config().isTimeHudEnabled(), "Lokale Uhrzeit als Overlay.");
-        y = drawToggleRow(context, viewport.x, y, "FPS / TPS / Ping", config().isPerformanceHudEnabled(), "Performance-Overlay.");
-        y = drawToggleRow(context, viewport.x, y, "System HUD", config().isSystemHudEnabled(), "CPU / GPU / Temperaturen.");
-        y = drawToggleRow(context, viewport.x, y, "Solver Debug HUD", config().isSolverDebugHudEnabled(), "Diagnoseanzeige fuer Dungeon Solver.");
-        y = drawToggleRow(context, viewport.x, y, "Defense Bar", config().isHideDefenseBar(), "Blendet die Vanilla-Ruestungsanzeige aus.");
-        drawToggleRow(context, viewport.x, y, "Kompakte Herzen", config().isCompactHypixelHealthEnabled(), "Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.");
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Zeit HUD", "Time HUD"), config().isTimeHudEnabled(), Lang.t("Lokale Uhrzeit als Overlay.", "Local time as overlay."));
+        y = drawToggleRow(context, viewport.x, y, "FPS / TPS / Ping", config().isPerformanceHudEnabled(), Lang.t("Performance-Overlay.", "Performance overlay."));
+        y = drawToggleRow(context, viewport.x, y, "System HUD", config().isSystemHudEnabled(), Lang.t("CPU / GPU / Temperaturen.", "CPU / GPU / Temperatures."));
+        y = drawToggleRow(context, viewport.x, y, "Solver Debug HUD", config().isSolverDebugHudEnabled(), Lang.t("Diagnoseanzeige fuer Dungeon Solver.", "Diagnostic display for Dungeon Solver."));
+        y = drawToggleRow(context, viewport.x, y, "Defense Bar", config().isHideDefenseBar(), Lang.t("Blendet die Vanilla-Ruestungsanzeige aus.", "Hides the vanilla armor display."));
+        drawToggleRow(context, viewport.x, y, Lang.t("Kompakte Herzen", "Compact Hearts"), config().isCompactHypixelHealthEnabled(), Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
     }
 
     private void renderChatText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Chat");
-        y = drawToggleRow(context, viewport.x, y, "Bridge verstecken", config().isChatBridgeHidden(), "Discord-Bridge-Nachrichten im Guild-Chat ausblenden.");
-        y = drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, "Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Bridge verstecken", "Hide Bridge"), config().isChatBridgeHidden(), Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."));
+        y = drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."));
         ChatCopyMode copyMode = config().getChatCopyMode();
-        y = drawCycleRow(context, viewport.x, y, "Nachrichten kopieren", copyMode.label(), copyMode != ChatCopyMode.OFF, "Modus: Aus, Strg+LK, Rechtsklick oder Beides.");
-        drawToggleRow(context, viewport.x + 16, y, "Gesamte Nachricht", config().isChatCopyFullMessage(), "Alle Zeilen des Eintrags oder nur die angeklickte Zeile.");
+        y = drawCycleRow(context, viewport.x, y, Lang.t("Nachrichten kopieren", "Copy Messages"), copyMode.label(), copyMode != ChatCopyMode.OFF, Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."));
+        drawToggleRow(context, viewport.x + 16, y, Lang.t("Gesamte Nachricht", "Full Message"), config().isChatCopyFullMessage(), Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
     }
 
     private void renderScoreboardText(DrawContext context, Rect viewport) {
@@ -454,8 +487,8 @@ public final class HorizonConfigScreen extends Screen {
     private void renderGeneralScoreboardText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Scoreboard / General");
-        y = drawToggleRow(context, viewport.x, y, "Custom Scoreboard", config().isCustomScoreboardEnabled(), "Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
-        y = drawSectionTitle(context, viewport.x, y, "Globale Zeilenfilter");
+        y = drawToggleRow(context, viewport.x, y, "Custom Scoreboard", config().isCustomScoreboardEnabled(), Lang.t("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.", "Show custom scoreboard bar at the bottom of the screen."));
+        y = drawSectionTitle(context, viewport.x, y, Lang.t("Globale Zeilenfilter", "Global Line Filters"));
         for (String[] entry : GLOBAL_SCOREBOARD_LINES) {
             boolean visible = !config().isScoreboardGlobalLineHidden(entry[0]);
             y = drawScoreboardLineRow(context, viewport.x, y, entry[1], visible);
@@ -467,7 +500,7 @@ public final class HorizonConfigScreen extends Screen {
         y = drawSectionTitle(context, viewport.x, y, "Scoreboard / " + activeScoreboardIsland.label());
         Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
         if (known.isEmpty()) {
-            drawTextLine(context, viewport.x, y, "Keine Daten gespeichert. Besuche diese Island ingame.", MUTED);
+            drawTextLine(context, viewport.x, y, Lang.t("Keine Daten gespeichert. Besuche diese Island ingame.", "No data stored. Visit this island in-game."), MUTED);
             return;
         }
         for (Map.Entry<String, String> entry : known.entrySet()) {
@@ -482,14 +515,14 @@ public final class HorizonConfigScreen extends Screen {
             case SPOTIFY -> {
                 int y = viewport.y - contentScrollOffset;
                 y = drawSectionTitle(context, viewport.x, y, "Music Control / Spotify");
-                y = drawFieldRow(context, viewport.x, y, "Spotify Client ID", spotifyClientIdInput, inputFocus == InputFocus.SPOTIFY_CLIENT_ID, "Spotify Premium Login.");
+                y = drawFieldRow(context, viewport.x, y, "Spotify Client ID", spotifyClientIdInput, inputFocus == InputFocus.SPOTIFY_CLIENT_ID, Lang.t("Spotify Premium Login.", "Spotify Premium login."));
                 y = drawActionRow(context, viewport.x, y, "Spotify Login", "Spotify Logout", spotifyService.auth().getStatusMessage());
-                drawToggleRow(context, viewport.x, y, "Spotify Inventarsteuerung", config().isSpotifyInventoryControlsEnabled(), "Steuerung im Inventar ein- oder ausschalten.");
+                drawToggleRow(context, viewport.x, y, Lang.t("Spotify Inventarsteuerung", "Spotify Inventory Controls"), config().isSpotifyInventoryControlsEnabled(), Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
             }
             case YOUTUBE_MUSIC -> {
                 int y = viewport.y - contentScrollOffset;
                 y = drawSectionTitle(context, viewport.x, y, "Music Control / Youtube Music");
-                drawTextLine(context, viewport.x, y, "Bald verfuegbar.", MUTED);
+                drawTextLine(context, viewport.x, y, Lang.t("Bald verfuegbar.", "Coming soon."), MUTED);
             }
         }
     }
@@ -497,7 +530,7 @@ public final class HorizonConfigScreen extends Screen {
     private void renderAntiSpamText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Anti Spam");
-        y = drawToggleRow(context, viewport.x, y, "Anti Spam Gesamt", config().isAntiSpamEnabled(), "Reduziert Dungeon- und Ability-Noise.");
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Anti Spam Gesamt", "Anti Spam All"), config().isAntiSpamEnabled(), Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
         for (SpamFilterOption option : SpamFilterOption.values()) {
             y = drawToggleRow(context, viewport.x, y, option.title(), option.isEnabled(config()), option.description());
         }
@@ -513,7 +546,7 @@ public final class HorizonConfigScreen extends Screen {
             y += 28;
         }
         if (results.isEmpty()) {
-            drawTextLine(context, viewport.x, y, "Keine Treffer.", MUTED);
+            drawTextLine(context, viewport.x, y, Lang.t("Keine Treffer.", "No results."), MUTED);
         }
     }
 
@@ -528,7 +561,7 @@ public final class HorizonConfigScreen extends Screen {
         drawSettingCard(context, x, y, rowHeight, enabled ? 0xFF2DBA68 : 0xFF8A97A8, false);
         Rect badge = toggleBadgeRect(x, y);
         context.fill(badge.x, badge.y, badge.right(), badge.bottom(), enabled ? 0xFF2DBA68 : 0xFF667487);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(enabled ? "AN" : "AUS"), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(enabled ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
         int contentX = badge.right() + 10;
         int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
         drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, TEXT);
@@ -575,13 +608,13 @@ public final class HorizonConfigScreen extends Screen {
     private int drawHudColorRow(DrawContext context, int x, int y) {
         int rowHeight = hudColorRowHeight();
         drawSettingCard(context, x, y, rowHeight, inputFocus == InputFocus.HUD_ACCENT_COLOR ? HudStyle.accent() : HudStyle.selected(), inputFocus == InputFocus.HUD_ACCENT_COLOR);
-        drawTextLine(context, x, y + CARD_PADDING_TOP, "HUD Farbe: " + fieldValue(hudAccentColorInput, inputFocus == InputFocus.HUD_ACCENT_COLOR), TEXT);
-        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT, "Preview und Palette. Hexwert bleibt weiter editierbar.", CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
+        drawTextLine(context, x, y + CARD_PADDING_TOP, Lang.t("HUD Farbe: ", "HUD Color: ") + fieldValue(hudAccentColorInput, inputFocus == InputFocus.HUD_ACCENT_COLOR), TEXT);
+        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT, Lang.t("Preview und Palette. Hexwert bleibt weiter editierbar.", "Preview and palette. Hex value remains editable."), CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
 
-        int previewY = y + CARD_PADDING_TOP + LINE_HEIGHT + wrappedLines("Preview und Palette. Hexwert bleibt weiter editierbar.", CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10).size() * LINE_HEIGHT + 6;
+        int previewY = y + CARD_PADDING_TOP + LINE_HEIGHT + wrappedLines(Lang.t("Preview und Palette. Hexwert bleibt weiter editierbar.", "Preview and palette. Hex value remains editable."), CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10).size() * LINE_HEIGHT + 6;
         Rect preview = hudColorPreviewRect(x, previewY);
         context.fill(preview.x, preview.y, preview.right(), preview.bottom(), parsePreviewColor());
-        drawTextLine(context, preview.right() + 10, preview.y + 6, HudStyle.isCompleteHex(hudAccentColorInput) ? "Aktive HUD-Farbe" : "Ungueltig -> Default", MUTED);
+        drawTextLine(context, preview.right() + 10, preview.y + 6, HudStyle.isCompleteHex(hudAccentColorInput) ? Lang.t("Aktive HUD-Farbe", "Active HUD Color") : Lang.t("Ungueltig -> Default", "Invalid -> Default"), MUTED);
 
         for (int index = 0; index < HUD_COLOR_SWATCHES.length; index++) {
             Rect swatch = hudColorSwatchRect(x, previewY, index);
@@ -632,7 +665,7 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().resetPosition("revive_status", 20, 20);
             return true;
         }
-        y += actionRowHeight("Layout bearbeiten oder Positionen zuruecksetzen.");
+        y += actionRowHeight(Lang.t("Layout bearbeiten oder Positionen zuruecksetzen.", "Edit layout or reset positions."));
         Rect colorArea = rowRect(viewport.x, y, hudColorRowHeight());
         if (colorArea.contains(mouseX, mouseY)) {
             int previewY = hudColorPreviewY(y);
@@ -662,7 +695,7 @@ public final class HorizonConfigScreen extends Screen {
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight("Zeigt beste S+ Zeiten im Party Finder.");
+                y += toggleRowHeight(Lang.t("Zeigt beste S+ Zeiten im Party Finder.", "Shows best S+ times in Party Finder."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setDungeonRareRoomAlertsEnabled(!config().isDungeonRareRoomAlertsEnabled());
                     horizonClient.getConfigManager().save();
@@ -682,7 +715,7 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Spirit, Bonzo und Phoenix als Status-Panel.");
+        y += toggleRowHeight(Lang.t("Spirit, Bonzo und Phoenix als Status-Panel.", "Spirit, Bonzo and Phoenix as status panel."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             inputFocus = InputFocus.CATACOMBS_LEVEL;
             refreshCatacombsInput();
@@ -696,19 +729,19 @@ public final class HorizonConfigScreen extends Screen {
             adjustCatacombsLevel(1);
             return true;
         }
-        y += numberRowHeight("Nutze [-] und [+] oder tippe direkt.");
+        y += numberRowHeight(Lang.t("Nutze [-] und [+] oder tippe direkt.", "Use [-] and [+] or type directly."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setReviveHudOnlyInBoss(!config().isReviveHudOnlyInBoss());
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Nur waehrend Bossphasen.");
+        y += toggleRowHeight(Lang.t("Nur waehrend Bossphasen.", "Only during boss phases."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setReviveHudAlwaysVisible(!config().isReviveHudAlwaysVisible());
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Auch ausserhalb des Kampfes sichtbar.");
+        y += toggleRowHeight(Lang.t("Auch ausserhalb des Kampfes sichtbar.", "Visible even outside combat."));
         for (ReviveSource source : ReviveSource.values()) {
             if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                 source.toggle(config());
@@ -750,7 +783,7 @@ public final class HorizonConfigScreen extends Screen {
             inputFocus = InputFocus.PARTICLE_SEARCH;
             return true;
         }
-        int y = viewport.y + fieldRowHeight("Liste filtern.") - particleScrollOffset;
+        int y = viewport.y + fieldRowHeight(Lang.t("Liste filtern.", "Filter list.")) - particleScrollOffset;
         for (String particleId : filteredParticleIds()) {
             if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                 particleFilterService.toggle(particleId);
@@ -769,31 +802,31 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Lokale Uhrzeit als Overlay.");
+        y += toggleRowHeight(Lang.t("Lokale Uhrzeit als Overlay.", "Local time as overlay."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setPerformanceHudEnabled(!config().isPerformanceHudEnabled());
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Performance-Overlay.");
+        y += toggleRowHeight(Lang.t("Performance-Overlay.", "Performance overlay."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setSystemHudEnabled(!config().isSystemHudEnabled());
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("CPU / GPU / Temperaturen.");
+        y += toggleRowHeight(Lang.t("CPU / GPU / Temperaturen.", "CPU / GPU / Temperatures."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setSolverDebugHudEnabled(!config().isSolverDebugHudEnabled());
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Diagnoseanzeige fuer Dungeon Solver.");
+        y += toggleRowHeight(Lang.t("Diagnoseanzeige fuer Dungeon Solver.", "Diagnostic display for Dungeon Solver."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setHideDefenseBar(!config().isHideDefenseBar());
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Blendet die Vanilla-Ruestungsanzeige aus.");
+        y += toggleRowHeight(Lang.t("Blendet die Vanilla-Ruestungsanzeige aus.", "Hides the vanilla armor display."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setCompactHypixelHealthEnabled(!config().isCompactHypixelHealthEnabled());
             horizonClient.getConfigManager().save();
@@ -810,12 +843,12 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.");
+        y += toggleRowHeight(Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             inputFocus = InputFocus.CHAT_BRIDGE_BOT_NAME;
             return true;
         }
-        y += fieldRowHeight("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).");
+        y += fieldRowHeight(Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."));
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             ChatCopyMode[] modes = ChatCopyMode.values();
             int next = (config().getChatCopyMode().ordinal() + 1) % modes.length;
@@ -823,7 +856,7 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Modus: Aus, Strg+LK, Rechtsklick oder Beides.");
+        y += toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."));
         if (rowRect(viewport.x + 16, y).contains(mouseX, mouseY)) {
             config().setChatCopyFullMessage(!config().isChatCopyFullMessage());
             horizonClient.getConfigManager().save();
@@ -842,7 +875,7 @@ public final class HorizonConfigScreen extends Screen {
             inputFocus = InputFocus.SPOTIFY_CLIENT_ID;
             return true;
         }
-        y += fieldRowHeight("Spotify Premium Login.");
+        y += fieldRowHeight(Lang.t("Spotify Premium Login.", "Spotify Premium login."));
         if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
             commitSpotifyClientIdInput();
             spotifyService.auth().beginLogin();
@@ -855,6 +888,7 @@ public final class HorizonConfigScreen extends Screen {
         y += actionRowHeight(spotifyService.auth().getStatusMessage());
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setSpotifyInventoryControlsEnabled(!config().isSpotifyInventoryControlsEnabled());
+
             horizonClient.getConfigManager().save();
             return true;
         }
@@ -869,7 +903,7 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Reduziert Dungeon- und Ability-Noise.");
+        y += toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
         for (SpamFilterOption option : SpamFilterOption.values()) {
             if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                 option.toggle(config());
@@ -898,7 +932,7 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.");
+        y += toggleRowHeight(Lang.t("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.", "Show custom scoreboard bar at the bottom of the screen."));
         y += 24; // section title "Globale Zeilenfilter"
         for (String[] entry : GLOBAL_SCOREBOARD_LINES) {
             if (rowRect(viewport.x, y, scoreboardLineRowHeight()).contains(mouseX, mouseY)) {
@@ -1164,6 +1198,7 @@ public final class HorizonConfigScreen extends Screen {
     private int maxContentScroll() {
         Rect viewport = contentViewportRect(frame());
         int contentHeight = switch (activeTab) {
+            case GENERAL -> generalContentHeight();
             case HUD -> hudContentHeight();
             case DUNGEON -> dungeonContentHeight();
             case PARTICLE -> particleContentHeight();
@@ -1347,14 +1382,14 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private int hudColorRowHeight() {
-        int descLines = wrappedLines("Preview und Palette. Hexwert bleibt weiter editierbar.", CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10).size();
+        int descLines = wrappedLines(Lang.t("Preview und Palette. Hexwert bleibt weiter editierbar.", "Preview and palette. Hex value remains editable."), CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10).size();
         int previewY = CARD_PADDING_TOP + LINE_HEIGHT + descLines * LINE_HEIGHT + 6;
         int contentHeight = previewY + 22 + 18;
         return contentHeight + CARD_PADDING_BOTTOM + CARD_GAP;
     }
 
     private int hudColorPreviewY(int y) {
-        int descLines = wrappedLines("Preview und Palette. Hexwert bleibt weiter editierbar.", CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10).size();
+        int descLines = wrappedLines(Lang.t("Preview und Palette. Hexwert bleibt weiter editierbar.", "Preview and palette. Hex value remains editable."), CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10).size();
         return y + CARD_PADDING_TOP + LINE_HEIGHT + descLines * LINE_HEIGHT + 6;
     }
 
@@ -1424,29 +1459,29 @@ public final class HorizonConfigScreen extends Screen {
 
     private int hudContentHeight() {
         return 24
-            + actionRowHeight("Layout bearbeiten oder Positionen zuruecksetzen.")
+            + actionRowHeight(Lang.t("Layout bearbeiten oder Positionen zuruecksetzen.", "Edit layout or reset positions."))
             + hudColorRowHeight();
     }
 
     private int musicContentHeight() {
         return switch (activeMusicSection) {
             case SPOTIFY -> 24
-                + fieldRowHeight("Spotify Premium Login.")
+                + fieldRowHeight(Lang.t("Spotify Premium Login.", "Spotify Premium login."))
                 + actionRowHeight(spotifyService.auth().getStatusMessage())
-                + toggleRowHeight("Steuerung im Inventar ein- oder ausschalten.");
+                + toggleRowHeight(Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
             case YOUTUBE_MUSIC -> 24 + LINE_HEIGHT;
         };
     }
 
     private int dungeonContentHeight() {
         return 24 + switch (activeDungeonSection) {
-            case GENERAL -> toggleRowHeight("Zeigt beste S+ Zeiten im Party Finder.")
-                + toggleRowHeight("Alert fuer Trinity, Tomioka und Duncan.");
+            case GENERAL -> toggleRowHeight(Lang.t("Zeigt beste S+ Zeiten im Party Finder.", "Shows best S+ times in Party Finder."))
+                + toggleRowHeight(Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
             case REVIVAL -> {
-                int height = toggleRowHeight("Spirit, Bonzo und Phoenix als Status-Panel.")
-                    + numberRowHeight("Nutze [-] und [+] oder tippe direkt.")
-                    + toggleRowHeight("Nur waehrend Bossphasen.")
-                    + toggleRowHeight("Auch ausserhalb des Kampfes sichtbar.");
+                int height = toggleRowHeight(Lang.t("Spirit, Bonzo und Phoenix als Status-Panel.", "Spirit, Bonzo and Phoenix as status panel."))
+                    + numberRowHeight(Lang.t("Nutze [-] und [+] oder tippe direkt.", "Use [-] and [+] or type directly."))
+                    + toggleRowHeight(Lang.t("Nur waehrend Bossphasen.", "Only during boss phases."))
+                    + toggleRowHeight(Lang.t("Auch ausserhalb des Kampfes sichtbar.", "Visible even outside combat."));
                 for (ReviveSource source : ReviveSource.values()) {
                     height += toggleRowHeight(source.cooldownLabel() + ": " + source.configuredCooldown(config()) + "s");
                 }
@@ -1470,21 +1505,21 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private int particleContentHeight() {
-        return fieldRowHeight("Liste filtern.") + Math.max(0, filteredParticleIds().size() * 14);
+        return fieldRowHeight(Lang.t("Liste filtern.", "Filter list.")) + Math.max(0, filteredParticleIds().size() * 14);
     }
 
     private int miscContentHeight() {
         return 24
-            + toggleRowHeight("Lokale Uhrzeit als Overlay.")
-            + toggleRowHeight("Performance-Overlay.")
-            + toggleRowHeight("CPU / GPU / Temperaturen.")
-            + toggleRowHeight("Diagnoseanzeige fuer Dungeon Solver.")
-            + toggleRowHeight("Blendet die Vanilla-Ruestungsanzeige aus.")
-            + toggleRowHeight("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.");
+            + toggleRowHeight(Lang.t("Lokale Uhrzeit als Overlay.", "Local time as overlay."))
+            + toggleRowHeight(Lang.t("Performance-Overlay.", "Performance overlay."))
+            + toggleRowHeight(Lang.t("CPU / GPU / Temperaturen.", "CPU / GPU / Temperatures."))
+            + toggleRowHeight(Lang.t("Diagnoseanzeige fuer Dungeon Solver.", "Diagnostic display for Dungeon Solver."))
+            + toggleRowHeight(Lang.t("Blendet die Vanilla-Ruestungsanzeige aus.", "Hides the vanilla armor display."))
+            + toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
     }
 
     private int antiSpamContentHeight() {
-        int height = 24 + toggleRowHeight("Reduziert Dungeon- und Ability-Noise.");
+        int height = 24 + toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
         for (SpamFilterOption option : SpamFilterOption.values()) {
             height += toggleRowHeight(option.description());
         }
@@ -1493,16 +1528,16 @@ public final class HorizonConfigScreen extends Screen {
 
     private int chatContentHeight() {
         return 24
-            + toggleRowHeight("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.")
-            + fieldRowHeight("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).")
-            + toggleRowHeight("Modus: Aus, Strg+LK, Rechtsklick oder Beides.")
-            + toggleRowHeight("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.");
+            + toggleRowHeight(Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."))
+            + fieldRowHeight(Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."))
+            + toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."))
+            + toggleRowHeight(Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
     }
 
     private int scoreboardContentHeight() {
         if (scoreboardGeneralActive) {
             return 24 // section title
-                + toggleRowHeight("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.")
+                + toggleRowHeight(Lang.t("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.", "Show custom scoreboard bar at the bottom of the screen."))
                 + 24 // section title "Globale Zeilenfilter"
                 + GLOBAL_SCOREBOARD_LINES.length * scoreboardLineRowHeight();
         }
@@ -1525,7 +1560,7 @@ public final class HorizonConfigScreen extends Screen {
         drawSettingCard(context, x, y, rowHeight, visible ? 0xFF2DBA68 : 0xFF8A97A8, false);
         Rect badge = toggleBadgeRect(x, y);
         context.fill(badge.x, badge.y, badge.right(), badge.bottom(), visible ? 0xFF2DBA68 : 0xFF667487);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(visible ? "AN" : "AUS"), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(visible ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
         int contentX = badge.right() + 10;
         if (visible) {
             drawTextLine(context, contentX, y + CARD_PADDING_TOP, lineText, TEXT);
@@ -1555,14 +1590,14 @@ public final class HorizonConfigScreen extends Screen {
         int oy = frame.y + (frame.height - h) / 2;
         context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
         context.drawStrokedRectangle(ox, oy, w, h, HudStyle.border());
-        drawTextLine(context, ox + 12, oy + 12, "Globale Aenderung", accent);
-        drawTextLine(context, ox + 12, oy + 28, "\"" + pendingGlobalToggleLabel + "\" fuer alle Islands toggeln?", MUTED);
+        drawTextLine(context, ox + 12, oy + 12, Lang.t("Globale Aenderung", "Global Change"), accent);
+        drawTextLine(context, ox + 12, oy + 28, "\"" + pendingGlobalToggleLabel + "\"" + Lang.t(" fuer alle Islands toggeln?", " toggle for all islands?"), MUTED);
         Rect yes = confirmYesRect(frame);
         Rect no = confirmNoRect(frame);
         context.fill(yes.x, yes.y, yes.right(), yes.bottom(), 0xFF2DBA68);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("JA"), yes.centerX(), yes.y + 5, 0xFFF7FBFF);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(Lang.t("JA", "YES")), yes.centerX(), yes.y + 5, 0xFFF7FBFF);
         context.fill(no.x, no.y, no.right(), no.bottom(), 0xFF8A3A3A);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("NEIN"), no.centerX(), no.y + 5, 0xFFF7FBFF);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(Lang.t("NEIN", "NO")), no.centerX(), no.y + 5, 0xFFF7FBFF);
     }
 
     private Rect confirmYesRect(Rect frame) {
@@ -1585,7 +1620,7 @@ public final class HorizonConfigScreen extends Screen {
         context.drawStrokedRectangle(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
         context.fill(frame.x, frame.y, frame.right(), frame.y + 34, CONFIG_WINDOW_HEADER);
         drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
-        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, "Suche: " + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : TEXT);
+        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : TEXT);
         drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", WARNING);
     }
 
@@ -1593,11 +1628,12 @@ public final class HorizonConfigScreen extends Screen {
         context.fill(frame.x + 1, frame.y + 1, frame.right() - 1, frame.y + 34, CONFIG_WINDOW_HEADER);
         context.drawStrokedRectangle(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
         drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
-        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, "Suche: " + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : TEXT);
+        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : TEXT);
         drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", WARNING);
     }
 
     private enum Tab {
+        GENERAL("General"),
         HUD("HUD"),
         DUNGEON("Dungeons"),
         PARTICLE("Particle"),

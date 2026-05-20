@@ -1,27 +1,54 @@
 package de.horizon.feature.chat;
 
+import de.horizon.Lang;
 import de.horizon.config.HorizonConfig;
 
 public enum SpamFilterOption {
-    BLOCKS_IN_THE_WAY("Blocks in the way", "Teleport- und Portalblockaden ausblenden."),
-    ABILITY_MESSAGES("Ability spam", "Wither-Impact- und aehnliche Ability-Messages ausblenden."),
-    MANA_MESSAGES("Mana Messages", "Nicht-genug-Mana-Messages ausblenden."),
-    COOLDOWN_MESSAGES("Cooldown Messages", "Allgemeine Cooldown-Chatmeldungen ausblenden."),
-    BLESSING_MESSAGES("Dungeon Blessings", "Blessing-Chatmeldungen in Dungeons ausblenden."),
-    DUNGEON_PICKUPS("Dungeon Pickups", "Keys, Superboom und Revive Stones ausblenden."),
-    AUTOPET_MESSAGES("AutoPet", "AutoPet-Swap-Messages ausblenden."),
-    FULL_STATUS_MESSAGES("Full HP / Mana", "Meldungen bei vollem Leben oder Mana ausblenden."),
-    EFFECT_MESSAGES("Effect Warnings", "Doppelte Effekt- und Potion-Warnungen ausblenden."),
-    HEALING_MESSAGES("Heal Messages", "Heilungs-Chatmeldungen ausblenden."),
-    DUNGEON_EVENT_MESSAGES("Dungeon Events", "Blood- und Wither-Door-Ansagen ausblenden."),
-    LOCKED_CHEST_MESSAGES("Locked Chest", "This chest is locked-Meldungen ausblenden.");
+    BLOCKS_IN_THE_WAY("Blocks in the way",
+        "Teleport- und Portalblockaden ausblenden.",
+        "Hide teleport and portal blockage messages."),
+    ABILITY_MESSAGES("Ability spam",
+        "Wither-Impact- und aehnliche Ability-Messages ausblenden.",
+        "Hide Wither Impact and similar ability messages."),
+    MANA_MESSAGES("Mana Messages",
+        "Nicht-genug-Mana-Messages ausblenden.",
+        "Hide not-enough-mana messages."),
+    COOLDOWN_MESSAGES("Cooldown Messages",
+        "Allgemeine Cooldown-Chatmeldungen ausblenden.",
+        "Hide general cooldown chat messages."),
+    BLESSING_MESSAGES("Dungeon Blessings",
+        "Blessing-Chatmeldungen in Dungeons ausblenden.",
+        "Hide blessing chat messages in dungeons."),
+    DUNGEON_PICKUPS("Dungeon Pickups",
+        "Keys, Superboom und Revive Stones ausblenden.",
+        "Hide keys, superboom and revive stones."),
+    AUTOPET_MESSAGES("AutoPet",
+        "AutoPet-Swap-Messages ausblenden.",
+        "Hide AutoPet swap messages."),
+    FULL_STATUS_MESSAGES("Full HP / Mana",
+        "Meldungen bei vollem Leben oder Mana ausblenden.",
+        "Hide messages at full HP or mana."),
+    EFFECT_MESSAGES("Effect Warnings",
+        "Doppelte Effekt- und Potion-Warnungen ausblenden.",
+        "Hide duplicate effect and potion warnings."),
+    HEALING_MESSAGES("Heal Messages",
+        "Heilungs-Chatmeldungen ausblenden.",
+        "Hide healing chat messages."),
+    DUNGEON_EVENT_MESSAGES("Dungeon Events",
+        "Blood- und Wither-Door-Ansagen ausblenden.",
+        "Hide Blood and Wither Door announcements."),
+    LOCKED_CHEST_MESSAGES("Locked Chest",
+        "This chest is locked-Meldungen ausblenden.",
+        "Hide locked chest messages.");
 
     private final String title;
-    private final String description;
+    private final String descriptionDe;
+    private final String descriptionEn;
 
-    SpamFilterOption(String title, String description) {
+    SpamFilterOption(String title, String descriptionDe, String descriptionEn) {
         this.title = title;
-        this.description = description;
+        this.descriptionDe = descriptionDe;
+        this.descriptionEn = descriptionEn;
     }
 
     public String title() {
@@ -29,7 +56,7 @@ public enum SpamFilterOption {
     }
 
     public String description() {
-        return description;
+        return Lang.t(descriptionDe, descriptionEn);
     }
 
     public boolean isEnabled(HorizonConfig config) {

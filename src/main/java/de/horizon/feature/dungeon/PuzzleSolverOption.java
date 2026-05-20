@@ -1,25 +1,48 @@
 package de.horizon.feature.dungeon;
 
+import de.horizon.Lang;
 import de.horizon.config.HorizonConfig;
 
 public enum PuzzleSolverOption {
-    WATER_BOARD("Water Board", "Bereitet das Overlay fuer Water Board vor."),
-    THREE_WEIRDOS("Three Weirdos", "Markiert die korrekte NPC-Antwort."),
-    BLAZE("Higher Or Lower", "Sortiert die Blaze-Reihenfolge visuell."),
-    ICE_FILL("Ice Fill", "Zeigt den geplanten Ice-Fill-Pfad."),
-    QUIZ("Quiz", "Highlightet gueltige Quiz-Antworten."),
-    TIC_TAC_TOE("Tic Tac Toe", "Berechnet sichere Tic-Tac-Toe-Zuege."),
-    CREEPER_BEAMS("Creeper Beams", "Zeigt Creeper-Beam-Hinweise im Raum."),
-    BOULDER("Boulder", "Zeigt Boulder-Puzzle-Hinweise an."),
-    ICE_PATH("Ice Path", "Markiert das Ice-Path-Puzzle, sobald es eindeutig erkannt wird."),
-    TELEPORT_MAZE("Teleport Maze", "Zeigt Teleport-Maze-Hinweise an.");
+    WATER_BOARD("Water Board",
+        "Bereitet das Overlay fuer Water Board vor.",
+        "Prepares the overlay for Water Board."),
+    THREE_WEIRDOS("Three Weirdos",
+        "Markiert die korrekte NPC-Antwort.",
+        "Marks the correct NPC answer."),
+    BLAZE("Higher Or Lower",
+        "Sortiert die Blaze-Reihenfolge visuell.",
+        "Visually sorts the Blaze order."),
+    ICE_FILL("Ice Fill",
+        "Zeigt den geplanten Ice-Fill-Pfad.",
+        "Shows the planned Ice Fill path."),
+    QUIZ("Quiz",
+        "Highlightet gueltige Quiz-Antworten.",
+        "Highlights valid quiz answers."),
+    TIC_TAC_TOE("Tic Tac Toe",
+        "Berechnet sichere Tic-Tac-Toe-Zuege.",
+        "Calculates safe Tic Tac Toe moves."),
+    CREEPER_BEAMS("Creeper Beams",
+        "Zeigt Creeper-Beam-Hinweise im Raum.",
+        "Shows Creeper Beam hints in the room."),
+    BOULDER("Boulder",
+        "Zeigt Boulder-Puzzle-Hinweise an.",
+        "Shows Boulder puzzle hints."),
+    ICE_PATH("Ice Path",
+        "Markiert das Ice-Path-Puzzle, sobald es eindeutig erkannt wird.",
+        "Marks the Ice Path puzzle once clearly detected."),
+    TELEPORT_MAZE("Teleport Maze",
+        "Zeigt Teleport-Maze-Hinweise an.",
+        "Shows Teleport Maze hints.");
 
     private final String title;
-    private final String description;
+    private final String descriptionDe;
+    private final String descriptionEn;
 
-    PuzzleSolverOption(String title, String description) {
+    PuzzleSolverOption(String title, String descriptionDe, String descriptionEn) {
         this.title = title;
-        this.description = description;
+        this.descriptionDe = descriptionDe;
+        this.descriptionEn = descriptionEn;
     }
 
     public String title() {
@@ -27,7 +50,7 @@ public enum PuzzleSolverOption {
     }
 
     public String description() {
-        return description;
+        return Lang.t(descriptionDe, descriptionEn);
     }
 
     public boolean isEnabled(HorizonConfig config) {

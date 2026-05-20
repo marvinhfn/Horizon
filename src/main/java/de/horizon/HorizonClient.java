@@ -88,6 +88,7 @@ public final class HorizonClient implements ClientModInitializer {
         HorizonMod.LOGGER.info("Initializing Horizon client");
 
         configManager.load();
+        Lang.set(configManager.getConfig().getLanguage());
         hudRegistry.register(new RevivalStatusHudElement(configManager, reviveTracker, dungeonStateService));
         hudRegistry.register(new TimeHudElement());
         hudRegistry.register(new PerformanceHudElement());
