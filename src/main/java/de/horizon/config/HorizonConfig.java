@@ -601,9 +601,22 @@ public final class HorizonConfig {
         if (clean.contains("⏣")) {
             return "location";
         }
+        // Time line: starts with 1-2 digits followed by colon (e.g. "3:45 PM", "12:00")
+        if (clean.matches("\\d{1,2}:\\d{2}.*")) {
+            return "time";
+        }
+        // Date line: contains ordinal number suffix (e.g. "Early Spring 3rd", "Late Summer 28th")
+        if (clean.toLowerCase(Locale.ROOT).matches(".*\\d+(st|nd|rd|th).*")) {
+            return "date";
+        }
         int colon = clean.indexOf(':');
         if (colon > 0) {
-            return clean.substring(0, colon).toLowerCase(Locale.ROOT).trim();
+            String key = clean.substring(0, colon).toLowerCase(Locale.ROOT).trim();
+            // Guard: if key is a bare 1-2 digit number it's a time line without AM/PM suffix
+            if (key.matches("\\d{1,2}")) {
+                return "time";
+            }
+            return key;
         }
         return clean.toLowerCase(Locale.ROOT).trim();
     }
