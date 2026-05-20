@@ -14,38 +14,44 @@ import java.nio.file.Path;
 public final class ConfigManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final Path path = FabricLoader.getInstance().getConfigDir().resolve("horizon.json");
-    private HorizonConfig config = new HorizonConfig();
+    private final Path baseDir = FabricLoader.getInstance().getConfigDir().resolve("horizon");
+
+    private HudConfig hud = new HudConfig();
+    private DungeonConfig dungeon = new DungeonConfig();
+    private SpotifyConfig spotify = new SpotifyConfig();
+    private ChatConfig chat = new ChatConfig();
+    private MiscConfig misc = new MiscConfig();
+    private AntiSpamConfig antiSpam = new AntiSpamConfig();
+    private ParticleConfig particle = new ParticleConfig();
+    private ScoreboardConfig scoreboard = new ScoreboardConfig();
+
+    private HorizonConfig config = build();
 
     public HorizonConfig getConfig() {
         return config;
     }
 
     public void load() {
-        if (!Files.exists(path)) {
-            save();
-            return;
-        }
-
-        try (Reader reader = Files.newBufferedReader(path)) {
-            HorizonConfig loaded = GSON.fromJson(reader, HorizonConfig.class);
-            config = loaded != null ? loaded : new HorizonConfig();
-        } catch (IOException | RuntimeException exception) {
-            HorizonMod.LOGGER.error("Failed to load config from {}, resetting to defaults", path, exception);
-            config = new HorizonConfig();
-            save();
-        }
+        hud = loadSub("hud.json", HudConfig.class, new HudConfig());
+        dungeon = loadSub("dungeon.json", DungeonConfig.class, new DungeonConfig());
+        spotify = loadSub("music/spotify.json", SpotifyConfig.class, new SpotifyConfig());
+        chat = loadSub("chat.json", ChatConfig.class, new ChatConfig());
+        misc = loadSub("misc.json", MiscConfig.class, new MiscConfig());
+        antiSpam = loadSub("anti_spam.json", AntiSpamConfig.class, new AntiSpamConfig());
+        particle = loadSub("particle.json", ParticleConfig.class, new ParticleConfig());
+        scoreboard = loadSub("scoreboard.json", ScoreboardConfig.class, new ScoreboardConfig());
+        config = build();
     }
 
     public void save() {
-        try {
-            Files.createDirectories(path.getParent());
-            try (Writer writer = Files.newBufferedWriter(path)) {
-                GSON.toJson(config, writer);
-            }
-        } catch (IOException exception) {
-            HorizonMod.LOGGER.error("Failed to save config to {}", path, exception);
-        }
+        saveSub("hud.json", config.hud);
+        saveSub("dungeon.json", config.dungeon);
+        saveSub("music/spotify.json", config.spotify);
+        saveSub("chat.json", config.chat);
+        saveSub("misc.json", config.misc);
+        saveSub("anti_spam.json", config.antiSpam);
+        saveSub("particle.json", config.particle);
+        saveSub("scoreboard.json", config.scoreboard);
     }
 
     public HudPosition getOrCreatePosition(String id, int defaultX, int defaultY) {
@@ -55,5 +61,35 @@ public final class ConfigManager {
     public void resetPosition(String id, int defaultX, int defaultY) {
         config.getHudPositions().put(id, new HudPosition(defaultX, defaultY, 1.0D));
         save();
+    }
+
+    private HorizonConfig build() {
+        return new HorizonConfig(hud, dungeon, spotify, chat, misc, antiSpam, particle, scoreboard);
+    }
+
+    private <T> T loadSub(String filename, Class<T> clazz, T defaultValue) {
+        Path path = baseDir.resolve(filename);
+        if (!Files.exists(path)) {
+            return defaultValue;
+        }
+        try (Reader reader = Files.newBufferedReader(path)) {
+            T loaded = GSON.fromJson(reader, clazz);
+            return loaded != null ? loaded : defaultValue;
+        } catch (IOException | RuntimeException exception) {
+            HorizonMod.LOGGER.error("Failed to load config/{}, using defaults", filename, exception);
+            return defaultValue;
+        }
+    }
+
+    private void saveSub(String filename, Object obj) {
+        Path path = baseDir.resolve(filename);
+        try {
+            Files.createDirectories(path.getParent());
+            try (Writer writer = Files.newBufferedWriter(path)) {
+                GSON.toJson(obj, writer);
+            }
+        } catch (IOException exception) {
+            HorizonMod.LOGGER.error("Failed to save config/{}", filename, exception);
+        }
     }
 }

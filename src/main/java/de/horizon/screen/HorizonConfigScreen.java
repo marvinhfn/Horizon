@@ -46,7 +46,9 @@ public final class HorizonConfigScreen extends Screen {
         {"location", "Standort (⏣-Zeile)"},
         {"date", "Datum"},
         {"time", "Uhrzeit"},
+        {"server_code", "Server-Code (z.B. 05/20/26 m99AJ)"},
         {"profile", "Profil"},
+        {"www.hypixel.net", "www.hypixel.net"},
     };
 
     private static final String[] HUD_COLOR_SWATCHES = {
@@ -61,6 +63,7 @@ public final class HorizonConfigScreen extends Screen {
 
     private Tab activeTab = Tab.HUD;
     private DungeonSection activeDungeonSection = DungeonSection.GENERAL;
+    private MusicSection activeMusicSection = MusicSection.SPOTIFY;
     private boolean scoreboardGeneralActive = true;
     private SkyBlockIsland activeScoreboardIsland = SkyBlockIsland.HUB;
     private String pendingGlobalToggleKey = null;
@@ -69,7 +72,6 @@ public final class HorizonConfigScreen extends Screen {
     private String catacombsInput;
     private String hudAccentColorInput;
     private String spotifyClientIdInput;
-    private String hypixelApiKeyInput;
     private String chatBridgeBotNameInput;
     private String globalSearchInput = "";
     private String particleSearchInput = "";
@@ -85,7 +87,6 @@ public final class HorizonConfigScreen extends Screen {
         this.catacombsInput = String.valueOf(config().getCatacombsLevel());
         this.hudAccentColorInput = config().getHudAccentColor();
         this.spotifyClientIdInput = config().getSpotifyClientId();
-        this.hypixelApiKeyInput = config().getHypixelApiKey();
         this.chatBridgeBotNameInput = config().getChatBridgeBotName();
     }
 
@@ -145,9 +146,20 @@ public final class HorizonConfigScreen extends Screen {
         if (activeTab == Tab.DUNGEON) {
             Rect bar = subTabBarRect(frame);
             for (int index = 0; index < DungeonSection.values().length; index++) {
-                if (subTabRect(bar, index).contains(click.x(), click.y())) {
+                if (subTabRect(bar, index, DungeonSection.values().length).contains(click.x(), click.y())) {
                     commitCatacombsInput();
                     activeDungeonSection = DungeonSection.values()[index];
+                    contentScrollOffset = 0;
+                    return true;
+                }
+            }
+        }
+
+        if (activeTab == Tab.MUSIC_CONTROL) {
+            Rect bar = subTabBarRect(frame);
+            for (int index = 0; index < MusicSection.values().length; index++) {
+                if (subTabRect(bar, index, MusicSection.values().length).contains(click.x(), click.y())) {
+                    activeMusicSection = MusicSection.values()[index];
                     contentScrollOffset = 0;
                     return true;
                 }
@@ -183,6 +195,7 @@ public final class HorizonConfigScreen extends Screen {
             case MISC -> handleMiscClick(click.x(), click.y(), frame);
             case ANTI_SPAM -> handleAntiSpamClick(click.x(), click.y(), frame);
             case CHAT -> handleChatClick(click.x(), click.y(), frame);
+            case MUSIC_CONTROL -> handleMusicClick(click.x(), click.y(), frame);
             case SCOREBOARD -> handleScoreboardClick(click.x(), click.y(), frame);
         } || super.mouseClicked(click, doubled);
     }
@@ -212,12 +225,6 @@ public final class HorizonConfigScreen extends Screen {
         if (inputFocus == InputFocus.SPOTIFY_CLIENT_ID) {
             if (isAllowedSpotifyClientChar(input.codepoint()) && spotifyClientIdInput.length() < 64) {
                 spotifyClientIdInput += Character.toString(input.codepoint());
-            }
-            return true;
-        }
-        if (inputFocus == InputFocus.HYPIXEL_API_KEY) {
-            if (isAllowedApiKeyChar(input.codepoint()) && hypixelApiKeyInput.length() < 64) {
-                hypixelApiKeyInput += Character.toString(input.codepoint());
             }
             return true;
         }
@@ -310,8 +317,17 @@ public final class HorizonConfigScreen extends Screen {
             Rect bar = subTabBarRect(frame);
             for (int index = 0; index < DungeonSection.values().length; index++) {
                 boolean active = DungeonSection.values()[index] == activeDungeonSection;
-                Rect rect = subTabRect(bar, index);
+                Rect rect = subTabRect(bar, index, DungeonSection.values().length);
                 drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + DungeonSection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+            }
+        }
+
+        if (activeTab == Tab.MUSIC_CONTROL) {
+            Rect bar = subTabBarRect(frame);
+            for (int index = 0; index < MusicSection.values().length; index++) {
+                boolean active = MusicSection.values()[index] == activeMusicSection;
+                Rect rect = subTabRect(bar, index, MusicSection.values().length);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + MusicSection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
             }
         }
 
@@ -339,6 +355,7 @@ public final class HorizonConfigScreen extends Screen {
                 case MISC -> renderMiscText(context, viewport);
                 case ANTI_SPAM -> renderAntiSpamText(context, viewport);
                 case CHAT -> renderChatText(context, viewport);
+                case MUSIC_CONTROL -> renderMusicText(context, viewport);
                 case SCOREBOARD -> renderScoreboardText(context, viewport);
             }
         }
@@ -354,13 +371,8 @@ public final class HorizonConfigScreen extends Screen {
     private void renderHudText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "HUD");
-        y = drawToggleRow(context, viewport.x, y, "Revive HUD", config().isReviveHudEnabled(), "Spirit, Bonzo und Phoenix als Status-Panel.");
         y = drawActionRow(context, viewport.x, y, "HUD bearbeiten", "HUD reset", "Layout bearbeiten oder Positionen zuruecksetzen.");
-        y = drawHudColorRow(context, viewport.x, y);
-        y = drawFieldRow(context, viewport.x, y, "Spotify Client ID", spotifyClientIdInput, inputFocus == InputFocus.SPOTIFY_CLIENT_ID, "Spotify Premium Login.");
-        y = drawActionRow(context, viewport.x, y, "Spotify Login", "Spotify Logout", spotifyService.auth().getStatusMessage());
-        y = drawToggleRow(context, viewport.x, y, "Spotify Inventarsteuerung", config().isSpotifyInventoryControlsEnabled(), "Steuerung im Inventar ein- oder ausschalten.");
-        drawFieldRow(context, viewport.x, y, "Hypixel API Key", hypixelApiKeyInput, inputFocus == InputFocus.HYPIXEL_API_KEY, "Fuer Profil- und Party-Finder-Daten.");
+        drawHudColorRow(context, viewport.x, y);
     }
 
     private void renderDungeonText(DrawContext context, Rect viewport) {
@@ -373,6 +385,7 @@ public final class HorizonConfigScreen extends Screen {
             }
             case REVIVAL -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeons / Revive");
+                y = drawToggleRow(context, viewport.x, y, "Revive HUD", config().isReviveHudEnabled(), "Spirit, Bonzo und Phoenix als Status-Panel.");
                 y = drawNumberRow(context, viewport.x, y, "Catacombs Level", catacombsInput, inputFocus == InputFocus.CATACOMBS_LEVEL, "Nutze [-] und [+] oder tippe direkt.");
                 y = drawToggleRow(context, viewport.x, y, "Boss Only", config().isReviveHudOnlyInBoss(), "Nur waehrend Bossphasen.");
                 y = drawToggleRow(context, viewport.x, y, "Always Visible", config().isReviveHudAlwaysVisible(), "Auch ausserhalb des Kampfes sichtbar.");
@@ -461,6 +474,23 @@ public final class HorizonConfigScreen extends Screen {
             boolean visible = !config().isScoreboardLineHidden(activeScoreboardIsland.id(), entry.getKey())
                 && !config().isScoreboardGlobalLineHidden(entry.getKey());
             y = drawScoreboardLineRow(context, viewport.x, y, entry.getValue(), visible);
+        }
+    }
+
+    private void renderMusicText(DrawContext context, Rect viewport) {
+        switch (activeMusicSection) {
+            case SPOTIFY -> {
+                int y = viewport.y - contentScrollOffset;
+                y = drawSectionTitle(context, viewport.x, y, "Music Control / Spotify");
+                y = drawFieldRow(context, viewport.x, y, "Spotify Client ID", spotifyClientIdInput, inputFocus == InputFocus.SPOTIFY_CLIENT_ID, "Spotify Premium Login.");
+                y = drawActionRow(context, viewport.x, y, "Spotify Login", "Spotify Logout", spotifyService.auth().getStatusMessage());
+                drawToggleRow(context, viewport.x, y, "Spotify Inventarsteuerung", config().isSpotifyInventoryControlsEnabled(), "Steuerung im Inventar ein- oder ausschalten.");
+            }
+            case YOUTUBE_MUSIC -> {
+                int y = viewport.y - contentScrollOffset;
+                y = drawSectionTitle(context, viewport.x, y, "Music Control / Youtube Music");
+                drawTextLine(context, viewport.x, y, "Bald verfuegbar.", MUTED);
+            }
         }
     }
 
@@ -594,12 +624,6 @@ public final class HorizonConfigScreen extends Screen {
     private boolean handleHudClick(double mouseX, double mouseY, Rect frame) {
         Rect viewport = contentViewportRect(frame);
         int y = viewport.y - contentScrollOffset + 24;
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setReviveHudEnabled(!config().isReviveHudEnabled());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight("Spirit, Bonzo und Phoenix als Status-Panel.");
         if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
             client.setScreen(new HudLayoutScreen(this, horizonClient));
             return true;
@@ -623,32 +647,6 @@ public final class HorizonConfigScreen extends Screen {
                 }
             }
             inputFocus = InputFocus.HUD_ACCENT_COLOR;
-            return true;
-        }
-        y += hudColorRowHeight();
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            inputFocus = InputFocus.SPOTIFY_CLIENT_ID;
-            return true;
-        }
-        y += fieldRowHeight("Spotify Premium Login.");
-        if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
-            commitSpotifyClientIdInput();
-            spotifyService.auth().beginLogin();
-            return true;
-        }
-        if (actionButtonRect(viewport.x, y, false).contains(mouseX, mouseY)) {
-            spotifyService.auth().disconnect();
-            return true;
-        }
-        y += actionRowHeight(spotifyService.auth().getStatusMessage());
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setSpotifyInventoryControlsEnabled(!config().isSpotifyInventoryControlsEnabled());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight("Steuerung im Inventar ein- oder ausschalten.");
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            inputFocus = InputFocus.HYPIXEL_API_KEY;
             return true;
         }
         return false;
@@ -679,6 +677,12 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private boolean handleReviveClick(double mouseX, double mouseY, Rect viewport, int y) {
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setReviveHudEnabled(!config().isReviveHudEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight("Spirit, Bonzo und Phoenix als Status-Panel.");
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             inputFocus = InputFocus.CATACOMBS_LEVEL;
             refreshCatacombsInput();
@@ -828,6 +832,35 @@ public final class HorizonConfigScreen extends Screen {
         return false;
     }
 
+    private boolean handleMusicClick(double mouseX, double mouseY, Rect frame) {
+        if (activeMusicSection != MusicSection.SPOTIFY) {
+            return false;
+        }
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24;
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            inputFocus = InputFocus.SPOTIFY_CLIENT_ID;
+            return true;
+        }
+        y += fieldRowHeight("Spotify Premium Login.");
+        if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
+            commitSpotifyClientIdInput();
+            spotifyService.auth().beginLogin();
+            return true;
+        }
+        if (actionButtonRect(viewport.x, y, false).contains(mouseX, mouseY)) {
+            spotifyService.auth().disconnect();
+            return true;
+        }
+        y += actionRowHeight(spotifyService.auth().getStatusMessage());
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setSpotifyInventoryControlsEnabled(!config().isSpotifyInventoryControlsEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        return false;
+    }
+
     private boolean handleAntiSpamClick(double mouseX, double mouseY, Rect frame) {
         Rect viewport = contentViewportRect(frame);
         int y = viewport.y - contentScrollOffset + 24;
@@ -957,7 +990,6 @@ public final class HorizonConfigScreen extends Screen {
         refreshCatacombsInput();
         refreshHudAccentColorInput();
         refreshSpotifyClientIdInput();
-        refreshHypixelApiKeyInput();
         refreshChatBridgeBotNameInput();
         if (inputFocus == InputFocus.GLOBAL_SEARCH) {
             globalSearchInput = "";
@@ -979,10 +1011,6 @@ public final class HorizonConfigScreen extends Screen {
             || (codepoint >= 'A' && codepoint <= 'F');
     }
 
-    private boolean isAllowedApiKeyChar(int codepoint) {
-        return Character.isLetterOrDigit(codepoint) || codepoint == '-';
-    }
-
     private void refreshCatacombsInput() {
         catacombsInput = String.valueOf(config().getCatacombsLevel());
     }
@@ -995,15 +1023,10 @@ public final class HorizonConfigScreen extends Screen {
         spotifyClientIdInput = config().getSpotifyClientId();
     }
 
-    private void refreshHypixelApiKeyInput() {
-        hypixelApiKeyInput = config().getHypixelApiKey();
-    }
-
     private void commitInputs() {
         commitCatacombsInput();
         commitHudAccentColorInput();
         commitSpotifyClientIdInput();
-        commitHypixelApiKeyInput();
         commitChatBridgeBotNameInput();
     }
 
@@ -1043,16 +1066,6 @@ public final class HorizonConfigScreen extends Screen {
         horizonClient.getConfigManager().save();
     }
 
-    private void commitHypixelApiKeyInput() {
-        if (inputFocus != InputFocus.HYPIXEL_API_KEY) {
-            return;
-        }
-        config().setHypixelApiKey(hypixelApiKeyInput);
-        refreshHypixelApiKeyInput();
-        inputFocus = InputFocus.NONE;
-        horizonClient.getConfigManager().save();
-    }
-
     private void pasteIntoFocusedField() {
         if (client == null) {
             return;
@@ -1065,7 +1078,6 @@ public final class HorizonConfigScreen extends Screen {
             case CATACOMBS_LEVEL -> catacombsInput = sanitizeClipboard(clipboard, true);
             case HUD_ACCENT_COLOR -> hudAccentColorInput = HudStyle.sanitizeHex(clipboard);
             case SPOTIFY_CLIENT_ID -> spotifyClientIdInput = sanitizeClipboard(clipboard, false);
-            case HYPIXEL_API_KEY -> hypixelApiKeyInput = sanitizeClipboard(clipboard, false);
             case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput = sanitizeClipboard(clipboard, false);
             case GLOBAL_SEARCH -> globalSearchInput = sanitizeClipboard(clipboard, false);
             case PARTICLE_SEARCH -> {
@@ -1085,7 +1097,6 @@ public final class HorizonConfigScreen extends Screen {
             case CATACOMBS_LEVEL -> catacombsInput;
             case HUD_ACCENT_COLOR -> hudAccentColorInput;
             case SPOTIFY_CLIENT_ID -> spotifyClientIdInput;
-            case HYPIXEL_API_KEY -> hypixelApiKeyInput;
             case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput;
             case GLOBAL_SEARCH -> globalSearchInput;
             case PARTICLE_SEARCH -> particleSearchInput;
@@ -1111,11 +1122,6 @@ public final class HorizonConfigScreen extends Screen {
             case SPOTIFY_CLIENT_ID -> {
                 if (!spotifyClientIdInput.isEmpty()) {
                     spotifyClientIdInput = spotifyClientIdInput.substring(0, spotifyClientIdInput.length() - 1);
-                }
-            }
-            case HYPIXEL_API_KEY -> {
-                if (!hypixelApiKeyInput.isEmpty()) {
-                    hypixelApiKeyInput = hypixelApiKeyInput.substring(0, hypixelApiKeyInput.length() - 1);
                 }
             }
             case CHAT_BRIDGE_BOT_NAME -> {
@@ -1164,6 +1170,7 @@ public final class HorizonConfigScreen extends Screen {
             case MISC -> miscContentHeight();
             case ANTI_SPAM -> antiSpamContentHeight();
             case CHAT -> chatContentHeight();
+            case MUSIC_CONTROL -> musicContentHeight();
             case SCOREBOARD -> scoreboardContentHeight();
         };
         return Math.max(0, contentHeight - viewport.height);
@@ -1195,14 +1202,13 @@ public final class HorizonConfigScreen extends Screen {
         }
         String query = globalSearchInput.toLowerCase(Locale.ROOT);
         List<SearchResult> results = new ArrayList<>();
-        addSearchResult(results, query, "Revive HUD", "HUD", Tab.HUD, null, "revive hud spirit bonzo phoenix");
         addSearchResult(results, query, "HUD bearbeiten", "HUD", Tab.HUD, null, "hud bearbeiten layout reset");
         addSearchResult(results, query, "HUD Farbe", "HUD", Tab.HUD, null, "hud farbe accent color hex");
-        addSearchResult(results, query, "Spotify Client ID", "HUD", Tab.HUD, null, "spotify client id login premium");
-        addSearchResult(results, query, "Spotify Inventarsteuerung", "HUD", Tab.HUD, null, "spotify inventarsteuerung inventar controls");
-        addSearchResult(results, query, "Hypixel API Key", "HUD", Tab.HUD, null, "hypixel api key profile party finder");
+        addSearchResult(results, query, "Spotify Client ID", "Music Control / Spotify", Tab.MUSIC_CONTROL, null, "spotify client id login premium");
+        addSearchResult(results, query, "Spotify Inventarsteuerung", "Music Control / Spotify", Tab.MUSIC_CONTROL, null, "spotify inventarsteuerung inventar controls");
         addSearchResult(results, query, "Party Finder Overlay", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "party finder overlay dungeon general");
         addSearchResult(results, query, "Rare Room Alerts", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "rare room alerts trinity tomioka duncan");
+        addSearchResult(results, query, "Revive HUD", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "revive hud spirit bonzo phoenix");
         addSearchResult(results, query, "Catacombs Level", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "catacombs level revive");
         addSearchResult(results, query, "Boss Only", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "boss only revive");
         addSearchResult(results, query, "Always Visible", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "always visible revive");
@@ -1268,7 +1274,7 @@ public final class HorizonConfigScreen extends Screen {
     private Rect contentViewportRect(Rect frame) {
         int left = sidebarRect(frame).right() + 18;
         int top;
-        if (activeTab == Tab.DUNGEON) {
+        if (activeTab == Tab.DUNGEON || activeTab == Tab.MUSIC_CONTROL) {
             top = frame.y + 62;
         } else if (activeTab == Tab.SCOREBOARD) {
             top = frame.y + 80;
@@ -1299,8 +1305,7 @@ public final class HorizonConfigScreen extends Screen {
         return new Rect(sidebar.x, sidebar.y + index * 16, sidebar.width, 14);
     }
 
-    private Rect subTabRect(Rect bar, int index) {
-        int count = DungeonSection.values().length;
+    private Rect subTabRect(Rect bar, int index, int count) {
         int gap = 8;
         int width = Math.max(60, (bar.width - gap * (count - 1)) / count);
         return new Rect(bar.x + index * (width + gap), bar.y, width, 14);
@@ -1419,13 +1424,18 @@ public final class HorizonConfigScreen extends Screen {
 
     private int hudContentHeight() {
         return 24
-            + toggleRowHeight("Spirit, Bonzo und Phoenix als Status-Panel.")
             + actionRowHeight("Layout bearbeiten oder Positionen zuruecksetzen.")
-            + hudColorRowHeight()
-            + fieldRowHeight("Spotify Premium Login.")
-            + actionRowHeight(spotifyService.auth().getStatusMessage())
-            + toggleRowHeight("Steuerung im Inventar ein- oder ausschalten.")
-            + fieldRowHeight("Fuer Profil- und Party-Finder-Daten.");
+            + hudColorRowHeight();
+    }
+
+    private int musicContentHeight() {
+        return switch (activeMusicSection) {
+            case SPOTIFY -> 24
+                + fieldRowHeight("Spotify Premium Login.")
+                + actionRowHeight(spotifyService.auth().getStatusMessage())
+                + toggleRowHeight("Steuerung im Inventar ein- oder ausschalten.");
+            case YOUTUBE_MUSIC -> 24 + LINE_HEIGHT;
+        };
     }
 
     private int dungeonContentHeight() {
@@ -1433,7 +1443,8 @@ public final class HorizonConfigScreen extends Screen {
             case GENERAL -> toggleRowHeight("Zeigt beste S+ Zeiten im Party Finder.")
                 + toggleRowHeight("Alert fuer Trinity, Tomioka und Duncan.");
             case REVIVAL -> {
-                int height = numberRowHeight("Nutze [-] und [+] oder tippe direkt.")
+                int height = toggleRowHeight("Spirit, Bonzo und Phoenix als Status-Panel.")
+                    + numberRowHeight("Nutze [-] und [+] oder tippe direkt.")
                     + toggleRowHeight("Nur waehrend Bossphasen.")
                     + toggleRowHeight("Auch ausserhalb des Kampfes sichtbar.");
                 for (ReviveSource source : ReviveSource.values()) {
@@ -1593,11 +1604,23 @@ public final class HorizonConfigScreen extends Screen {
         MISC("Misc"),
         ANTI_SPAM("Anti Spam"),
         CHAT("Chat"),
+        MUSIC_CONTROL("Music Control"),
         SCOREBOARD("Scoreboard");
 
         private final String label;
 
         Tab(String label) {
+            this.label = label;
+        }
+    }
+
+    private enum MusicSection {
+        SPOTIFY("Spotify"),
+        YOUTUBE_MUSIC("Youtube Music");
+
+        private final String label;
+
+        MusicSection(String label) {
             this.label = label;
         }
     }
@@ -1620,7 +1643,6 @@ public final class HorizonConfigScreen extends Screen {
         CATACOMBS_LEVEL,
         HUD_ACCENT_COLOR,
         SPOTIFY_CLIENT_ID,
-        HYPIXEL_API_KEY,
         CHAT_BRIDGE_BOT_NAME,
         GLOBAL_SEARCH,
         PARTICLE_SEARCH

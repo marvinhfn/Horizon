@@ -1,9 +1,7 @@
 package de.horizon.config;
 
 import de.horizon.feature.chat.ChatCopyMode;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -11,588 +9,279 @@ import java.util.Map;
 import java.util.Set;
 
 public final class HorizonConfig {
-    private static final String DEFAULT_HUD_ACCENT_COLOR = "#75E7CA";
-
-    private boolean reviveHudEnabled = true;
-    private String hudAccentColor = DEFAULT_HUD_ACCENT_COLOR;
-    private int catacombsLevel = 0;
-    private boolean spiritMaskEnabled = true;
-    private boolean bonzoMaskEnabled = true;
-    private boolean phoenixPetEnabled = true;
-    private boolean reviveHudOnlyInBoss = false;
-    private boolean reviveHudAlwaysVisible = false;
-    private boolean dungeonPartyFinderOverlayEnabled = true;
-    private boolean dungeonRareRoomAlertsEnabled = true;
-    private boolean terminalCorrectAllEnabled = true;
-    private boolean terminalNavigateMazeEnabled = true;
-    private boolean terminalClickInOrderEnabled = true;
-    private boolean terminalStartsWithEnabled = true;
-    private boolean terminalSelectAllColorEnabled = true;
-    private boolean terminalSameColorEnabled = true;
-    private boolean puzzleWaterBoardEnabled = true;
-    private boolean puzzleThreeWeirdosEnabled = true;
-    private boolean puzzleBlazeEnabled = true;
-    private boolean puzzleIceFillEnabled = true;
-    private boolean puzzleQuizEnabled = true;
-    private boolean puzzleTicTacToeEnabled = true;
-    private boolean puzzleCreeperBeamsEnabled = true;
-    private boolean puzzleBoulderEnabled = true;
-    private boolean puzzleIcePathEnabled = true;
-    private boolean puzzleTeleportMazeEnabled = true;
-    private boolean spotifyInventoryControlsEnabled = true;
-    private String spotifyClientId = "";
-    private int spotifyRedirectPort = 43821;
-    private String spotifyAccessToken = "";
-    private String spotifyRefreshToken = "";
-    private long spotifyTokenExpiresAt = 0L;
-    private String spotifyConnectedAccount = "";
-    private String hypixelApiKey = "";
-    private boolean horizonBackendEnabled = false;
-    private String horizonBackendBaseUrl = "https://api.horizon.local";
-    private String horizonBackendAccessToken = "";
-    private long horizonBackendTokenExpiresAt = 0L;
-    private String horizonBackendAudience = "horizon-profile-api";
-    private boolean timeHudEnabled = false;
-    private boolean performanceHudEnabled = false;
-    private boolean systemHudEnabled = false;
-    private boolean solverDebugHudEnabled = false;
-    private boolean hideDefenseBar = false;
-    private boolean antiSpamEnabled = false;
-    private boolean hideBlocksInTheWayMessages = true;
-    private boolean hideAbilityMessages = true;
-    private boolean hideManaMessages = true;
-    private boolean hideCooldownMessages = true;
-    private boolean hideBlessingMessages = true;
-    private boolean hideDungeonPickupMessages = true;
-    private boolean hideAutoPetMessages = false;
-    private boolean hideFullStatusMessages = true;
-    private boolean hideEffectMessages = true;
-    private boolean hideHealingMessages = false;
-    private boolean hideDungeonEventMessages = false;
-    private boolean hideLockedChestMessages = true;
-    private boolean compactHypixelHealthEnabled = true;
-    private boolean customScoreboardEnabled = true;
-    private String chatBridgeBotName = "catgirlfc";
-    private boolean chatBridgeHidden = false;
-    private ChatCopyMode chatCopyMode = ChatCopyMode.OFF;
-    private boolean chatCopyFullMessage = true;
-    private final Map<String, Boolean> particleStates = new HashMap<>();
-    private final Map<String, HudPosition> hudPositions = new HashMap<>();
-    private Map<String, Set<String>> scoreboardHiddenKeys = new HashMap<>();
-    private Map<String, Map<String, String>> scoreboardKnownLines = new HashMap<>();
-    private Set<String> scoreboardGlobalHiddenKeys = new HashSet<>();
-
-    public boolean isReviveHudEnabled() {
-        return reviveHudEnabled;
-    }
-
-    public void setReviveHudEnabled(boolean reviveHudEnabled) {
-        this.reviveHudEnabled = reviveHudEnabled;
-    }
-
-    public String getHudAccentColor() {
-        return normalizeHudAccentColor(hudAccentColor);
-    }
-
-    public void setHudAccentColor(String hudAccentColor) {
-        this.hudAccentColor = normalizeHudAccentColor(hudAccentColor);
-    }
-
-    public int getCatacombsLevel() {
-        return catacombsLevel;
-    }
-
-    public void setCatacombsLevel(int catacombsLevel) {
-        this.catacombsLevel = Math.max(0, Math.min(50, catacombsLevel));
-    }
-
-    public boolean isSpiritMaskEnabled() {
-        return spiritMaskEnabled;
-    }
-
-    public void setSpiritMaskEnabled(boolean spiritMaskEnabled) {
-        this.spiritMaskEnabled = spiritMaskEnabled;
-    }
-
-    public boolean isBonzoMaskEnabled() {
-        return bonzoMaskEnabled;
-    }
-
-    public void setBonzoMaskEnabled(boolean bonzoMaskEnabled) {
-        this.bonzoMaskEnabled = bonzoMaskEnabled;
-    }
-
-    public boolean isPhoenixPetEnabled() {
-        return phoenixPetEnabled;
-    }
-
-    public void setPhoenixPetEnabled(boolean phoenixPetEnabled) {
-        this.phoenixPetEnabled = phoenixPetEnabled;
-    }
-
-    public boolean isReviveHudOnlyInBoss() {
-        return reviveHudOnlyInBoss;
-    }
-
-    public void setReviveHudOnlyInBoss(boolean reviveHudOnlyInBoss) {
-        this.reviveHudOnlyInBoss = reviveHudOnlyInBoss;
-    }
-
-    public boolean isReviveHudAlwaysVisible() {
-        return reviveHudAlwaysVisible;
-    }
-
-    public void setReviveHudAlwaysVisible(boolean reviveHudAlwaysVisible) {
-        this.reviveHudAlwaysVisible = reviveHudAlwaysVisible;
-    }
-
-    public boolean isDungeonPartyFinderOverlayEnabled() {
-        return dungeonPartyFinderOverlayEnabled;
-    }
-
-    public void setDungeonPartyFinderOverlayEnabled(boolean dungeonPartyFinderOverlayEnabled) {
-        this.dungeonPartyFinderOverlayEnabled = dungeonPartyFinderOverlayEnabled;
-    }
-
-    public boolean isDungeonRareRoomAlertsEnabled() {
-        return dungeonRareRoomAlertsEnabled;
-    }
-
-    public void setDungeonRareRoomAlertsEnabled(boolean dungeonRareRoomAlertsEnabled) {
-        this.dungeonRareRoomAlertsEnabled = dungeonRareRoomAlertsEnabled;
-    }
-
-    public boolean isTerminalCorrectAllEnabled() {
-        return terminalCorrectAllEnabled;
-    }
-
-    public void setTerminalCorrectAllEnabled(boolean terminalCorrectAllEnabled) {
-        this.terminalCorrectAllEnabled = terminalCorrectAllEnabled;
-    }
-
-    public boolean isTerminalNavigateMazeEnabled() {
-        return terminalNavigateMazeEnabled;
-    }
-
-    public void setTerminalNavigateMazeEnabled(boolean terminalNavigateMazeEnabled) {
-        this.terminalNavigateMazeEnabled = terminalNavigateMazeEnabled;
-    }
-
-    public boolean isTerminalClickInOrderEnabled() {
-        return terminalClickInOrderEnabled;
-    }
-
-    public void setTerminalClickInOrderEnabled(boolean terminalClickInOrderEnabled) {
-        this.terminalClickInOrderEnabled = terminalClickInOrderEnabled;
-    }
-
-    public boolean isTerminalStartsWithEnabled() {
-        return terminalStartsWithEnabled;
-    }
-
-    public void setTerminalStartsWithEnabled(boolean terminalStartsWithEnabled) {
-        this.terminalStartsWithEnabled = terminalStartsWithEnabled;
-    }
-
-    public boolean isTerminalSelectAllColorEnabled() {
-        return terminalSelectAllColorEnabled;
-    }
-
-    public void setTerminalSelectAllColorEnabled(boolean terminalSelectAllColorEnabled) {
-        this.terminalSelectAllColorEnabled = terminalSelectAllColorEnabled;
-    }
-
-    public boolean isTerminalSameColorEnabled() {
-        return terminalSameColorEnabled;
-    }
-
-    public void setTerminalSameColorEnabled(boolean terminalSameColorEnabled) {
-        this.terminalSameColorEnabled = terminalSameColorEnabled;
-    }
-
-    public boolean isPuzzleWaterBoardEnabled() {
-        return puzzleWaterBoardEnabled;
-    }
-
-    public void setPuzzleWaterBoardEnabled(boolean puzzleWaterBoardEnabled) {
-        this.puzzleWaterBoardEnabled = puzzleWaterBoardEnabled;
-    }
-
-    public boolean isPuzzleThreeWeirdosEnabled() {
-        return puzzleThreeWeirdosEnabled;
-    }
-
-    public void setPuzzleThreeWeirdosEnabled(boolean puzzleThreeWeirdosEnabled) {
-        this.puzzleThreeWeirdosEnabled = puzzleThreeWeirdosEnabled;
-    }
-
-    public boolean isPuzzleBlazeEnabled() {
-        return puzzleBlazeEnabled;
-    }
-
-    public void setPuzzleBlazeEnabled(boolean puzzleBlazeEnabled) {
-        this.puzzleBlazeEnabled = puzzleBlazeEnabled;
-    }
-
-    public boolean isPuzzleIceFillEnabled() {
-        return puzzleIceFillEnabled;
-    }
-
-    public void setPuzzleIceFillEnabled(boolean puzzleIceFillEnabled) {
-        this.puzzleIceFillEnabled = puzzleIceFillEnabled;
-    }
-
-    public boolean isPuzzleQuizEnabled() {
-        return puzzleQuizEnabled;
-    }
-
-    public void setPuzzleQuizEnabled(boolean puzzleQuizEnabled) {
-        this.puzzleQuizEnabled = puzzleQuizEnabled;
-    }
-
-    public boolean isPuzzleTicTacToeEnabled() {
-        return puzzleTicTacToeEnabled;
-    }
-
-    public void setPuzzleTicTacToeEnabled(boolean puzzleTicTacToeEnabled) {
-        this.puzzleTicTacToeEnabled = puzzleTicTacToeEnabled;
-    }
-
-    public boolean isPuzzleCreeperBeamsEnabled() {
-        return puzzleCreeperBeamsEnabled;
-    }
-
-    public void setPuzzleCreeperBeamsEnabled(boolean puzzleCreeperBeamsEnabled) {
-        this.puzzleCreeperBeamsEnabled = puzzleCreeperBeamsEnabled;
-    }
-
-    public boolean isPuzzleBoulderEnabled() {
-        return puzzleBoulderEnabled;
-    }
-
-    public void setPuzzleBoulderEnabled(boolean puzzleBoulderEnabled) {
-        this.puzzleBoulderEnabled = puzzleBoulderEnabled;
-    }
-
-    public boolean isPuzzleIcePathEnabled() {
-        return puzzleIcePathEnabled;
-    }
-
-    public void setPuzzleIcePathEnabled(boolean puzzleIcePathEnabled) {
-        this.puzzleIcePathEnabled = puzzleIcePathEnabled;
-    }
-
-    public boolean isPuzzleTeleportMazeEnabled() {
-        return puzzleTeleportMazeEnabled;
-    }
-
-    public void setPuzzleTeleportMazeEnabled(boolean puzzleTeleportMazeEnabled) {
-        this.puzzleTeleportMazeEnabled = puzzleTeleportMazeEnabled;
-    }
-
-    public boolean isSpotifyInventoryControlsEnabled() {
-        return spotifyInventoryControlsEnabled;
-    }
-
-    public void setSpotifyInventoryControlsEnabled(boolean spotifyInventoryControlsEnabled) {
-        this.spotifyInventoryControlsEnabled = spotifyInventoryControlsEnabled;
-    }
-
-    public String getSpotifyClientId() {
-        return spotifyClientId;
-    }
-
-    public void setSpotifyClientId(String spotifyClientId) {
-        this.spotifyClientId = spotifyClientId == null ? "" : spotifyClientId.trim();
-    }
-
-    public int getSpotifyRedirectPort() {
-        return spotifyRedirectPort;
-    }
-
-    public void setSpotifyRedirectPort(int spotifyRedirectPort) {
-        this.spotifyRedirectPort = Math.max(1024, Math.min(65535, spotifyRedirectPort));
-    }
-
-    public String getSpotifyAccessToken() {
-        return spotifyAccessToken;
-    }
-
-    public void setSpotifyAccessToken(String spotifyAccessToken) {
-        this.spotifyAccessToken = spotifyAccessToken == null ? "" : spotifyAccessToken;
-    }
-
-    public String getSpotifyRefreshToken() {
-        return spotifyRefreshToken;
-    }
-
-    public void setSpotifyRefreshToken(String spotifyRefreshToken) {
-        this.spotifyRefreshToken = spotifyRefreshToken == null ? "" : spotifyRefreshToken;
-    }
-
-    public long getSpotifyTokenExpiresAt() {
-        return spotifyTokenExpiresAt;
-    }
-
-    public void setSpotifyTokenExpiresAt(long spotifyTokenExpiresAt) {
-        this.spotifyTokenExpiresAt = spotifyTokenExpiresAt;
-    }
-
-    public String getSpotifyConnectedAccount() {
-        return spotifyConnectedAccount;
-    }
-
-    public void setSpotifyConnectedAccount(String spotifyConnectedAccount) {
-        this.spotifyConnectedAccount = spotifyConnectedAccount == null ? "" : spotifyConnectedAccount;
-    }
-
-    public String getHypixelApiKey() {
-        return hypixelApiKey;
-    }
-
-    public void setHypixelApiKey(String hypixelApiKey) {
-        this.hypixelApiKey = hypixelApiKey == null ? "" : hypixelApiKey.trim();
-    }
-
-    public boolean isHorizonBackendEnabled() {
-        return horizonBackendEnabled;
-    }
-
-    public void setHorizonBackendEnabled(boolean horizonBackendEnabled) {
-        this.horizonBackendEnabled = horizonBackendEnabled;
-    }
-
-    public String getHorizonBackendBaseUrl() {
-        return horizonBackendBaseUrl == null || horizonBackendBaseUrl.isBlank() ? "https://api.horizon.local" : horizonBackendBaseUrl.trim();
-    }
+    final HudConfig hud;
+    final DungeonConfig dungeon;
+    final SpotifyConfig spotify;
+    final ChatConfig chat;
+    final MiscConfig misc;
+    final AntiSpamConfig antiSpam;
+    final ParticleConfig particle;
+    final ScoreboardConfig scoreboard;
 
-    public void setHorizonBackendBaseUrl(String horizonBackendBaseUrl) {
-        this.horizonBackendBaseUrl = horizonBackendBaseUrl == null ? "https://api.horizon.local" : horizonBackendBaseUrl.trim();
+    HorizonConfig(HudConfig hud, DungeonConfig dungeon, SpotifyConfig spotify, ChatConfig chat,
+                  MiscConfig misc, AntiSpamConfig antiSpam, ParticleConfig particle, ScoreboardConfig scoreboard) {
+        this.hud = hud;
+        this.dungeon = dungeon;
+        this.spotify = spotify;
+        this.chat = chat;
+        this.misc = misc;
+        this.antiSpam = antiSpam;
+        this.particle = particle;
+        this.scoreboard = scoreboard;
     }
 
-    public String getHorizonBackendAccessToken() {
-        return horizonBackendAccessToken == null ? "" : horizonBackendAccessToken;
-    }
-
-    public void setHorizonBackendAccessToken(String horizonBackendAccessToken) {
-        this.horizonBackendAccessToken = horizonBackendAccessToken == null ? "" : horizonBackendAccessToken;
-    }
+    // ── HUD ──────────────────────────────────────────────────────────────────
 
-    public long getHorizonBackendTokenExpiresAt() {
-        return horizonBackendTokenExpiresAt;
-    }
-
-    public void setHorizonBackendTokenExpiresAt(long horizonBackendTokenExpiresAt) {
-        this.horizonBackendTokenExpiresAt = horizonBackendTokenExpiresAt;
-    }
+    public boolean isReviveHudEnabled() { return hud.reviveHudEnabled; }
+    public void setReviveHudEnabled(boolean v) { hud.reviveHudEnabled = v; }
 
-    public String getHorizonBackendAudience() {
-        return horizonBackendAudience == null || horizonBackendAudience.isBlank() ? "horizon-profile-api" : horizonBackendAudience.trim();
-    }
+    public String getHudAccentColor() { return normalizeHudAccentColor(hud.hudAccentColor); }
+    public void setHudAccentColor(String v) { hud.hudAccentColor = normalizeHudAccentColor(v); }
 
-    public void setHorizonBackendAudience(String horizonBackendAudience) {
-        this.horizonBackendAudience = horizonBackendAudience == null ? "horizon-profile-api" : horizonBackendAudience.trim();
-    }
+    public boolean isReviveHudOnlyInBoss() { return hud.reviveHudOnlyInBoss; }
+    public void setReviveHudOnlyInBoss(boolean v) { hud.reviveHudOnlyInBoss = v; }
 
-    public boolean isTimeHudEnabled() {
-        return timeHudEnabled;
-    }
+    public boolean isReviveHudAlwaysVisible() { return hud.reviveHudAlwaysVisible; }
+    public void setReviveHudAlwaysVisible(boolean v) { hud.reviveHudAlwaysVisible = v; }
 
-    public void setTimeHudEnabled(boolean timeHudEnabled) {
-        this.timeHudEnabled = timeHudEnabled;
-    }
+    public boolean isSpiritMaskEnabled() { return hud.spiritMaskEnabled; }
+    public void setSpiritMaskEnabled(boolean v) { hud.spiritMaskEnabled = v; }
 
-    public boolean isPerformanceHudEnabled() {
-        return performanceHudEnabled;
-    }
+    public boolean isBonzoMaskEnabled() { return hud.bonzoMaskEnabled; }
+    public void setBonzoMaskEnabled(boolean v) { hud.bonzoMaskEnabled = v; }
 
-    public void setPerformanceHudEnabled(boolean performanceHudEnabled) {
-        this.performanceHudEnabled = performanceHudEnabled;
-    }
+    public boolean isPhoenixPetEnabled() { return hud.phoenixPetEnabled; }
+    public void setPhoenixPetEnabled(boolean v) { hud.phoenixPetEnabled = v; }
 
-    public boolean isSystemHudEnabled() {
-        return systemHudEnabled;
-    }
+    public boolean isCompactHypixelHealthEnabled() { return hud.compactHypixelHealthEnabled; }
+    public void setCompactHypixelHealthEnabled(boolean v) { hud.compactHypixelHealthEnabled = v; }
 
-    public void setSystemHudEnabled(boolean systemHudEnabled) {
-        this.systemHudEnabled = systemHudEnabled;
-    }
+    public boolean isHideDefenseBar() { return hud.hideDefenseBar; }
+    public void setHideDefenseBar(boolean v) { hud.hideDefenseBar = v; }
 
-    public boolean isSolverDebugHudEnabled() {
-        return solverDebugHudEnabled;
-    }
+    public boolean isTimeHudEnabled() { return hud.timeHudEnabled; }
+    public void setTimeHudEnabled(boolean v) { hud.timeHudEnabled = v; }
 
-    public void setSolverDebugHudEnabled(boolean solverDebugHudEnabled) {
-        this.solverDebugHudEnabled = solverDebugHudEnabled;
-    }
+    public boolean isPerformanceHudEnabled() { return hud.performanceHudEnabled; }
+    public void setPerformanceHudEnabled(boolean v) { hud.performanceHudEnabled = v; }
 
-    public boolean isHideDefenseBar() {
-        return hideDefenseBar;
-    }
+    public boolean isSystemHudEnabled() { return hud.systemHudEnabled; }
+    public void setSystemHudEnabled(boolean v) { hud.systemHudEnabled = v; }
 
-    public void setHideDefenseBar(boolean hideDefenseBar) {
-        this.hideDefenseBar = hideDefenseBar;
-    }
+    public boolean isSolverDebugHudEnabled() { return hud.solverDebugHudEnabled; }
+    public void setSolverDebugHudEnabled(boolean v) { hud.solverDebugHudEnabled = v; }
 
-    public boolean isAntiSpamEnabled() {
-        return antiSpamEnabled;
-    }
+    public Map<String, HudPosition> getHudPositions() { return hud.hudPositions; }
 
-    public void setAntiSpamEnabled(boolean antiSpamEnabled) {
-        this.antiSpamEnabled = antiSpamEnabled;
-    }
+    // ── DUNGEON ───────────────────────────────────────────────────────────────
 
-    public boolean isHideBlocksInTheWayMessages() {
-        return hideBlocksInTheWayMessages;
-    }
+    public int getCatacombsLevel() { return dungeon.catacombsLevel; }
+    public void setCatacombsLevel(int v) { dungeon.catacombsLevel = Math.max(0, Math.min(50, v)); }
 
-    public void setHideBlocksInTheWayMessages(boolean hideBlocksInTheWayMessages) {
-        this.hideBlocksInTheWayMessages = hideBlocksInTheWayMessages;
-    }
+    public boolean isDungeonPartyFinderOverlayEnabled() { return dungeon.dungeonPartyFinderOverlayEnabled; }
+    public void setDungeonPartyFinderOverlayEnabled(boolean v) { dungeon.dungeonPartyFinderOverlayEnabled = v; }
 
-    public boolean isHideAbilityMessages() {
-        return hideAbilityMessages;
-    }
+    public boolean isDungeonRareRoomAlertsEnabled() { return dungeon.dungeonRareRoomAlertsEnabled; }
+    public void setDungeonRareRoomAlertsEnabled(boolean v) { dungeon.dungeonRareRoomAlertsEnabled = v; }
 
-    public void setHideAbilityMessages(boolean hideAbilityMessages) {
-        this.hideAbilityMessages = hideAbilityMessages;
-    }
+    public boolean isTerminalCorrectAllEnabled() { return dungeon.terminalCorrectAllEnabled; }
+    public void setTerminalCorrectAllEnabled(boolean v) { dungeon.terminalCorrectAllEnabled = v; }
 
-    public boolean isHideManaMessages() {
-        return hideManaMessages;
-    }
+    public boolean isTerminalNavigateMazeEnabled() { return dungeon.terminalNavigateMazeEnabled; }
+    public void setTerminalNavigateMazeEnabled(boolean v) { dungeon.terminalNavigateMazeEnabled = v; }
 
-    public void setHideManaMessages(boolean hideManaMessages) {
-        this.hideManaMessages = hideManaMessages;
-    }
+    public boolean isTerminalClickInOrderEnabled() { return dungeon.terminalClickInOrderEnabled; }
+    public void setTerminalClickInOrderEnabled(boolean v) { dungeon.terminalClickInOrderEnabled = v; }
 
-    public boolean isHideCooldownMessages() {
-        return hideCooldownMessages;
-    }
+    public boolean isTerminalStartsWithEnabled() { return dungeon.terminalStartsWithEnabled; }
+    public void setTerminalStartsWithEnabled(boolean v) { dungeon.terminalStartsWithEnabled = v; }
 
-    public void setHideCooldownMessages(boolean hideCooldownMessages) {
-        this.hideCooldownMessages = hideCooldownMessages;
-    }
+    public boolean isTerminalSelectAllColorEnabled() { return dungeon.terminalSelectAllColorEnabled; }
+    public void setTerminalSelectAllColorEnabled(boolean v) { dungeon.terminalSelectAllColorEnabled = v; }
 
-    public boolean isHideBlessingMessages() {
-        return hideBlessingMessages;
-    }
+    public boolean isTerminalSameColorEnabled() { return dungeon.terminalSameColorEnabled; }
+    public void setTerminalSameColorEnabled(boolean v) { dungeon.terminalSameColorEnabled = v; }
 
-    public void setHideBlessingMessages(boolean hideBlessingMessages) {
-        this.hideBlessingMessages = hideBlessingMessages;
-    }
+    public boolean isPuzzleWaterBoardEnabled() { return dungeon.puzzleWaterBoardEnabled; }
+    public void setPuzzleWaterBoardEnabled(boolean v) { dungeon.puzzleWaterBoardEnabled = v; }
 
-    public boolean isHideDungeonPickupMessages() {
-        return hideDungeonPickupMessages;
-    }
+    public boolean isPuzzleThreeWeirdosEnabled() { return dungeon.puzzleThreeWeirdosEnabled; }
+    public void setPuzzleThreeWeirdosEnabled(boolean v) { dungeon.puzzleThreeWeirdosEnabled = v; }
 
-    public void setHideDungeonPickupMessages(boolean hideDungeonPickupMessages) {
-        this.hideDungeonPickupMessages = hideDungeonPickupMessages;
-    }
+    public boolean isPuzzleBlazeEnabled() { return dungeon.puzzleBlazeEnabled; }
+    public void setPuzzleBlazeEnabled(boolean v) { dungeon.puzzleBlazeEnabled = v; }
 
-    public boolean isHideAutoPetMessages() {
-        return hideAutoPetMessages;
-    }
+    public boolean isPuzzleIceFillEnabled() { return dungeon.puzzleIceFillEnabled; }
+    public void setPuzzleIceFillEnabled(boolean v) { dungeon.puzzleIceFillEnabled = v; }
 
-    public void setHideAutoPetMessages(boolean hideAutoPetMessages) {
-        this.hideAutoPetMessages = hideAutoPetMessages;
-    }
+    public boolean isPuzzleQuizEnabled() { return dungeon.puzzleQuizEnabled; }
+    public void setPuzzleQuizEnabled(boolean v) { dungeon.puzzleQuizEnabled = v; }
 
-    public boolean isHideFullStatusMessages() {
-        return hideFullStatusMessages;
-    }
+    public boolean isPuzzleTicTacToeEnabled() { return dungeon.puzzleTicTacToeEnabled; }
+    public void setPuzzleTicTacToeEnabled(boolean v) { dungeon.puzzleTicTacToeEnabled = v; }
 
-    public void setHideFullStatusMessages(boolean hideFullStatusMessages) {
-        this.hideFullStatusMessages = hideFullStatusMessages;
-    }
+    public boolean isPuzzleCreeperBeamsEnabled() { return dungeon.puzzleCreeperBeamsEnabled; }
+    public void setPuzzleCreeperBeamsEnabled(boolean v) { dungeon.puzzleCreeperBeamsEnabled = v; }
 
-    public boolean isHideEffectMessages() {
-        return hideEffectMessages;
-    }
+    public boolean isPuzzleBoulderEnabled() { return dungeon.puzzleBoulderEnabled; }
+    public void setPuzzleBoulderEnabled(boolean v) { dungeon.puzzleBoulderEnabled = v; }
 
-    public void setHideEffectMessages(boolean hideEffectMessages) {
-        this.hideEffectMessages = hideEffectMessages;
-    }
+    public boolean isPuzzleIcePathEnabled() { return dungeon.puzzleIcePathEnabled; }
+    public void setPuzzleIcePathEnabled(boolean v) { dungeon.puzzleIcePathEnabled = v; }
 
-    public boolean isHideHealingMessages() {
-        return hideHealingMessages;
-    }
+    public boolean isPuzzleTeleportMazeEnabled() { return dungeon.puzzleTeleportMazeEnabled; }
+    public void setPuzzleTeleportMazeEnabled(boolean v) { dungeon.puzzleTeleportMazeEnabled = v; }
 
-    public void setHideHealingMessages(boolean hideHealingMessages) {
-        this.hideHealingMessages = hideHealingMessages;
-    }
+    // ── SPOTIFY ───────────────────────────────────────────────────────────────
 
-    public boolean isHideDungeonEventMessages() {
-        return hideDungeonEventMessages;
-    }
+    public boolean isSpotifyInventoryControlsEnabled() { return spotify.spotifyInventoryControlsEnabled; }
+    public void setSpotifyInventoryControlsEnabled(boolean v) { spotify.spotifyInventoryControlsEnabled = v; }
 
-    public void setHideDungeonEventMessages(boolean hideDungeonEventMessages) {
-        this.hideDungeonEventMessages = hideDungeonEventMessages;
-    }
+    public String getSpotifyClientId() { return spotify.spotifyClientId; }
+    public void setSpotifyClientId(String v) { spotify.spotifyClientId = v == null ? "" : v.trim(); }
 
-    public boolean isHideLockedChestMessages() {
-        return hideLockedChestMessages;
-    }
+    public int getSpotifyRedirectPort() { return spotify.spotifyRedirectPort; }
+    public void setSpotifyRedirectPort(int v) { spotify.spotifyRedirectPort = Math.max(1024, Math.min(65535, v)); }
 
-    public void setHideLockedChestMessages(boolean hideLockedChestMessages) {
-        this.hideLockedChestMessages = hideLockedChestMessages;
-    }
+    public String getSpotifyAccessToken() { return spotify.spotifyAccessToken; }
+    public void setSpotifyAccessToken(String v) { spotify.spotifyAccessToken = v == null ? "" : v; }
 
-    public boolean isCompactHypixelHealthEnabled() {
-        return compactHypixelHealthEnabled;
-    }
+    public String getSpotifyRefreshToken() { return spotify.spotifyRefreshToken; }
+    public void setSpotifyRefreshToken(String v) { spotify.spotifyRefreshToken = v == null ? "" : v; }
 
-    public void setCompactHypixelHealthEnabled(boolean compactHypixelHealthEnabled) {
-        this.compactHypixelHealthEnabled = compactHypixelHealthEnabled;
-    }
+    public long getSpotifyTokenExpiresAt() { return spotify.spotifyTokenExpiresAt; }
+    public void setSpotifyTokenExpiresAt(long v) { spotify.spotifyTokenExpiresAt = v; }
 
-    public boolean isCustomScoreboardEnabled() {
-        return customScoreboardEnabled;
-    }
+    public String getSpotifyConnectedAccount() { return spotify.spotifyConnectedAccount; }
+    public void setSpotifyConnectedAccount(String v) { spotify.spotifyConnectedAccount = v == null ? "" : v; }
 
-    public void setCustomScoreboardEnabled(boolean customScoreboardEnabled) {
-        this.customScoreboardEnabled = customScoreboardEnabled;
-    }
+    // ── CHAT ──────────────────────────────────────────────────────────────────
 
     public String getChatBridgeBotName() {
-        return chatBridgeBotName == null || chatBridgeBotName.isBlank() ? "catgirlfc" : chatBridgeBotName.trim();
+        return chat.chatBridgeBotName == null || chat.chatBridgeBotName.isBlank() ? "catgirlfc" : chat.chatBridgeBotName.trim();
+    }
+    public void setChatBridgeBotName(String v) { chat.chatBridgeBotName = v == null ? "catgirlfc" : v.trim(); }
+
+    public boolean isChatBridgeHidden() { return chat.chatBridgeHidden; }
+    public void setChatBridgeHidden(boolean v) { chat.chatBridgeHidden = v; }
+
+    public ChatCopyMode getChatCopyMode() { return chat.chatCopyMode == null ? ChatCopyMode.OFF : chat.chatCopyMode; }
+    public void setChatCopyMode(ChatCopyMode v) { chat.chatCopyMode = v == null ? ChatCopyMode.OFF : v; }
+
+    public boolean isChatCopyFullMessage() { return chat.chatCopyFullMessage; }
+    public void setChatCopyFullMessage(boolean v) { chat.chatCopyFullMessage = v; }
+
+    // ── MISC ──────────────────────────────────────────────────────────────────
+
+    public String getHypixelApiKey() { return misc.hypixelApiKey == null ? "" : misc.hypixelApiKey; }
+    public void setHypixelApiKey(String v) { misc.hypixelApiKey = v == null ? "" : v.trim(); }
+
+    public boolean isHorizonBackendEnabled() { return misc.horizonBackendEnabled; }
+    public void setHorizonBackendEnabled(boolean v) { misc.horizonBackendEnabled = v; }
+
+    public String getHorizonBackendBaseUrl() {
+        return misc.horizonBackendBaseUrl == null || misc.horizonBackendBaseUrl.isBlank() ? "https://api.horizon.local" : misc.horizonBackendBaseUrl.trim();
+    }
+    public void setHorizonBackendBaseUrl(String v) {
+        misc.horizonBackendBaseUrl = v == null ? "https://api.horizon.local" : v.trim();
     }
 
-    public void setChatBridgeBotName(String chatBridgeBotName) {
-        this.chatBridgeBotName = chatBridgeBotName == null ? "catgirlfc" : chatBridgeBotName.trim();
+    public String getHorizonBackendAccessToken() { return misc.horizonBackendAccessToken == null ? "" : misc.horizonBackendAccessToken; }
+    public void setHorizonBackendAccessToken(String v) { misc.horizonBackendAccessToken = v == null ? "" : v; }
+
+    public long getHorizonBackendTokenExpiresAt() { return misc.horizonBackendTokenExpiresAt; }
+    public void setHorizonBackendTokenExpiresAt(long v) { misc.horizonBackendTokenExpiresAt = v; }
+
+    public String getHorizonBackendAudience() {
+        return misc.horizonBackendAudience == null || misc.horizonBackendAudience.isBlank() ? "horizon-profile-api" : misc.horizonBackendAudience.trim();
+    }
+    public void setHorizonBackendAudience(String v) {
+        misc.horizonBackendAudience = v == null ? "horizon-profile-api" : v.trim();
     }
 
-    public boolean isChatBridgeHidden() {
-        return chatBridgeHidden;
+    // ── ANTI SPAM ─────────────────────────────────────────────────────────────
+
+    public boolean isAntiSpamEnabled() { return antiSpam.antiSpamEnabled; }
+    public void setAntiSpamEnabled(boolean v) { antiSpam.antiSpamEnabled = v; }
+
+    public boolean isHideBlocksInTheWayMessages() { return antiSpam.hideBlocksInTheWayMessages; }
+    public void setHideBlocksInTheWayMessages(boolean v) { antiSpam.hideBlocksInTheWayMessages = v; }
+
+    public boolean isHideAbilityMessages() { return antiSpam.hideAbilityMessages; }
+    public void setHideAbilityMessages(boolean v) { antiSpam.hideAbilityMessages = v; }
+
+    public boolean isHideManaMessages() { return antiSpam.hideManaMessages; }
+    public void setHideManaMessages(boolean v) { antiSpam.hideManaMessages = v; }
+
+    public boolean isHideCooldownMessages() { return antiSpam.hideCooldownMessages; }
+    public void setHideCooldownMessages(boolean v) { antiSpam.hideCooldownMessages = v; }
+
+    public boolean isHideBlessingMessages() { return antiSpam.hideBlessingMessages; }
+    public void setHideBlessingMessages(boolean v) { antiSpam.hideBlessingMessages = v; }
+
+    public boolean isHideDungeonPickupMessages() { return antiSpam.hideDungeonPickupMessages; }
+    public void setHideDungeonPickupMessages(boolean v) { antiSpam.hideDungeonPickupMessages = v; }
+
+    public boolean isHideAutoPetMessages() { return antiSpam.hideAutoPetMessages; }
+    public void setHideAutoPetMessages(boolean v) { antiSpam.hideAutoPetMessages = v; }
+
+    public boolean isHideFullStatusMessages() { return antiSpam.hideFullStatusMessages; }
+    public void setHideFullStatusMessages(boolean v) { antiSpam.hideFullStatusMessages = v; }
+
+    public boolean isHideEffectMessages() { return antiSpam.hideEffectMessages; }
+    public void setHideEffectMessages(boolean v) { antiSpam.hideEffectMessages = v; }
+
+    public boolean isHideHealingMessages() { return antiSpam.hideHealingMessages; }
+    public void setHideHealingMessages(boolean v) { antiSpam.hideHealingMessages = v; }
+
+    public boolean isHideDungeonEventMessages() { return antiSpam.hideDungeonEventMessages; }
+    public void setHideDungeonEventMessages(boolean v) { antiSpam.hideDungeonEventMessages = v; }
+
+    public boolean isHideLockedChestMessages() { return antiSpam.hideLockedChestMessages; }
+    public void setHideLockedChestMessages(boolean v) { antiSpam.hideLockedChestMessages = v; }
+
+    // ── PARTICLE ──────────────────────────────────────────────────────────────
+
+    public Map<String, Boolean> getParticleStates() { return particle.particleStates; }
+
+    // ── SCOREBOARD ────────────────────────────────────────────────────────────
+
+    public boolean isCustomScoreboardEnabled() { return scoreboard.customScoreboardEnabled; }
+    public void setCustomScoreboardEnabled(boolean v) { scoreboard.customScoreboardEnabled = v; }
+
+    public Map<String, String> getScoreboardKnownLines(String islandId) {
+        return scoreboard.getKnownLines(islandId);
     }
 
-    public void setChatBridgeHidden(boolean chatBridgeHidden) {
-        this.chatBridgeHidden = chatBridgeHidden;
+    public void recordScoreboardLines(String islandId, List<String> lines) {
+        scoreboard.recordLines(islandId, lines);
     }
 
-    public ChatCopyMode getChatCopyMode() {
-        return chatCopyMode == null ? ChatCopyMode.OFF : chatCopyMode;
+    public boolean isScoreboardLineHidden(String islandId, String lineKey) {
+        return scoreboard.isLineHidden(islandId, lineKey);
     }
 
-    public void setChatCopyMode(ChatCopyMode chatCopyMode) {
-        this.chatCopyMode = chatCopyMode == null ? ChatCopyMode.OFF : chatCopyMode;
+    public void toggleScoreboardLine(String islandId, String lineKey) {
+        scoreboard.toggleLine(islandId, lineKey);
     }
 
-    public boolean isChatCopyFullMessage() {
-        return chatCopyFullMessage;
+    public boolean isScoreboardGlobalLineHidden(String lineKey) {
+        return scoreboard.isGlobalLineHidden(lineKey);
     }
 
-    public void setChatCopyFullMessage(boolean chatCopyFullMessage) {
-        this.chatCopyFullMessage = chatCopyFullMessage;
+    public void toggleScoreboardGlobalLine(String lineKey) {
+        scoreboard.toggleGlobalLine(lineKey);
     }
 
-    public Map<String, Boolean> getParticleStates() {
-        return particleStates;
+    public Map<String, Set<String>> getScoreboardHiddenKeys() {
+        return scoreboard.scoreboardHiddenKeys;
     }
 
-    public Map<String, HudPosition> getHudPositions() {
-        return hudPositions;
+    public Set<String> getScoreboardGlobalHiddenKeys() {
+        return scoreboard.scoreboardGlobalHiddenKeys;
     }
+
+    // ── UTILITY ───────────────────────────────────────────────────────────────
 
     public static String scoreboardLineKey(String line) {
         if (line == null || line.isBlank()) {
@@ -610,6 +299,10 @@ public final class HorizonConfig {
         if (clean.toLowerCase(Locale.ROOT).matches(".*\\d+(st|nd|rd|th).*")) {
             return "date";
         }
+        // Server code line: MM/DD/YY followed by server code (e.g. "05/20/26 m99AJ")
+        if (clean.matches("\\d{2}/\\d{2}/\\d{2}\\s+\\w+")) {
+            return "server_code";
+        }
         int colon = clean.indexOf(':');
         if (colon > 0) {
             String key = clean.substring(0, colon).toLowerCase(Locale.ROOT).trim();
@@ -622,61 +315,11 @@ public final class HorizonConfig {
         return clean.toLowerCase(Locale.ROOT).trim();
     }
 
-    public boolean isScoreboardLineHidden(String islandId, String lineKey) {
-        Set<String> hidden = scoreboardHiddenKeys.get(islandId);
-        return hidden != null && hidden.contains(lineKey);
-    }
-
-    public void toggleScoreboardLine(String islandId, String lineKey) {
-        Set<String> hidden = scoreboardHiddenKeys.computeIfAbsent(islandId, k -> new HashSet<>());
-        if (!hidden.remove(lineKey)) {
-            hidden.add(lineKey);
-        }
-    }
-
-    public void recordScoreboardLines(String islandId, List<String> lines) {
-        Map<String, String> known = scoreboardKnownLines.computeIfAbsent(islandId, k -> new LinkedHashMap<>());
-        for (String line : lines) {
-            String key = scoreboardLineKey(line);
-            if (!key.isBlank()) {
-                known.put(key, line);
-            }
-        }
-    }
-
-    public Map<String, String> getScoreboardKnownLines(String islandId) {
-        return scoreboardKnownLines.getOrDefault(islandId, new LinkedHashMap<>());
-    }
-
-    public Map<String, Set<String>> getScoreboardHiddenKeys() {
-        return scoreboardHiddenKeys;
-    }
-
-    public boolean isScoreboardGlobalLineHidden(String lineKey) {
-        return scoreboardGlobalHiddenKeys.contains(lineKey);
-    }
-
-    public void toggleScoreboardGlobalLine(String lineKey) {
-        if (!scoreboardGlobalHiddenKeys.remove(lineKey)) {
-            scoreboardGlobalHiddenKeys.add(lineKey);
-        }
-    }
-
-    public Set<String> getScoreboardGlobalHiddenKeys() {
-        return scoreboardGlobalHiddenKeys;
-    }
-
     private String normalizeHudAccentColor(String value) {
-        if (value == null) {
-            return DEFAULT_HUD_ACCENT_COLOR;
-        }
+        if (value == null) return "#75E7CA";
         String trimmed = value.trim().toUpperCase();
-        if (trimmed.startsWith("#")) {
-            trimmed = trimmed.substring(1);
-        }
-        if (!trimmed.matches("[0-9A-F]{6}")) {
-            return DEFAULT_HUD_ACCENT_COLOR;
-        }
+        if (trimmed.startsWith("#")) trimmed = trimmed.substring(1);
+        if (!trimmed.matches("[0-9A-F]{6}")) return "#75E7CA";
         return "#" + trimmed;
     }
 }
