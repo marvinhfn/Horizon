@@ -276,7 +276,9 @@ public final class HorizonClient implements ClientModInitializer {
             element.render(drawContext, client, configManager.getOrCreatePosition(element.id(), element.defaultX(), element.defaultY()), false);
         }
         dungeonSolverOverlay.renderHudOverlay(drawContext, client, configManager.getConfig());
-        hypixelSidebarOverlay.render(drawContext, client);
+        if (configManager.getConfig().isCustomScoreboardEnabled()) {
+            hypixelSidebarOverlay.render(drawContext, client);
+        }
     }
 
     private void registerScreenHooks() {
