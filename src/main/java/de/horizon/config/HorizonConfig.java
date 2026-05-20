@@ -307,9 +307,18 @@ public final class HorizonConfig {
         if (clean.toLowerCase(Locale.ROOT).matches(".*\\d+(st|nd|rd|th).*")) {
             return "season";
         }
-        // Server code line: MM/DD/YY followed by server code (e.g. "05/20/26 m99AJ")
-        if (clean.matches("\\d{2}/\\d{2}/\\d{2}\\s+\\w+")) {
+        // Server code / date line: starts with MM/DD/YY — server code suffix ignored for key
+        if (clean.matches("\\d{2}/\\d{2}/\\d{2}.*")) {
             return "server_code";
+        }
+        // Timer / countdown: symbol-prefixed time (e.g. "⏰ 0:37:52") or h/m/s format (e.g. "1h 30m 20s")
+        // Strip leading non-word characters to reveal the numeric content
+        String afterSymbols = clean.replaceAll("^[^\\w]+", "").trim();
+        if (!afterSymbols.isEmpty()) {
+            if (afterSymbols.matches("\\d{1,2}:\\d{2}.*")
+                    || afterSymbols.matches("\\d+[hms](\\s+\\d+[hms])*")) {
+                return "timer";
+            }
         }
         int colon = clean.indexOf(':');
         if (colon > 0) {
