@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public final class HorizonConfig {
     final HudConfig hud;
@@ -287,36 +288,55 @@ public final class HorizonConfig {
 
     // ── UTILITY ───────────────────────────────────────────────────────────────
 
+    private static final Pattern P_COLOR_CODE       = Pattern.compile("§[0-9a-fklmnorA-FK-LMN-OR]");
+    private static final Pattern P_TIME_START       = Pattern.compile("\\d{1,2}:\\d{2}.*");
+    private static final Pattern P_SEASON           = Pattern.compile(".*(spring|summer|autumm?|fall|winter).*");
+    private static final Pattern P_ORDINAL          = Pattern.compile(".*\\d+(st|nd|rd|th).*");
+    private static final Pattern P_SERVER_CODE      = Pattern.compile("\\d{2}/\\d{2}/\\d{2}.*");
+    private static final Pattern P_LEADING_NONSYM   = Pattern.compile("^[^\\w]+");
+    private static final Pattern P_TIMER_HMS        = Pattern.compile("\\d+[hms](\\s+\\d+[hms])*");
+    private static final Pattern P_BARE_DIGITS      = Pattern.compile("\\d{1,2}");
+    private static final Pattern P_PAREN_PROGRESS   = Pattern.compile("^\\([\\d.,]+[kKmMbBtT]?/[\\d.,]+[kKmMbBtT]?\\)\\s*");
+    private static final Pattern P_LEADING_FRACTION = Pattern.compile("^\\d[\\d.,]*/\\d[\\d.,]*\\s+");
+    private static final Pattern P_LEADING_NONALNUM = Pattern.compile("^[^a-zA-Z0-9]+");
+    private static final Pattern P_TRAILING_TIMER   = Pattern.compile("\\s+\\d+[hms](\\d+[hms])*$");
+    private static final Pattern P_TRAILING_CLOCK   = Pattern.compile("\\s+\\d{1,2}:\\d{2}(:\\d{2})?$");
+    private static final Pattern P_TRAILING_FRAC    = Pattern.compile("\\s+\\d+/\\d+$");
+    private static final Pattern P_TRAILING_NUMS    = Pattern.compile("(\\s+x?[\\d,.]+[kKmMbBtT]?)+$");
+    private static final Pattern P_TRAILING_SYMBOLS = Pattern.compile("[^a-zA-Z0-9\\s]+$");
+    private static final Pattern P_TRAILING_SEP     = Pattern.compile("[\\s\\-/|]+$");
+
     public static String scoreboardLineKey(String line) {
         if (line == null || line.isBlank()) {
             return "";
         }
-        String clean = line.replaceAll("§[0-9a-fklmnorA-FK-LMN-OR]", "").trim();
+        String clean = P_COLOR_CODE.matcher(line).replaceAll("").trim();
         if (clean.contains("⏣")) {
             return "location";
         }
         // Time line: starts with 1-2 digits followed by colon (e.g. "3:45 PM", "12:00")
-        if (clean.matches("\\d{1,2}:\\d{2}.*")) {
+        if (P_TIME_START.matcher(clean).matches()) {
             return "time";
         }
         // Season line: contains a SkyBlock season word (e.g. "Autum 22", "Early Spring", "Late Summer 3rd")
-        if (clean.toLowerCase(Locale.ROOT).matches(".*(spring|summer|autumm?|fall|winter).*")) {
+        String cleanLower = clean.toLowerCase(Locale.ROOT);
+        if (P_SEASON.matcher(cleanLower).matches()) {
             return "season";
         }
         // Ordinal date line (fallback for lines like "3rd" without season word)
-        if (clean.toLowerCase(Locale.ROOT).matches(".*\\d+(st|nd|rd|th).*")) {
+        if (P_ORDINAL.matcher(cleanLower).matches()) {
             return "season";
         }
         // Server code / date line: starts with MM/DD/YY — server code suffix ignored for key
-        if (clean.matches("\\d{2}/\\d{2}/\\d{2}.*")) {
+        if (P_SERVER_CODE.matcher(clean).matches()) {
             return "server_code";
         }
         // Timer / countdown: symbol-prefixed time (e.g. "⏰ 0:37:52") or h/m/s format (e.g. "1h 30m 20s")
         // Strip leading non-word characters to reveal the numeric content
-        String afterSymbols = clean.replaceAll("^[^\\w]+", "").trim();
+        String afterSymbols = P_LEADING_NONSYM.matcher(clean).replaceFirst("").trim();
         if (!afterSymbols.isEmpty()) {
-            if (afterSymbols.matches("\\d{1,2}:\\d{2}.*")
-                    || afterSymbols.matches("\\d+[hms](\\s+\\d+[hms])*")) {
+            if (P_TIME_START.matcher(afterSymbols).matches()
+                    || P_TIMER_HMS.matcher(afterSymbols).matches()) {
                 return "timer";
             }
         }
@@ -324,7 +344,7 @@ public final class HorizonConfig {
         if (colon > 0) {
             String key = clean.substring(0, colon).toLowerCase(Locale.ROOT).trim();
             // Guard: if key is a bare 1-2 digit number it's a time line without AM/PM suffix
-            if (key.matches("\\d{1,2}")) {
+            if (P_BARE_DIGITS.matcher(key).matches()) {
                 return "time";
             }
             return key;
@@ -336,33 +356,33 @@ public final class HorizonConfig {
         // entries in the config screen for progress counters, timers, plot numbers, etc.
         String s = clean;
         // Remove parenthesised progress prefix: "(70/2.4k) " or "(3/10) "
-        s = s.replaceAll("^\\([\\d.,]+[kKmMbBtT]?/[\\d.,]+[kKmMbBtT]?\\)\\s*", "");
+        s = P_PAREN_PROGRESS.matcher(s).replaceFirst("");
         // Remove leading numeric fraction: "2/70 " or "3/77 "
-        s = s.replaceAll("^\\d[\\d.,]*/\\d[\\d.,]*\\s+", "");
+        s = P_LEADING_FRACTION.matcher(s).replaceFirst("");
         // Remove leading non-alphanumeric characters (emoji, colour symbols, etc.)
-        s = s.replaceAll("^[^a-zA-Z0-9]+", "").trim();
+        s = P_LEADING_NONALNUM.matcher(s).replaceFirst("").trim();
         // Remove trailing h/m/s timer: "3m9s", "1h30m20s", "45s"
-        s = s.replaceAll("\\s+\\d+[hms](\\d+[hms])*$", "").trim();
+        s = P_TRAILING_TIMER.matcher(s).replaceFirst("").trim();
         // Remove trailing clock: " 0:37:52", " 3:45"
-        s = s.replaceAll("\\s+\\d{1,2}:\\d{2}(:\\d{2})?$", "").trim();
+        s = P_TRAILING_CLOCK.matcher(s).replaceFirst("").trim();
         // Remove trailing fraction: " 3/5"
-        s = s.replaceAll("\\s+\\d+/\\d+$", "").trim();
+        s = P_TRAILING_FRAC.matcher(s).replaceFirst("").trim();
         // Iteratively remove trailing numeric tokens (x1, 19, 1.2k, 1,234,567, etc.)
         // and trailing symbol/emoji characters until the string stabilises
         String prev;
         do {
             prev = s;
-            s = s.replaceAll("(\\s+x?[\\d,.]+[kKmMbBtT]?)+$", "").trim();
-            s = s.replaceAll("[^a-zA-Z0-9\\s]+$", "").trim();
+            s = P_TRAILING_NUMS.matcher(s).replaceFirst("").trim();
+            s = P_TRAILING_SYMBOLS.matcher(s).replaceFirst("").trim();
         } while (!s.equals(prev));
         // Remove any leftover trailing punctuation/separators (" - ", " / ", etc.)
-        s = s.replaceAll("[\\s\\-/|]+$", "").trim();
+        s = P_TRAILING_SEP.matcher(s).replaceFirst("").trim();
 
         String dynamicKey = s.toLowerCase(Locale.ROOT);
-        if (!dynamicKey.isBlank() && !dynamicKey.equals(clean.toLowerCase(Locale.ROOT).trim())) {
+        if (!dynamicKey.isBlank() && !dynamicKey.equals(cleanLower.trim())) {
             return dynamicKey;
         }
-        return clean.toLowerCase(Locale.ROOT).trim();
+        return cleanLower.trim();
     }
 
     private String normalizeHudAccentColor(String value) {

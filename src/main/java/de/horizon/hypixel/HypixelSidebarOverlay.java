@@ -81,10 +81,7 @@ public final class HypixelSidebarOverlay {
      * single stable entry.
      */
     public static Map<String, String> liveDeduplicatedLines(MinecraftClient client) {
-        SidebarSnapshot snap = snapshot(client);
-        if (snap == null) {
-            snap = cachedSnapshot;
-        }
+        SidebarSnapshot snap = cachedSnapshot;
         if (snap == null) {
             return new LinkedHashMap<>();
         }
@@ -100,10 +97,7 @@ public final class HypixelSidebarOverlay {
 
     /** Returns the island detected from the current (or cached) snapshot. */
     public static SkyBlockIsland liveIsland(MinecraftClient client) {
-        SidebarSnapshot snap = snapshot(client);
-        if (snap == null) {
-            snap = cachedSnapshot;
-        }
+        SidebarSnapshot snap = cachedSnapshot;
         if (snap == null) {
             return SkyBlockIsland.UNKNOWN;
         }
