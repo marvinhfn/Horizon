@@ -76,8 +76,6 @@ public final class HorizonConfigScreen extends Screen {
     private InputFocus inputFocus = InputFocus.NONE;
     private String catacombsInput;
     private String hudAccentColorInput;
-    private String spotifyClientIdInput;
-    private String youtubeClientIdInput;
     private String chatBridgeBotNameInput;
     private String globalSearchInput = "";
     private String particleSearchInput = "";
@@ -97,8 +95,6 @@ public final class HorizonConfigScreen extends Screen {
         this.particleFilterService = horizonClient.getParticleFilterService();
         this.catacombsInput = String.valueOf(config().getCatacombsLevel());
         this.hudAccentColorInput = config().getHudAccentColor();
-        this.spotifyClientIdInput = config().getSpotifyClientId();
-        this.youtubeClientIdInput = config().getYoutubeClientId();
         this.chatBridgeBotNameInput = config().getChatBridgeBotName();
     }
 
@@ -236,18 +232,6 @@ public final class HorizonConfigScreen extends Screen {
                 if (!(input.codepoint() == '#' && hudAccentColorInput.contains("#"))) {
                     hudAccentColorInput += Character.toString(Character.toUpperCase(input.codepoint()));
                 }
-            }
-            return true;
-        }
-        if (inputFocus == InputFocus.SPOTIFY_CLIENT_ID) {
-            if (isAllowedSpotifyClientChar(input.codepoint()) && spotifyClientIdInput.length() < 64) {
-                spotifyClientIdInput += Character.toString(input.codepoint());
-            }
-            return true;
-        }
-        if (inputFocus == InputFocus.YOUTUBE_CLIENT_ID) {
-            if (isAllowedSpotifyClientChar(input.codepoint()) && youtubeClientIdInput.length() < 128) {
-                youtubeClientIdInput += Character.toString(input.codepoint());
             }
             return true;
         }
@@ -641,12 +625,10 @@ public final class HorizonConfigScreen extends Screen {
             }
             case SPOTIFY -> {
                 y = drawSectionTitle(context, viewport.x, y, "Music Control / Spotify");
-                y = drawFieldRow(context, viewport.x, y, "Spotify Client ID", spotifyClientIdInput, inputFocus == InputFocus.SPOTIFY_CLIENT_ID, Lang.t("Spotify Premium Login.", "Spotify Premium login."));
                 drawActionRow(context, viewport.x, y, "Spotify Login", "Spotify Logout", spotifyService.auth().getStatusMessage());
             }
             case YOUTUBE_MUSIC -> {
                 y = drawSectionTitle(context, viewport.x, y, "Music Control / Youtube Music");
-                y = drawFieldRow(context, viewport.x, y, "YouTube Client ID", youtubeClientIdInput, inputFocus == InputFocus.YOUTUBE_CLIENT_ID, Lang.t("Google Cloud OAuth2 Client ID.", "Google Cloud OAuth2 client ID."));
                 drawActionRow(context, viewport.x, y, "YouTube Login", "YouTube Logout", youtubeService.auth().getStatusMessage());
             }
         }
@@ -1011,13 +993,7 @@ public final class HorizonConfigScreen extends Screen {
                 }
             }
             case SPOTIFY -> {
-                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    inputFocus = InputFocus.SPOTIFY_CLIENT_ID;
-                    return true;
-                }
-                y += fieldRowHeight(Lang.t("Spotify Premium Login.", "Spotify Premium login."));
                 if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
-                    commitSpotifyClientIdInput();
                     spotifyService.auth().beginLogin();
                     return true;
                 }
@@ -1027,13 +1003,7 @@ public final class HorizonConfigScreen extends Screen {
                 }
             }
             case YOUTUBE_MUSIC -> {
-                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    inputFocus = InputFocus.YOUTUBE_CLIENT_ID;
-                    return true;
-                }
-                y += fieldRowHeight(Lang.t("Google Cloud OAuth2 Client ID.", "Google Cloud OAuth2 client ID."));
                 if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
-                    commitYoutubeClientIdInput();
                     youtubeService.auth().beginLogin();
                     return true;
                 }
@@ -1223,7 +1193,6 @@ public final class HorizonConfigScreen extends Screen {
     private void refreshInputs() {
         refreshCatacombsInput();
         refreshHudAccentColorInput();
-        refreshSpotifyClientIdInput();
         refreshChatBridgeBotNameInput();
         if (inputFocus == InputFocus.GLOBAL_SEARCH) {
             globalSearchInput = "";
@@ -1232,10 +1201,6 @@ public final class HorizonConfigScreen extends Screen {
             particleSearchInput = "";
             particleScrollOffset = 0;
         }
-    }
-
-    private boolean isAllowedSpotifyClientChar(int codepoint) {
-        return Character.isLetterOrDigit(codepoint) || codepoint == '-' || codepoint == '_';
     }
 
     private boolean isAllowedHudColorChar(int codepoint) {
@@ -1253,19 +1218,9 @@ public final class HorizonConfigScreen extends Screen {
         hudAccentColorInput = config().getHudAccentColor();
     }
 
-    private void refreshSpotifyClientIdInput() {
-        spotifyClientIdInput = config().getSpotifyClientId();
-    }
-
-    private void refreshYoutubeClientIdInput() {
-        youtubeClientIdInput = config().getYoutubeClientId();
-    }
-
     private void commitInputs() {
         commitCatacombsInput();
         commitHudAccentColorInput();
-        commitSpotifyClientIdInput();
-        commitYoutubeClientIdInput();
         commitChatBridgeBotNameInput();
     }
 
@@ -1281,26 +1236,6 @@ public final class HorizonConfigScreen extends Screen {
         }
         config().setCatacombsLevel(parsed);
         refreshCatacombsInput();
-        inputFocus = InputFocus.NONE;
-        horizonClient.getConfigManager().save();
-    }
-
-    private void commitSpotifyClientIdInput() {
-        if (inputFocus != InputFocus.SPOTIFY_CLIENT_ID) {
-            return;
-        }
-        config().setSpotifyClientId(spotifyClientIdInput);
-        refreshSpotifyClientIdInput();
-        inputFocus = InputFocus.NONE;
-        horizonClient.getConfigManager().save();
-    }
-
-    private void commitYoutubeClientIdInput() {
-        if (inputFocus != InputFocus.YOUTUBE_CLIENT_ID) {
-            return;
-        }
-        config().setYoutubeClientId(youtubeClientIdInput);
-        refreshYoutubeClientIdInput();
         inputFocus = InputFocus.NONE;
         horizonClient.getConfigManager().save();
     }
@@ -1326,8 +1261,6 @@ public final class HorizonConfigScreen extends Screen {
         switch (inputFocus) {
             case CATACOMBS_LEVEL -> catacombsInput = sanitizeClipboard(clipboard, true);
             case HUD_ACCENT_COLOR -> hudAccentColorInput = HudStyle.sanitizeHex(clipboard);
-            case SPOTIFY_CLIENT_ID -> spotifyClientIdInput = sanitizeClipboard(clipboard, false);
-            case YOUTUBE_CLIENT_ID -> youtubeClientIdInput = sanitizeClipboard(clipboard, false);
             case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput = sanitizeClipboard(clipboard, false);
             case GLOBAL_SEARCH -> globalSearchInput = sanitizeClipboard(clipboard, false);
             case PARTICLE_SEARCH -> {
@@ -1346,8 +1279,6 @@ public final class HorizonConfigScreen extends Screen {
         client.keyboard.setClipboard(switch (inputFocus) {
             case CATACOMBS_LEVEL -> catacombsInput;
             case HUD_ACCENT_COLOR -> hudAccentColorInput;
-            case SPOTIFY_CLIENT_ID -> spotifyClientIdInput;
-            case YOUTUBE_CLIENT_ID -> youtubeClientIdInput;
             case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput;
             case GLOBAL_SEARCH -> globalSearchInput;
             case PARTICLE_SEARCH -> particleSearchInput;
@@ -1368,16 +1299,6 @@ public final class HorizonConfigScreen extends Screen {
             case HUD_ACCENT_COLOR -> {
                 if (!hudAccentColorInput.isEmpty()) {
                     hudAccentColorInput = hudAccentColorInput.substring(0, hudAccentColorInput.length() - 1);
-                }
-            }
-            case SPOTIFY_CLIENT_ID -> {
-                if (!spotifyClientIdInput.isEmpty()) {
-                    spotifyClientIdInput = spotifyClientIdInput.substring(0, spotifyClientIdInput.length() - 1);
-                }
-            }
-            case YOUTUBE_CLIENT_ID -> {
-                if (!youtubeClientIdInput.isEmpty()) {
-                    youtubeClientIdInput = youtubeClientIdInput.substring(0, youtubeClientIdInput.length() - 1);
                 }
             }
             case CHAT_BRIDGE_BOT_NAME -> {
@@ -1464,8 +1385,8 @@ public final class HorizonConfigScreen extends Screen {
 
         addSearchResult(results, query, "Aktiver Dienst", "Music Control / General", Tab.MUSIC_CONTROL, null, "aktiver dienst spotify youtube music service");
         addSearchResult(results, query, "Music Control HUD", "Music Control / General", Tab.MUSIC_CONTROL, null, "music control hud inventarsteuerung inventar controls");
-        addSearchResult(results, query, "Spotify Client ID", "Music Control / Spotify", Tab.MUSIC_CONTROL, null, "spotify client id login premium");
-        addSearchResult(results, query, "YouTube Client ID", "Music Control / Youtube Music", Tab.MUSIC_CONTROL, null, "youtube client id login google oauth");
+        addSearchResult(results, query, "Spotify Login", "Music Control / Spotify", Tab.MUSIC_CONTROL, null, "spotify login logout verbinden");
+        addSearchResult(results, query, "YouTube Login", "Music Control / Youtube Music", Tab.MUSIC_CONTROL, null, "youtube login logout verbinden google");
         addSearchResult(results, query, "Party Finder Overlay", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "party finder overlay dungeon general");
         addSearchResult(results, query, "Rare Room Alerts", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "rare room alerts trinity tomioka duncan");
         addSearchResult(results, query, "Revive HUD", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "revive hud spirit bonzo phoenix");
@@ -1692,10 +1613,8 @@ public final class HorizonConfigScreen extends Screen {
         return 24 + switch (activeMusicSection) {
             case GENERAL -> toggleRowHeight(Lang.t("Welcher Dienst im Inventar angezeigt wird.", "Which service is shown in inventory."))
                 + toggleRowHeight(Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
-            case SPOTIFY -> fieldRowHeight(Lang.t("Spotify Premium Login.", "Spotify Premium login."))
-                + actionRowHeight(spotifyService.auth().getStatusMessage());
-            case YOUTUBE_MUSIC -> fieldRowHeight(Lang.t("Google Cloud OAuth2 Client ID.", "Google Cloud OAuth2 client ID."))
-                + actionRowHeight(youtubeService.auth().getStatusMessage());
+            case SPOTIFY -> actionRowHeight(spotifyService.auth().getStatusMessage());
+            case YOUTUBE_MUSIC -> actionRowHeight(youtubeService.auth().getStatusMessage());
         };
     }
 
@@ -1905,8 +1824,6 @@ public final class HorizonConfigScreen extends Screen {
         NONE,
         CATACOMBS_LEVEL,
         HUD_ACCENT_COLOR,
-        SPOTIFY_CLIENT_ID,
-        YOUTUBE_CLIENT_ID,
         CHAT_BRIDGE_BOT_NAME,
         GLOBAL_SEARCH,
         PARTICLE_SEARCH

@@ -144,9 +144,6 @@ public final class HorizonConfig {
     public String getActiveMusicService() { return spotify.activeMusicService == null || spotify.activeMusicService.isBlank() ? "SPOTIFY" : spotify.activeMusicService; }
     public void setActiveMusicService(String v) { spotify.activeMusicService = v == null ? "SPOTIFY" : v; }
 
-    public String getSpotifyClientId() { return spotify.spotifyClientId; }
-    public void setSpotifyClientId(String v) { spotify.spotifyClientId = v == null ? "" : v.trim(); }
-
     public int getSpotifyRedirectPort() { return spotify.spotifyRedirectPort; }
     public void setSpotifyRedirectPort(int v) { spotify.spotifyRedirectPort = Math.max(1024, Math.min(65535, v)); }
 
@@ -163,9 +160,6 @@ public final class HorizonConfig {
     public void setSpotifyConnectedAccount(String v) { spotify.spotifyConnectedAccount = v == null ? "" : v; }
 
     // ── YOUTUBE MUSIC ─────────────────────────────────────────────────────────
-
-    public String getYoutubeClientId() { return youtube.youtubeClientId == null ? "" : youtube.youtubeClientId; }
-    public void setYoutubeClientId(String v) { youtube.youtubeClientId = v == null ? "" : v.trim(); }
 
     public int getYoutubeRedirectPort() { return youtube.youtubeRedirectPort; }
     public void setYoutubeRedirectPort(int v) { youtube.youtubeRedirectPort = Math.max(1024, Math.min(65535, v)); }

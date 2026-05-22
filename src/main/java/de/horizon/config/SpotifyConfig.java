@@ -3,7 +3,6 @@ package de.horizon.config;
 public final class SpotifyConfig {
     boolean spotifyInventoryControlsEnabled = true;
     String activeMusicService = "SPOTIFY";
-    String spotifyClientId = "";
     int spotifyRedirectPort = 43821;
     String spotifyAccessToken = "";
     String spotifyRefreshToken = "";

@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 public final class SpotifyAuthService {
+    private static final String CLIENT_ID = "404dc6ee7fc4474f8f1007d265c82959";
     private static final String AUTHORIZE_URL = "https://accounts.spotify.com/authorize";
     private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
     private static final String SCOPE = "user-read-playback-state user-read-currently-playing user-modify-playback-state user-read-recently-played playlist-read-private playlist-read-collaborative";
@@ -59,12 +60,6 @@ public final class SpotifyAuthService {
     }
 
     public void beginLogin() {
-        HorizonConfig config = config();
-        if (config.getSpotifyClientId().isBlank()) {
-            statusMessage = "Spotify Client ID fehlt";
-            return;
-        }
-
         if (loginInProgress) {
             return;
         }
@@ -73,13 +68,14 @@ public final class SpotifyAuthService {
             stopServer();
             pendingState = randomToken(24);
             pendingVerifier = randomToken(64);
-            HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", config.getSpotifyRedirectPort()), 0);
+            int port = config().getSpotifyRedirectPort();
+            HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
             server.createContext("/spotify/callback", this::handleCallback);
             server.start();
             callbackServer = server;
             loginInProgress = true;
             statusMessage = "Spotify Login im Browser bestaetigen";
-            Util.getOperatingSystem().open(URI.create(buildAuthorizationUrl(config.getSpotifyClientId(), config.getSpotifyRedirectPort(), pendingState, pendingVerifier)));
+            Util.getOperatingSystem().open(URI.create(buildAuthorizationUrl(port, pendingState, pendingVerifier)));
         } catch (IOException exception) {
             HorizonMod.LOGGER.error("Failed to start Spotify callback server", exception);
             statusMessage = "Spotify Callback-Port ist blockiert";
@@ -164,7 +160,7 @@ public final class SpotifyAuthService {
 
     private void exchangeCode(String code, String verifier) throws IOException, InterruptedException {
         HorizonConfig config = config();
-        String body = "client_id=" + encode(config.getSpotifyClientId())
+        String body = "client_id=" + encode(CLIENT_ID)
             + "&grant_type=authorization_code"
             + "&code=" + encode(code)
             + "&redirect_uri=" + encode(redirectUri(config.getSpotifyRedirectPort()))
@@ -202,7 +198,7 @@ public final class SpotifyAuthService {
         try {
             String body = "grant_type=refresh_token"
                 + "&refresh_token=" + encode(config.getSpotifyRefreshToken())
-                + "&client_id=" + encode(config.getSpotifyClientId());
+                + "&client_id=" + encode(CLIENT_ID);
             HttpRequest request = HttpRequest.newBuilder(URI.create(TOKEN_URL))
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/x-www-form-urlencoded")
@@ -231,9 +227,9 @@ public final class SpotifyAuthService {
         }
     }
 
-    private String buildAuthorizationUrl(String clientId, int port, String state, String verifier) {
+    private String buildAuthorizationUrl(int port, String state, String verifier) {
         return AUTHORIZE_URL
-            + "?client_id=" + encode(clientId)
+            + "?client_id=" + encode(CLIENT_ID)
             + "&response_type=code"
             + "&redirect_uri=" + encode(redirectUri(port))
             + "&code_challenge_method=S256"
