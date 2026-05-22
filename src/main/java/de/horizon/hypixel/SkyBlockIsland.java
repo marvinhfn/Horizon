@@ -65,8 +65,10 @@ public enum SkyBlockIsland {
                 hasPowder = true;
             }
             if (n.contains("kuudra")) return KUUDRA;
+            // "garden" can appear anywhere in a line (location, title, sub-area)
+            if (n.contains("garden")) return GARDEN;
             // "Plot - N" lines only appear in the Garden
-            if (n.startsWith("plot -") || n.startsWith("plot \u2013")) return GARDEN;
+            if (n.contains("plot -") || n.contains("plot \u2013")) return GARDEN;
         }
 
         // ⏣ line: check sub-location names comprehensively
