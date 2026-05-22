@@ -598,7 +598,7 @@ public final class HorizonConfigScreen extends Screen {
             }
             boolean visible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), entry.getKey());
             int rowTop = y;
-            y = drawScoreboardLineRow(context, viewport.x, y, entry.getValue(), visible);
+            y = drawScoreboardLineRow(context, viewport.x, y, HorizonConfig.formatScoreboardKeyLabel(entry.getKey()), visible);
             drawTextLine(context, viewport.x + CONTENT_ROW_WIDTH - 14, rowTop + CARD_PADDING_TOP, "≡", MUTED);
             visualIndex++;
         }
@@ -606,11 +606,9 @@ public final class HorizonConfigScreen extends Screen {
             context.fill(viewport.x - 12, y, viewport.x + CONTENT_ROW_WIDTH + 1, y + 2, accentColor());
         }
         if (isDragging && dragKey != null) {
-            String dragText = known.get(dragKey);
-            if (dragText != null) {
-                boolean visible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), dragKey);
-                drawScoreboardLineRow(context, viewport.x, dragCurrentMouseY - dragMouseOffsetY, dragText, visible);
-            }
+            boolean visible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), dragKey);
+            drawScoreboardLineRow(context, viewport.x, dragCurrentMouseY - dragMouseOffsetY,
+                HorizonConfig.formatScoreboardKeyLabel(dragKey), visible);
         }
     }
 

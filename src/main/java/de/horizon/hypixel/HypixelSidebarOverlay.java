@@ -212,31 +212,39 @@ public final class HypixelSidebarOverlay {
             segments.add(filtered.title());
         }
 
-        // Build key → first-occurrence line map from live filtered lines
-        Map<String, String> filteredByKey = new LinkedHashMap<>();
+        // Build key → all matching live lines (preserving snapshot order within each key)
+        Map<String, List<String>> filteredByKey = new LinkedHashMap<>();
         for (String line : filtered.lines()) {
             String key = HorizonConfig.scoreboardLineKey(line);
             if (!key.isBlank()) {
-                filteredByKey.putIfAbsent(key, line);
+                filteredByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(line);
             }
         }
 
         HorizonClient horizon = HorizonClient.getInstance();
         if (horizon != null && island != SkyBlockIsland.UNKNOWN) {
-            // Emit lines in config-stored order
+            // Emit ALL lines per key in config-stored order
             Map<String, String> configOrder = horizon.getConfigManager().getConfig().getScoreboardKnownLines(island.id());
             List<String> emittedKeys = new ArrayList<>();
             for (String key : configOrder.keySet()) {
-                String line = filteredByKey.get(key);
-                if (line != null && !containsNormalized(segments, line)) {
-                    segments.add(line);
+                List<String> linesForKey = filteredByKey.get(key);
+                if (linesForKey != null) {
+                    for (String line : linesForKey) {
+                        if (!containsNormalized(segments, line)) {
+                            segments.add(line);
+                        }
+                    }
                     emittedKeys.add(key);
                 }
             }
-            // Append any live lines not yet covered by config order
-            for (Map.Entry<String, String> entry : filteredByKey.entrySet()) {
-                if (!emittedKeys.contains(entry.getKey()) && !containsNormalized(segments, entry.getValue())) {
-                    segments.add(entry.getValue());
+            // Append live lines whose key is not yet in config order
+            for (Map.Entry<String, List<String>> entry : filteredByKey.entrySet()) {
+                if (!emittedKeys.contains(entry.getKey())) {
+                    for (String line : entry.getValue()) {
+                        if (!containsNormalized(segments, line)) {
+                            segments.add(line);
+                        }
+                    }
                 }
             }
         } else {

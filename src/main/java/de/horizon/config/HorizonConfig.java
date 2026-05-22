@@ -294,6 +294,33 @@ public final class HorizonConfig {
         return scoreboard.scoreboardGlobalHiddenKeys;
     }
 
+    /**
+     * Returns a human-readable display label for a scoreboard line key.
+     * Dynamic components (numbers, timers) are stripped – the label is stable.
+     */
+    public static String formatScoreboardKeyLabel(String key) {
+        if (key == null || key.isBlank()) return key;
+        switch (key) {
+            case "location":    return "Location (⏣)";
+            case "server_code": return "Date";
+            case "timer":       return "Timer";
+            case "time":        return "Time";
+            case "season":      return "Season";
+            default: {
+                // Title-case: "farming contest" → "Farming Contest"
+                String[] words = key.replace('_', ' ').split(" ");
+                StringBuilder sb = new StringBuilder();
+                for (String word : words) {
+                    if (word.isEmpty()) continue;
+                    if (sb.length() > 0) sb.append(' ');
+                    sb.append(Character.toUpperCase(word.charAt(0)));
+                    if (word.length() > 1) sb.append(word.substring(1));
+                }
+                return sb.toString();
+            }
+        }
+    }
+
     // ── UTILITY ───────────────────────────────────────────────────────────────
 
     private static final Pattern P_COLOR_CODE       = Pattern.compile("§[0-9a-fklmnorA-FK-LMN-OR]");

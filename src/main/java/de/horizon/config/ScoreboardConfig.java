@@ -44,7 +44,9 @@ public final class ScoreboardConfig {
             if (line == null || line.isBlank()) continue;
             String key = HorizonConfig.scoreboardLineKey(line);
             if (!key.isBlank()) {
-                known.put(key, line);
+                // Store the stable display label, not the raw dynamic line text.
+                // putIfAbsent preserves the user's drag-and-drop order for new keys.
+                known.putIfAbsent(key, HorizonConfig.formatScoreboardKeyLabel(key));
             }
         }
     }
