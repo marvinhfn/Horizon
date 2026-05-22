@@ -23,6 +23,7 @@ import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1109,16 +1110,30 @@ public final class HorizonConfigScreen extends Screen {
      * the player is on a different island.
      */
     private Map<String, String> islandDisplayLines() {
+        Map<String, String> configOrder = config().getScoreboardKnownLines(activeScoreboardIsland.id());
+        Map<String, String> liveLines = null;
         if (client != null) {
             SkyBlockIsland live = HypixelSidebarOverlay.liveIsland(client);
             if (live == activeScoreboardIsland) {
                 Map<String, String> lines = HypixelSidebarOverlay.liveDeduplicatedLines(client);
                 if (!lines.isEmpty()) {
-                    return lines;
+                    liveLines = lines;
                 }
             }
         }
-        return config().getScoreboardKnownLines(activeScoreboardIsland.id());
+        if (liveLines == null) {
+            return configOrder;
+        }
+        // Return live text but always in config order so the config screen
+        // reflects drag-and-drop reorders immediately.
+        Map<String, String> result = new LinkedHashMap<>();
+        for (String key : configOrder.keySet()) {
+            result.put(key, liveLines.getOrDefault(key, configOrder.get(key)));
+        }
+        for (Map.Entry<String, String> entry : liveLines.entrySet()) {
+            result.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+        return result;
     }
 
     private void refreshChatBridgeBotNameInput() {
