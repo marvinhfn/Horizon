@@ -278,6 +278,10 @@ public final class HorizonConfig {
         scoreboard.toggleGlobalLine(lineKey);
     }
 
+    public void reorderScoreboardLine(String islandId, String key, int newIndex) {
+        scoreboard.reorderLine(islandId, key, newIndex);
+    }
+
     public Map<String, Set<String>> getScoreboardHiddenKeys() {
         return scoreboard.scoreboardHiddenKeys;
     }

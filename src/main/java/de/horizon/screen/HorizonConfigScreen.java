@@ -79,6 +79,10 @@ public final class HorizonConfigScreen extends Screen {
     private String particleSearchInput = "";
     private int contentScrollOffset = 0;
     private int particleScrollOffset = 0;
+    private String dragKey = null;
+    private boolean isDragging = false;
+    private int dragMouseOffsetY = 0;
+    private int dragCurrentMouseY = 0;
 
     public HorizonConfigScreen(Screen parent, HorizonClient horizonClient) {
         super(Text.literal("Horizon"));
@@ -173,6 +177,8 @@ public final class HorizonConfigScreen extends Screen {
             if (scoreboardSubTabRect(bar, 0).contains(click.x(), click.y())) {
                 scoreboardGeneralActive = true;
                 contentScrollOffset = 0;
+                dragKey = null;
+                isDragging = false;
                 return true;
             }
             SkyBlockIsland[] islands = SkyBlockIsland.knownIslands();
@@ -181,6 +187,8 @@ public final class HorizonConfigScreen extends Screen {
                     scoreboardGeneralActive = false;
                     activeScoreboardIsland = islands[index];
                     contentScrollOffset = 0;
+                    dragKey = null;
+                    isDragging = false;
                     return true;
                 }
             }
@@ -298,6 +306,43 @@ public final class HorizonConfigScreen extends Screen {
         int maxScroll = maxContentScroll();
         contentScrollOffset = Math.max(0, Math.min(maxScroll, contentScrollOffset - (int) Math.round(verticalAmount * 24.0D)));
         return true;
+    }
+
+    @Override
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+        if (click.button() == 0 && dragKey != null) {
+            isDragging = true;
+            dragCurrentMouseY = (int) click.y();
+            return true;
+        }
+        return super.mouseDragged(click, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(Click click) {
+        if (click.button() == 0 && dragKey != null) {
+            if (!isDragging) {
+                config().toggleScoreboardLine(activeScoreboardIsland.id(), dragKey);
+                horizonClient.getConfigManager().save();
+            } else {
+                Rect frame = frame();
+                Rect viewport = contentViewportRect(frame);
+                Map<String, String> known = islandDisplayLines();
+                List<String> keysWithoutDragged = new ArrayList<>();
+                for (String k : known.keySet()) {
+                    if (!k.equals(dragKey)) {
+                        keysWithoutDragged.add(k);
+                    }
+                }
+                int dropIdx = computeDropIndex(viewport, keysWithoutDragged);
+                config().reorderScoreboardLine(activeScoreboardIsland.id(), dragKey, dropIdx);
+                horizonClient.getConfigManager().save();
+            }
+            dragKey = null;
+            isDragging = false;
+            return true;
+        }
+        return super.mouseReleased(click);
     }
 
     @Override
@@ -504,10 +549,44 @@ public final class HorizonConfigScreen extends Screen {
             drawTextLine(context, viewport.x, y, Lang.t("Keine Daten gespeichert. Besuche diese Island ingame.", "No data stored. Visit this island in-game."), MUTED);
             return;
         }
-        for (Map.Entry<String, String> entry : known.entrySet()) {
+        List<Map.Entry<String, String>> entries = new ArrayList<>(known.entrySet());
+        int rowH = scoreboardLineRowHeight();
+        List<String> keysWithoutDragged = new ArrayList<>();
+        if (isDragging) {
+            for (Map.Entry<String, String> e : entries) {
+                if (!e.getKey().equals(dragKey)) {
+                    keysWithoutDragged.add(e.getKey());
+                }
+            }
+        }
+        int dropIndex = isDragging ? computeDropIndex(viewport, keysWithoutDragged) : -1;
+        int visualIndex = 0;
+        for (Map.Entry<String, String> entry : entries) {
+            boolean isBeingDragged = isDragging && entry.getKey().equals(dragKey);
+            if (isBeingDragged) {
+                y += rowH;
+                continue;
+            }
+            if (isDragging && visualIndex == dropIndex) {
+                context.fill(viewport.x - 12, y, viewport.x + CONTENT_ROW_WIDTH + 1, y + 2, accentColor());
+            }
             boolean visible = !config().isScoreboardLineHidden(activeScoreboardIsland.id(), entry.getKey())
                 && !config().isScoreboardGlobalLineHidden(entry.getKey());
+            int rowTop = y;
             y = drawScoreboardLineRow(context, viewport.x, y, entry.getValue(), visible);
+            drawTextLine(context, viewport.x + CONTENT_ROW_WIDTH - 14, rowTop + CARD_PADDING_TOP, "≡", MUTED);
+            visualIndex++;
+        }
+        if (isDragging && visualIndex == dropIndex) {
+            context.fill(viewport.x - 12, y, viewport.x + CONTENT_ROW_WIDTH + 1, y + 2, accentColor());
+        }
+        if (isDragging && dragKey != null) {
+            String dragText = known.get(dragKey);
+            if (dragText != null) {
+                boolean visible = !config().isScoreboardLineHidden(activeScoreboardIsland.id(), dragKey)
+                    && !config().isScoreboardGlobalLineHidden(dragKey);
+                drawScoreboardLineRow(context, viewport.x, dragCurrentMouseY - dragMouseOffsetY, dragText, visible);
+            }
         }
     }
 
@@ -950,16 +1029,31 @@ public final class HorizonConfigScreen extends Screen {
         Rect viewport = contentViewportRect(frame);
         int y = viewport.y - contentScrollOffset;
         y += 24; // section title
+        int rowH = scoreboardLineRowHeight();
         Map<String, String> known = islandDisplayLines();
         for (Map.Entry<String, String> entry : known.entrySet()) {
-            if (rowRect(viewport.x, y, scoreboardLineRowHeight()).contains(mouseX, mouseY)) {
-                config().toggleScoreboardLine(activeScoreboardIsland.id(), entry.getKey());
-                horizonClient.getConfigManager().save();
+            if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                dragKey = entry.getKey();
+                dragMouseOffsetY = (int) mouseY - y;
+                dragCurrentMouseY = (int) mouseY;
+                isDragging = false;
                 return true;
             }
-            y += scoreboardLineRowHeight();
+            y += rowH;
         }
         return false;
+    }
+
+    private int computeDropIndex(Rect viewport, List<String> keysWithoutDragged) {
+        int y = viewport.y - contentScrollOffset + 24;
+        int rowH = scoreboardLineRowHeight();
+        for (int i = 0; i < keysWithoutDragged.size(); i++) {
+            if (dragCurrentMouseY < y + rowH / 2) {
+                return i;
+            }
+            y += rowH;
+        }
+        return keysWithoutDragged.size();
     }
 
     private boolean handleSearchClick(double mouseX, double mouseY, Rect viewport) {

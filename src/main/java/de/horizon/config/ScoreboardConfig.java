@@ -1,8 +1,10 @@
 package de.horizon.config;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,6 +47,31 @@ public final class ScoreboardConfig {
     void toggleGlobalLine(String lineKey) {
         if (!scoreboardGlobalHiddenKeys.remove(lineKey)) {
             scoreboardGlobalHiddenKeys.add(lineKey);
+        }
+    }
+
+    void reorderLine(String islandId, String key, int newIndex) {
+        Map<String, String> known = scoreboardKnownLines.get(islandId);
+        if (known == null) {
+            return;
+        }
+        List<Map.Entry<String, String>> entries = new ArrayList<>(known.entrySet());
+        int oldIndex = -1;
+        for (int i = 0; i < entries.size(); i++) {
+            if (entries.get(i).getKey().equals(key)) {
+                oldIndex = i;
+                break;
+            }
+        }
+        if (oldIndex < 0) {
+            return;
+        }
+        Map.Entry<String, String> moved = entries.remove(oldIndex);
+        int target = Math.max(0, Math.min(newIndex, entries.size()));
+        entries.add(target, moved);
+        known.clear();
+        for (Map.Entry<String, String> e : entries) {
+            known.put(e.getKey(), e.getValue());
         }
     }
 }

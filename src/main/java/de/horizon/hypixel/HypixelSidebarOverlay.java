@@ -212,20 +212,46 @@ public final class HypixelSidebarOverlay {
             segments.add(filtered.title());
         }
 
-        List<String> prioritized = new ArrayList<>(filtered.lines().stream()
-            .filter(HypixelSidebarOverlay::shouldKeepLine)
-            .sorted(Comparator.comparingInt(HypixelSidebarOverlay::priority).reversed())
-            .toList());
-        if (prioritized.isEmpty()) {
-            prioritized.addAll(filtered.lines().stream().filter(HypixelSidebarOverlay::isUsefulFallbackLine).limit(4).toList());
+        // Build key → first-occurrence line map from live filtered lines
+        Map<String, String> filteredByKey = new LinkedHashMap<>();
+        for (String line : filtered.lines()) {
+            String key = HorizonConfig.scoreboardLineKey(line);
+            if (!key.isBlank()) {
+                filteredByKey.putIfAbsent(key, line);
+            }
         }
 
-        for (String line : prioritized) {
-            if (segments.size() >= 5) {
-                break;
+        HorizonClient horizon = HorizonClient.getInstance();
+        if (horizon != null && island != SkyBlockIsland.UNKNOWN) {
+            // Emit lines in config-stored order
+            Map<String, String> configOrder = horizon.getConfigManager().getConfig().getScoreboardKnownLines(island.id());
+            List<String> emittedKeys = new ArrayList<>();
+            for (String key : configOrder.keySet()) {
+                String line = filteredByKey.get(key);
+                if (line != null && !containsNormalized(segments, line)) {
+                    segments.add(line);
+                    emittedKeys.add(key);
+                }
             }
-            if (!containsNormalized(segments, line)) {
-                segments.add(line);
+            // Append any live lines not yet covered by config order
+            for (Map.Entry<String, String> entry : filteredByKey.entrySet()) {
+                if (!emittedKeys.contains(entry.getKey()) && !containsNormalized(segments, entry.getValue())) {
+                    segments.add(entry.getValue());
+                }
+            }
+        } else {
+            // Fallback: priority-sorted
+            List<String> prioritized = new ArrayList<>(filtered.lines().stream()
+                .filter(HypixelSidebarOverlay::shouldKeepLine)
+                .sorted(Comparator.comparingInt(HypixelSidebarOverlay::priority).reversed())
+                .toList());
+            if (prioritized.isEmpty()) {
+                prioritized.addAll(filtered.lines().stream().filter(HypixelSidebarOverlay::isUsefulFallbackLine).toList());
+            }
+            for (String line : prioritized) {
+                if (!containsNormalized(segments, line)) {
+                    segments.add(line);
+                }
             }
         }
         return segments;
@@ -243,9 +269,6 @@ public final class HypixelSidebarOverlay {
         addMatchingSegment(segments, snapshot.lines(), "deaths:");
 
         for (String line : snapshot.lines()) {
-            if (segments.size() >= 6) {
-                break;
-            }
             if (shouldKeepLine(line) && !containsNormalized(segments, line)) {
                 segments.add(line);
             }
