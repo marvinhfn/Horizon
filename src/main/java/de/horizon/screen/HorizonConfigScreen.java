@@ -74,7 +74,7 @@ public final class HorizonConfigScreen extends Screen {
     private InputFocus inputFocus = InputFocus.NONE;
     private String catacombsInput;
     private String hudAccentColorInput;
-    // spotifyClientIdInput removed — no developer key needed with OS media control
+    private String spotifyClientIdInput;
     private String chatBridgeBotNameInput;
     private String globalSearchInput = "";
     private String particleSearchInput = "";
@@ -93,7 +93,7 @@ public final class HorizonConfigScreen extends Screen {
         this.particleFilterService = horizonClient.getParticleFilterService();
         this.catacombsInput = String.valueOf(config().getCatacombsLevel());
         this.hudAccentColorInput = config().getHudAccentColor();
-        // no auth state to initialise
+        this.spotifyClientIdInput = config().getSpotifyClientId();
         this.chatBridgeBotNameInput = config().getChatBridgeBotName();
     }
 
@@ -231,6 +231,12 @@ public final class HorizonConfigScreen extends Screen {
                 if (!(input.codepoint() == '#' && hudAccentColorInput.contains("#"))) {
                     hudAccentColorInput += Character.toString(Character.toUpperCase(input.codepoint()));
                 }
+            }
+            return true;
+        }
+        if (inputFocus == InputFocus.SPOTIFY_CLIENT_ID) {
+            if (isAllowedSpotifyClientChar(input.codepoint()) && spotifyClientIdInput.length() < 64) {
+                spotifyClientIdInput += Character.toString(input.codepoint());
             }
             return true;
         }
@@ -611,8 +617,8 @@ public final class HorizonConfigScreen extends Screen {
             case SPOTIFY -> {
                 int y = viewport.y - contentScrollOffset;
                 y = drawSectionTitle(context, viewport.x, y, "Music Control / Spotify");
-                drawTextLine(context, viewport.x, y, spotifyService.auth().getStatusMessage(), MUTED);
-                y += LINE_HEIGHT + CARD_GAP;
+                y = drawFieldRow(context, viewport.x, y, "Spotify Client ID", spotifyClientIdInput, inputFocus == InputFocus.SPOTIFY_CLIENT_ID, Lang.t("Spotify Premium Login.", "Spotify Premium login."));
+                y = drawActionRow(context, viewport.x, y, "Spotify Login", "Spotify Logout", spotifyService.auth().getStatusMessage());
                 drawToggleRow(context, viewport.x, y, Lang.t("Spotify Inventarsteuerung", "Spotify Inventory Controls"), config().isSpotifyInventoryControlsEnabled(), Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
             }
             case YOUTUBE_MUSIC -> {
@@ -966,9 +972,25 @@ public final class HorizonConfigScreen extends Screen {
             return false;
         }
         Rect viewport = contentViewportRect(frame);
-        int y = viewport.y - contentScrollOffset + 24 + LINE_HEIGHT + CARD_GAP;
+        int y = viewport.y - contentScrollOffset + 24;
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            inputFocus = InputFocus.SPOTIFY_CLIENT_ID;
+            return true;
+        }
+        y += fieldRowHeight(Lang.t("Spotify Premium Login.", "Spotify Premium login."));
+        if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
+            commitSpotifyClientIdInput();
+            spotifyService.auth().beginLogin();
+            return true;
+        }
+        if (actionButtonRect(viewport.x, y, false).contains(mouseX, mouseY)) {
+            spotifyService.auth().disconnect();
+            return true;
+        }
+        y += actionRowHeight(spotifyService.auth().getStatusMessage());
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setSpotifyInventoryControlsEnabled(!config().isSpotifyInventoryControlsEnabled());
+
             horizonClient.getConfigManager().save();
             return true;
         }
@@ -1152,6 +1174,7 @@ public final class HorizonConfigScreen extends Screen {
     private void refreshInputs() {
         refreshCatacombsInput();
         refreshHudAccentColorInput();
+        refreshSpotifyClientIdInput();
         refreshChatBridgeBotNameInput();
         if (inputFocus == InputFocus.GLOBAL_SEARCH) {
             globalSearchInput = "";
@@ -1160,6 +1183,10 @@ public final class HorizonConfigScreen extends Screen {
             particleSearchInput = "";
             particleScrollOffset = 0;
         }
+    }
+
+    private boolean isAllowedSpotifyClientChar(int codepoint) {
+        return Character.isLetterOrDigit(codepoint) || codepoint == '-' || codepoint == '_';
     }
 
     private boolean isAllowedHudColorChar(int codepoint) {
@@ -1177,9 +1204,14 @@ public final class HorizonConfigScreen extends Screen {
         hudAccentColorInput = config().getHudAccentColor();
     }
 
+    private void refreshSpotifyClientIdInput() {
+        spotifyClientIdInput = config().getSpotifyClientId();
+    }
+
     private void commitInputs() {
         commitCatacombsInput();
         commitHudAccentColorInput();
+        commitSpotifyClientIdInput();
         commitChatBridgeBotNameInput();
     }
 
@@ -1195,6 +1227,16 @@ public final class HorizonConfigScreen extends Screen {
         }
         config().setCatacombsLevel(parsed);
         refreshCatacombsInput();
+        inputFocus = InputFocus.NONE;
+        horizonClient.getConfigManager().save();
+    }
+
+    private void commitSpotifyClientIdInput() {
+        if (inputFocus != InputFocus.SPOTIFY_CLIENT_ID) {
+            return;
+        }
+        config().setSpotifyClientId(spotifyClientIdInput);
+        refreshSpotifyClientIdInput();
         inputFocus = InputFocus.NONE;
         horizonClient.getConfigManager().save();
     }
@@ -1220,6 +1262,7 @@ public final class HorizonConfigScreen extends Screen {
         switch (inputFocus) {
             case CATACOMBS_LEVEL -> catacombsInput = sanitizeClipboard(clipboard, true);
             case HUD_ACCENT_COLOR -> hudAccentColorInput = HudStyle.sanitizeHex(clipboard);
+            case SPOTIFY_CLIENT_ID -> spotifyClientIdInput = sanitizeClipboard(clipboard, false);
             case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput = sanitizeClipboard(clipboard, false);
             case GLOBAL_SEARCH -> globalSearchInput = sanitizeClipboard(clipboard, false);
             case PARTICLE_SEARCH -> {
@@ -1238,6 +1281,7 @@ public final class HorizonConfigScreen extends Screen {
         client.keyboard.setClipboard(switch (inputFocus) {
             case CATACOMBS_LEVEL -> catacombsInput;
             case HUD_ACCENT_COLOR -> hudAccentColorInput;
+            case SPOTIFY_CLIENT_ID -> spotifyClientIdInput;
             case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput;
             case GLOBAL_SEARCH -> globalSearchInput;
             case PARTICLE_SEARCH -> particleSearchInput;
@@ -1258,6 +1302,11 @@ public final class HorizonConfigScreen extends Screen {
             case HUD_ACCENT_COLOR -> {
                 if (!hudAccentColorInput.isEmpty()) {
                     hudAccentColorInput = hudAccentColorInput.substring(0, hudAccentColorInput.length() - 1);
+                }
+            }
+            case SPOTIFY_CLIENT_ID -> {
+                if (!spotifyClientIdInput.isEmpty()) {
+                    spotifyClientIdInput = spotifyClientIdInput.substring(0, spotifyClientIdInput.length() - 1);
                 }
             }
             case CHAT_BRIDGE_BOT_NAME -> {
@@ -1342,6 +1391,7 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "HUD bearbeiten", "HUD", Tab.HUD, null, "hud bearbeiten layout reset");
         addSearchResult(results, query, "HUD Farbe", "HUD", Tab.HUD, null, "hud farbe accent color hex");
 
+        addSearchResult(results, query, "Spotify Client ID", "Music Control / Spotify", Tab.MUSIC_CONTROL, null, "spotify client id login premium");
         addSearchResult(results, query, "Spotify Inventarsteuerung", "Music Control / Spotify", Tab.MUSIC_CONTROL, null, "spotify inventarsteuerung inventar controls");
         addSearchResult(results, query, "Party Finder Overlay", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "party finder overlay dungeon general");
         addSearchResult(results, query, "Rare Room Alerts", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "rare room alerts trinity tomioka duncan");
@@ -1568,7 +1618,8 @@ public final class HorizonConfigScreen extends Screen {
     private int musicContentHeight() {
         return switch (activeMusicSection) {
             case SPOTIFY -> 24
-                + LINE_HEIGHT + CARD_GAP
+                + fieldRowHeight(Lang.t("Spotify Premium Login.", "Spotify Premium login."))
+                + actionRowHeight(spotifyService.auth().getStatusMessage())
                 + toggleRowHeight(Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
             case YOUTUBE_MUSIC -> 24 + LINE_HEIGHT;
         };
@@ -1779,6 +1830,7 @@ public final class HorizonConfigScreen extends Screen {
         NONE,
         CATACOMBS_LEVEL,
         HUD_ACCENT_COLOR,
+        SPOTIFY_CLIENT_ID,
         CHAT_BRIDGE_BOT_NAME,
         GLOBAL_SEARCH,
         PARTICLE_SEARCH
