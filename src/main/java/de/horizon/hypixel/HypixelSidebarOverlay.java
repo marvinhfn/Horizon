@@ -17,8 +17,10 @@ import net.minecraft.text.Text;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public final class HypixelSidebarOverlay {
     public static final int BAR_HEIGHT = 18;
@@ -69,6 +71,43 @@ public final class HypixelSidebarOverlay {
                 x += textRenderer.getWidth(suffix);
             }
         }
+    }
+
+    /**
+     * Returns the deduplicated lines of the current scoreboard snapshot keyed by
+     * their {@link de.horizon.config.HorizonConfig#scoreboardLineKey(String)} value.
+     * Only one entry per key is kept (first wins), so lines that change their
+     * numeric values (kill counts, timers, plot numbers, etc.) always produce a
+     * single stable entry.
+     */
+    public static Map<String, String> liveDeduplicatedLines(MinecraftClient client) {
+        SidebarSnapshot snap = snapshot(client);
+        if (snap == null) {
+            snap = cachedSnapshot;
+        }
+        if (snap == null) {
+            return new LinkedHashMap<>();
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        for (String line : snap.lines()) {
+            String key = de.horizon.config.HorizonConfig.scoreboardLineKey(line);
+            if (!key.isBlank()) {
+                result.putIfAbsent(key, line);
+            }
+        }
+        return result;
+    }
+
+    /** Returns the island detected from the current (or cached) snapshot. */
+    public static SkyBlockIsland liveIsland(MinecraftClient client) {
+        SidebarSnapshot snap = snapshot(client);
+        if (snap == null) {
+            snap = cachedSnapshot;
+        }
+        if (snap == null) {
+            return SkyBlockIsland.UNKNOWN;
+        }
+        return SkyBlockIsland.detect(snap.title(), snap.lines());
     }
 
     public static boolean shouldReplaceVanillaSidebar(MinecraftClient client) {

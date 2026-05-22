@@ -4,6 +4,7 @@ import de.horizon.HorizonClient;
 import de.horizon.Lang;
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.chat.ChatCopyMode;
+import de.horizon.hypixel.HypixelSidebarOverlay;
 import de.horizon.hypixel.SkyBlockIsland;
 import de.horizon.feature.chat.SpamFilterOption;
 import de.horizon.feature.dungeon.PuzzleSolverOption;
@@ -498,7 +499,7 @@ public final class HorizonConfigScreen extends Screen {
     private void renderIslandScoreboardText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Scoreboard / " + activeScoreboardIsland.label());
-        Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
+        Map<String, String> known = islandDisplayLines();
         if (known.isEmpty()) {
             drawTextLine(context, viewport.x, y, Lang.t("Keine Daten gespeichert. Besuche diese Island ingame.", "No data stored. Visit this island in-game."), MUTED);
             return;
@@ -949,7 +950,7 @@ public final class HorizonConfigScreen extends Screen {
         Rect viewport = contentViewportRect(frame);
         int y = viewport.y - contentScrollOffset;
         y += 24; // section title
-        Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
+        Map<String, String> known = islandDisplayLines();
         for (Map.Entry<String, String> entry : known.entrySet()) {
             if (rowRect(viewport.x, y, scoreboardLineRowHeight()).contains(mouseX, mouseY)) {
                 config().toggleScoreboardLine(activeScoreboardIsland.id(), entry.getKey());
@@ -1004,6 +1005,26 @@ public final class HorizonConfigScreen extends Screen {
 
     private HorizonConfig config() {
         return horizonClient.getConfigManager().getConfig();
+    }
+
+    /**
+     * Returns the scoreboard lines for the active island tab.
+     * When the player is currently on that island the live snapshot is used,
+     * deduplicated by key so that dynamic values (counters, timers, plot numbers,
+     * etc.) always produce exactly one row.  Falls back to stored known-lines when
+     * the player is on a different island.
+     */
+    private Map<String, String> islandDisplayLines() {
+        if (client != null) {
+            SkyBlockIsland live = HypixelSidebarOverlay.liveIsland(client);
+            if (live == activeScoreboardIsland) {
+                Map<String, String> lines = HypixelSidebarOverlay.liveDeduplicatedLines(client);
+                if (!lines.isEmpty()) {
+                    return lines;
+                }
+            }
+        }
+        return islandDisplayLines();
     }
 
     private void refreshChatBridgeBotNameInput() {
@@ -1542,7 +1563,7 @@ public final class HorizonConfigScreen extends Screen {
                 + GLOBAL_SCOREBOARD_LINES.length * scoreboardLineRowHeight();
         }
         int height = 24; // section title
-        Map<String, String> known = config().getScoreboardKnownLines(activeScoreboardIsland.id());
+        Map<String, String> known = islandDisplayLines();
         if (known.isEmpty()) {
             height += LINE_HEIGHT;
         } else {
