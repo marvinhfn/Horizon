@@ -19,6 +19,7 @@ public final class ConfigManager {
     private HudConfig hud = new HudConfig();
     private DungeonConfig dungeon = new DungeonConfig();
     private SpotifyConfig spotify = new SpotifyConfig();
+    private YoutubeConfig youtube = new YoutubeConfig();
     private ChatConfig chat = new ChatConfig();
     private MiscConfig misc = new MiscConfig();
     private AntiSpamConfig antiSpam = new AntiSpamConfig();
@@ -35,6 +36,7 @@ public final class ConfigManager {
         hud = loadSub("hud.json", HudConfig.class, new HudConfig());
         dungeon = loadSub("dungeon.json", DungeonConfig.class, new DungeonConfig());
         spotify = loadSub("music/spotify.json", SpotifyConfig.class, new SpotifyConfig());
+        youtube = loadSub("music/youtube.json", YoutubeConfig.class, new YoutubeConfig());
         chat = loadSub("chat.json", ChatConfig.class, new ChatConfig());
         misc = loadSub("misc.json", MiscConfig.class, new MiscConfig());
         antiSpam = loadSub("anti_spam.json", AntiSpamConfig.class, new AntiSpamConfig());
@@ -47,6 +49,7 @@ public final class ConfigManager {
         saveSub("hud.json", config.hud);
         saveSub("dungeon.json", config.dungeon);
         saveSub("music/spotify.json", config.spotify);
+        saveSub("music/youtube.json", config.youtube);
         saveSub("chat.json", config.chat);
         saveSub("misc.json", config.misc);
         saveSub("anti_spam.json", config.antiSpam);
@@ -64,7 +67,7 @@ public final class ConfigManager {
     }
 
     private HorizonConfig build() {
-        return new HorizonConfig(hud, dungeon, spotify, chat, misc, antiSpam, particle, scoreboard);
+        return new HorizonConfig(hud, dungeon, spotify, youtube, chat, misc, antiSpam, particle, scoreboard);
     }
 
     private <T> T loadSub(String filename, Class<T> clazz, T defaultValue) {

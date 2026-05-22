@@ -14,17 +14,19 @@ public final class HorizonConfig {
     final HudConfig hud;
     final DungeonConfig dungeon;
     final SpotifyConfig spotify;
+    final YoutubeConfig youtube;
     final ChatConfig chat;
     final MiscConfig misc;
     final AntiSpamConfig antiSpam;
     final ParticleConfig particle;
     final ScoreboardConfig scoreboard;
 
-    HorizonConfig(HudConfig hud, DungeonConfig dungeon, SpotifyConfig spotify, ChatConfig chat,
+    HorizonConfig(HudConfig hud, DungeonConfig dungeon, SpotifyConfig spotify, YoutubeConfig youtube, ChatConfig chat,
                   MiscConfig misc, AntiSpamConfig antiSpam, ParticleConfig particle, ScoreboardConfig scoreboard) {
         this.hud = hud;
         this.dungeon = dungeon;
         this.spotify = spotify;
+        this.youtube = youtube;
         this.chat = chat;
         this.misc = misc;
         this.antiSpam = antiSpam;
@@ -159,6 +161,26 @@ public final class HorizonConfig {
 
     public String getSpotifyConnectedAccount() { return spotify.spotifyConnectedAccount; }
     public void setSpotifyConnectedAccount(String v) { spotify.spotifyConnectedAccount = v == null ? "" : v; }
+
+    // ── YOUTUBE MUSIC ─────────────────────────────────────────────────────────
+
+    public String getYoutubeClientId() { return youtube.youtubeClientId == null ? "" : youtube.youtubeClientId; }
+    public void setYoutubeClientId(String v) { youtube.youtubeClientId = v == null ? "" : v.trim(); }
+
+    public int getYoutubeRedirectPort() { return youtube.youtubeRedirectPort; }
+    public void setYoutubeRedirectPort(int v) { youtube.youtubeRedirectPort = Math.max(1024, Math.min(65535, v)); }
+
+    public String getYoutubeAccessToken() { return youtube.youtubeAccessToken == null ? "" : youtube.youtubeAccessToken; }
+    public void setYoutubeAccessToken(String v) { youtube.youtubeAccessToken = v == null ? "" : v; }
+
+    public String getYoutubeRefreshToken() { return youtube.youtubeRefreshToken == null ? "" : youtube.youtubeRefreshToken; }
+    public void setYoutubeRefreshToken(String v) { youtube.youtubeRefreshToken = v == null ? "" : v; }
+
+    public long getYoutubeTokenExpiresAt() { return youtube.youtubeTokenExpiresAt; }
+    public void setYoutubeTokenExpiresAt(long v) { youtube.youtubeTokenExpiresAt = v; }
+
+    public String getYoutubeConnectedAccount() { return youtube.youtubeConnectedAccount == null ? "" : youtube.youtubeConnectedAccount; }
+    public void setYoutubeConnectedAccount(String v) { youtube.youtubeConnectedAccount = v == null ? "" : v; }
 
     // ── CHAT ──────────────────────────────────────────────────────────────────
 

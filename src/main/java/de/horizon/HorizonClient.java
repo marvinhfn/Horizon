@@ -30,6 +30,7 @@ import de.horizon.screen.PlayerProfileScreen;
 import de.horizon.spotify.SpotifyInventoryOverlay;
 import de.horizon.spotify.SpotifyService;
 import de.horizon.youtube.YoutubeMusicInventoryOverlay;
+import de.horizon.youtube.YoutubeService;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -70,7 +71,8 @@ public final class HorizonClient implements ClientModInitializer {
     private final SystemStatsService systemStatsService = new SystemStatsService();
     private final SpotifyService spotifyService = new SpotifyService(configManager);
     private final SpotifyInventoryOverlay spotifyInventoryOverlay = new SpotifyInventoryOverlay(spotifyService);
-    private final YoutubeMusicInventoryOverlay youtubeMusicInventoryOverlay = new YoutubeMusicInventoryOverlay();
+    private final YoutubeService youtubeService = new YoutubeService(configManager);
+    private final YoutubeMusicInventoryOverlay youtubeMusicInventoryOverlay = new YoutubeMusicInventoryOverlay(youtubeService);
     private final HypixelProfileService hypixelProfileService = new HypixelProfileService(configManager);
     private final HorizonApiAuthService horizonApiAuthService = new HorizonApiAuthService(configManager);
     private final HorizonApiClient horizonApiClient = new HorizonApiClient(configManager, horizonApiAuthService);
@@ -205,6 +207,10 @@ public final class HorizonClient implements ClientModInitializer {
 
     public SpotifyService getSpotifyService() {
         return spotifyService;
+    }
+
+    public YoutubeService getYoutubeService() {
+        return youtubeService;
     }
 
     public HypixelProfileService getHypixelProfileService() {
