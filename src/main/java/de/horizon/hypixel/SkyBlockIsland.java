@@ -65,6 +65,8 @@ public enum SkyBlockIsland {
                 hasPowder = true;
             }
             if (n.contains("kuudra")) return KUUDRA;
+            // "Plot - N" lines only appear in the Garden
+            if (n.startsWith("plot -") || n.startsWith("plot \u2013")) return GARDEN;
         }
 
         // ⏣ line: check sub-location names comprehensively
@@ -73,7 +75,7 @@ public enum SkyBlockIsland {
             String n = norm(line);
 
             // Garden
-            if (n.contains("garden")) return GARDEN;
+            if (n.contains("garden") || n.contains("plot")) return GARDEN;
 
             // Glacite Tunnels (check before dwarven since glacite is in same "area")
             if (n.contains("glacite") || n.contains("fossil research")) return GLACITE_TUNNELS;

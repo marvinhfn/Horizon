@@ -322,8 +322,17 @@ public final class HorizonConfigScreen extends Screen {
     @Override
     public boolean mouseReleased(Click click) {
         if (click.button() == 0 && dragKey != null) {
-            if (!isDragging) {
-                config().toggleScoreboardLine(activeScoreboardIsland.id(), dragKey);
+            String key = dragKey;
+            boolean wasDragging = isDragging;
+            dragKey = null;
+            isDragging = false;
+            if (!wasDragging) {
+                boolean wasVisible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), key);
+                config().toggleScoreboardLine(activeScoreboardIsland.id(), key);
+                if (wasVisible) {
+                    // Line was turned OFF: sort it to just after the last still-ON line
+                    autoSortDisabledLine(key);
+                }
                 horizonClient.getConfigManager().save();
             } else {
                 Rect frame = frame();
@@ -331,19 +340,35 @@ public final class HorizonConfigScreen extends Screen {
                 Map<String, String> known = islandDisplayLines();
                 List<String> keysWithoutDragged = new ArrayList<>();
                 for (String k : known.keySet()) {
-                    if (!k.equals(dragKey)) {
-                        keysWithoutDragged.add(k);
-                    }
+                    if (!k.equals(key)) keysWithoutDragged.add(k);
                 }
                 int dropIdx = computeDropIndex(viewport, keysWithoutDragged);
-                config().reorderScoreboardLine(activeScoreboardIsland.id(), dragKey, dropIdx);
+                config().reorderScoreboardLine(activeScoreboardIsland.id(), key, dropIdx);
                 horizonClient.getConfigManager().save();
             }
-            dragKey = null;
-            isDragging = false;
             return true;
         }
         return super.mouseReleased(click);
+    }
+
+    private void autoSortDisabledLine(String key) {
+        Map<String, String> known = islandDisplayLines();
+        List<String> keys = new ArrayList<>(known.keySet());
+        int currentIndex = keys.indexOf(key);
+        if (currentIndex < 0) return;
+        int lastOnIndex = -1;
+        for (int i = 0; i < keys.size(); i++) {
+            if (!keys.get(i).equals(key)
+                    && !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), keys.get(i))) {
+                lastOnIndex = i;
+            }
+        }
+        if (lastOnIndex < 0) return; // all lines off, no need to reorder
+        // targetNewIndex is relative to the list after removing key
+        int targetNewIndex = currentIndex > lastOnIndex ? lastOnIndex + 1 : lastOnIndex;
+        if (targetNewIndex != currentIndex) {
+            config().reorderScoreboardLine(activeScoreboardIsland.id(), key, targetNewIndex);
+        }
     }
 
     @Override
@@ -571,8 +596,7 @@ public final class HorizonConfigScreen extends Screen {
             if (isDragging && visualIndex == dropIndex) {
                 context.fill(viewport.x - 12, y, viewport.x + CONTENT_ROW_WIDTH + 1, y + 2, accentColor());
             }
-            boolean visible = !config().isScoreboardLineHidden(activeScoreboardIsland.id(), entry.getKey())
-                && !config().isScoreboardGlobalLineHidden(entry.getKey());
+            boolean visible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), entry.getKey());
             int rowTop = y;
             y = drawScoreboardLineRow(context, viewport.x, y, entry.getValue(), visible);
             drawTextLine(context, viewport.x + CONTENT_ROW_WIDTH - 14, rowTop + CARD_PADDING_TOP, "≡", MUTED);
@@ -584,8 +608,7 @@ public final class HorizonConfigScreen extends Screen {
         if (isDragging && dragKey != null) {
             String dragText = known.get(dragKey);
             if (dragText != null) {
-                boolean visible = !config().isScoreboardLineHidden(activeScoreboardIsland.id(), dragKey)
-                    && !config().isScoreboardGlobalLineHidden(dragKey);
+                boolean visible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), dragKey);
                 drawScoreboardLineRow(context, viewport.x, dragCurrentMouseY - dragMouseOffsetY, dragText, visible);
             }
         }

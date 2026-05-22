@@ -263,7 +263,11 @@ public final class HorizonConfig {
     }
 
     public boolean isScoreboardLineHidden(String islandId, String lineKey) {
-        return scoreboard.isLineHidden(islandId, lineKey);
+        return scoreboard.isLineEffectivelyHidden(islandId, lineKey);
+    }
+
+    public boolean isScoreboardLineEffectivelyHidden(String islandId, String lineKey) {
+        return scoreboard.isLineEffectivelyHidden(islandId, lineKey);
     }
 
     public void toggleScoreboardLine(String islandId, String lineKey) {

@@ -285,11 +285,10 @@ public final class HypixelSidebarOverlay {
         List<String> visible = new ArrayList<>();
         for (String line : snapshot.lines()) {
             String key = HorizonConfig.scoreboardLineKey(line);
-            if (config.isScoreboardGlobalLineHidden(key)) {
-                continue;
-            }
-            if (island != SkyBlockIsland.UNKNOWN && config.isScoreboardLineHidden(island.id(), key)) {
-                continue;
+            if (island == SkyBlockIsland.UNKNOWN) {
+                if (config.isScoreboardGlobalLineHidden(key)) continue;
+            } else {
+                if (config.isScoreboardLineEffectivelyHidden(island.id(), key)) continue;
             }
             visible.add(line);
         }
