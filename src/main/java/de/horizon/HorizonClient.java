@@ -29,6 +29,7 @@ import de.horizon.screen.HorizonConfigScreen;
 import de.horizon.screen.PlayerProfileScreen;
 import de.horizon.spotify.SpotifyInventoryOverlay;
 import de.horizon.spotify.SpotifyService;
+import de.horizon.youtube.YoutubeMusicInventoryOverlay;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -69,6 +70,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final SystemStatsService systemStatsService = new SystemStatsService();
     private final SpotifyService spotifyService = new SpotifyService(configManager);
     private final SpotifyInventoryOverlay spotifyInventoryOverlay = new SpotifyInventoryOverlay(spotifyService);
+    private final YoutubeMusicInventoryOverlay youtubeMusicInventoryOverlay = new YoutubeMusicInventoryOverlay();
     private final HypixelProfileService hypixelProfileService = new HypixelProfileService(configManager);
     private final HorizonApiAuthService horizonApiAuthService = new HorizonApiAuthService(configManager);
     private final HorizonApiClient horizonApiClient = new HorizonApiClient(configManager, horizonApiAuthService);
@@ -290,23 +292,37 @@ public final class HorizonClient implements ClientModInitializer {
 
             ScreenEvents.afterRender(screen).register((currentScreen, context, mouseX, mouseY, delta) ->
             {
-                spotifyInventoryOverlay.render(handledScreen, context, mouseX, mouseY);
+                if ("YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())) {
+                    youtubeMusicInventoryOverlay.render(handledScreen, context, mouseX, mouseY);
+                } else {
+                    spotifyInventoryOverlay.render(handledScreen, context, mouseX, mouseY);
+                }
                 partyFinderOverlay.render(handledScreen, context);
                 dungeonSolverOverlay.render(handledScreen, context, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
             }
             );
             ScreenMouseEvents.afterMouseClick(screen).register((currentScreen, click, doubled) ->
-                spotifyInventoryOverlay.mouseClicked(click.x(), click.y(), click.button())
+                "YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())
+                    ? youtubeMusicInventoryOverlay.mouseClicked(click.x(), click.y(), click.button())
+                    : spotifyInventoryOverlay.mouseClicked(click.x(), click.y(), click.button())
             );
             ScreenMouseEvents.afterMouseDrag(screen).register((currentScreen, click, deltaX, deltaY, cancelled) ->
-                spotifyInventoryOverlay.mouseDragged(click.x(), click.y(), click.button())
+                "YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())
+                    ? youtubeMusicInventoryOverlay.mouseDragged(click.x(), click.y(), click.button())
+                    : spotifyInventoryOverlay.mouseDragged(click.x(), click.y(), click.button())
             );
             ScreenMouseEvents.afterMouseRelease(screen).register((currentScreen, click, cancelled) ->
-                spotifyInventoryOverlay.mouseReleased(click.x(), click.y(), click.button())
+                "YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())
+                    ? youtubeMusicInventoryOverlay.mouseReleased(click.x(), click.y(), click.button())
+                    : spotifyInventoryOverlay.mouseReleased(click.x(), click.y(), click.button())
             );
-            net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents.afterKeyPress(screen).register((currentScreen, input) ->
-                spotifyInventoryOverlay.keyPressed(input.key())
-            );
+            net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents.afterKeyPress(screen).register((currentScreen, input) -> {
+                if ("YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())) {
+                    youtubeMusicInventoryOverlay.keyPressed(input.key());
+                } else {
+                    spotifyInventoryOverlay.keyPressed(input.key());
+                }
+            });
         });
     }
 }

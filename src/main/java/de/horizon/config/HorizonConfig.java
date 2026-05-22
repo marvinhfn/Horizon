@@ -139,6 +139,9 @@ public final class HorizonConfig {
     public boolean isSpotifyInventoryControlsEnabled() { return spotify.spotifyInventoryControlsEnabled; }
     public void setSpotifyInventoryControlsEnabled(boolean v) { spotify.spotifyInventoryControlsEnabled = v; }
 
+    public String getActiveMusicService() { return spotify.activeMusicService == null || spotify.activeMusicService.isBlank() ? "SPOTIFY" : spotify.activeMusicService; }
+    public void setActiveMusicService(String v) { spotify.activeMusicService = v == null ? "SPOTIFY" : v; }
+
     public String getSpotifyClientId() { return spotify.spotifyClientId; }
     public void setSpotifyClientId(String v) { spotify.spotifyClientId = v == null ? "" : v.trim(); }
 

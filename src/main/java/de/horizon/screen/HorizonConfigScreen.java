@@ -613,16 +613,22 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private void renderMusicText(DrawContext context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        String activeService = config().getActiveMusicService();
+        String serviceLabel = "YOUTUBE_MUSIC".equals(activeService) ? "YouTube" : "Spotify";
+        y = drawCycleRow(context, viewport.x, y,
+            Lang.t("Aktiver Dienst", "Active Service"),
+            serviceLabel,
+            true,
+            Lang.t("Welcher Dienst im Inventar angezeigt wird.", "Which service is shown in inventory."));
         switch (activeMusicSection) {
             case SPOTIFY -> {
-                int y = viewport.y - contentScrollOffset;
                 y = drawSectionTitle(context, viewport.x, y, "Music Control / Spotify");
                 y = drawFieldRow(context, viewport.x, y, "Spotify Client ID", spotifyClientIdInput, inputFocus == InputFocus.SPOTIFY_CLIENT_ID, Lang.t("Spotify Premium Login.", "Spotify Premium login."));
                 y = drawActionRow(context, viewport.x, y, "Spotify Login", "Spotify Logout", spotifyService.auth().getStatusMessage());
                 drawToggleRow(context, viewport.x, y, Lang.t("Spotify Inventarsteuerung", "Spotify Inventory Controls"), config().isSpotifyInventoryControlsEnabled(), Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
             }
             case YOUTUBE_MUSIC -> {
-                int y = viewport.y - contentScrollOffset;
                 y = drawSectionTitle(context, viewport.x, y, "Music Control / Youtube Music");
                 drawTextLine(context, viewport.x, y, Lang.t("Bald verfuegbar.", "Coming soon."), MUTED);
             }
@@ -968,11 +974,21 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private boolean handleMusicClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset;
+        // Active service cycle row
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            String current = config().getActiveMusicService();
+            config().setActiveMusicService("YOUTUBE_MUSIC".equals(current) ? "SPOTIFY" : "YOUTUBE_MUSIC");
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Welcher Dienst im Inventar angezeigt wird.", "Which service is shown in inventory."));
+
         if (activeMusicSection != MusicSection.SPOTIFY) {
             return false;
         }
-        Rect viewport = contentViewportRect(frame);
-        int y = viewport.y - contentScrollOffset + 24;
+        y += 24; // section title
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             inputFocus = InputFocus.SPOTIFY_CLIENT_ID;
             return true;
@@ -990,7 +1006,6 @@ public final class HorizonConfigScreen extends Screen {
         y += actionRowHeight(spotifyService.auth().getStatusMessage());
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setSpotifyInventoryControlsEnabled(!config().isSpotifyInventoryControlsEnabled());
-
             horizonClient.getConfigManager().save();
             return true;
         }
@@ -1616,7 +1631,8 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private int musicContentHeight() {
-        return switch (activeMusicSection) {
+        int serviceRowHeight = toggleRowHeight(Lang.t("Welcher Dienst im Inventar angezeigt wird.", "Which service is shown in inventory."));
+        return serviceRowHeight + switch (activeMusicSection) {
             case SPOTIFY -> 24
                 + fieldRowHeight(Lang.t("Spotify Premium Login.", "Spotify Premium login."))
                 + actionRowHeight(spotifyService.auth().getStatusMessage())
