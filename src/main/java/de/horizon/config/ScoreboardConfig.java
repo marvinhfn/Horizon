@@ -30,7 +30,7 @@ public final class ScoreboardConfig {
                 deduped.putIfAbsent(key, value);
             }
         }
-        if (deduped.size() < stored.size()) {
+        if (deduped.size() != stored.size() || !deduped.keySet().equals(stored.keySet())) {
             stored.clear();
             stored.putAll(deduped);
         }

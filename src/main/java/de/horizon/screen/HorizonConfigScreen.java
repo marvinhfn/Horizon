@@ -563,7 +563,7 @@ public final class HorizonConfigScreen extends Screen {
         y = drawSectionTitle(context, viewport.x, y, Lang.t("Globale Zeilenfilter", "Global Line Filters"));
         for (String[] entry : GLOBAL_SCOREBOARD_LINES) {
             boolean visible = !config().isScoreboardGlobalLineHidden(entry[0]);
-            y = drawScoreboardLineRow(context, viewport.x, y, entry[1], visible);
+            y = drawScoreboardLineRow(context, viewport.x, y, entry[1], visible, HorizonConfig.scoreboardKeyColor(entry[0]));
         }
     }
 
@@ -598,7 +598,7 @@ public final class HorizonConfigScreen extends Screen {
             }
             boolean visible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), entry.getKey());
             int rowTop = y;
-            y = drawScoreboardLineRow(context, viewport.x, y, HorizonConfig.formatScoreboardKeyLabel(entry.getKey()), visible);
+            y = drawScoreboardLineRow(context, viewport.x, y, HorizonConfig.formatScoreboardKeyLabel(entry.getKey()), visible, HorizonConfig.scoreboardKeyColor(entry.getKey()));
             drawTextLine(context, viewport.x + CONTENT_ROW_WIDTH - 14, rowTop + CARD_PADDING_TOP, "≡", MUTED);
             visualIndex++;
         }
@@ -608,7 +608,7 @@ public final class HorizonConfigScreen extends Screen {
         if (isDragging && dragKey != null) {
             boolean visible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), dragKey);
             drawScoreboardLineRow(context, viewport.x, dragCurrentMouseY - dragMouseOffsetY,
-                HorizonConfig.formatScoreboardKeyLabel(dragKey), visible);
+                HorizonConfig.formatScoreboardKeyLabel(dragKey), visible, HorizonConfig.scoreboardKeyColor(dragKey));
         }
     }
 
@@ -1706,7 +1706,7 @@ public final class HorizonConfigScreen extends Screen {
         return CARD_PADDING_TOP + LINE_HEIGHT + 6 + CARD_PADDING_BOTTOM + CARD_GAP;
     }
 
-    private int drawScoreboardLineRow(DrawContext context, int x, int y, String lineText, boolean visible) {
+    private int drawScoreboardLineRow(DrawContext context, int x, int y, String lineText, boolean visible, int textColor) {
         int rowHeight = scoreboardLineRowHeight();
         drawSettingCard(context, x, y, rowHeight, visible ? 0xFF2DBA68 : 0xFF8A97A8, false);
         Rect badge = toggleBadgeRect(x, y);
@@ -1714,7 +1714,7 @@ public final class HorizonConfigScreen extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(visible ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
         int contentX = badge.right() + 10;
         if (visible) {
-            drawTextLine(context, contentX, y + CARD_PADDING_TOP, lineText, TEXT);
+            drawTextLine(context, contentX, y + CARD_PADDING_TOP, lineText, textColor);
         } else {
             context.drawTextWithShadow(textRenderer, Text.literal(lineText).formatted(Formatting.STRIKETHROUGH), contentX, y + CARD_PADDING_TOP, MUTED);
         }

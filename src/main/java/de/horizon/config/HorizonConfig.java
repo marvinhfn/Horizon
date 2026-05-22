@@ -306,6 +306,9 @@ public final class HorizonConfig {
             case "timer":       return "Timer";
             case "time":        return "Time";
             case "season":      return "Season";
+            case "slayer quest": return "Slayer Quest";
+            case "combat exp":  return "Slayer Quest Combat EXP";
+            case "next tier":   return "Slayer Quest Next Tier";
             default: {
                 // Title-case: "farming contest" → "Farming Contest"
                 String[] words = key.replace('_', ' ').split(" ");
@@ -318,6 +321,27 @@ public final class HorizonConfig {
                 }
                 return sb.toString();
             }
+        }
+    }
+
+    /** Returns the ARGB text color that matches the in-game scoreboard style for a given line key. */
+    public static int scoreboardKeyColor(String key) {
+        if (key == null) return 0xFFFFFFFF;
+        switch (key) {
+            case "purse": case "piggy":                             return 0xFFFFAA00; // gold
+            case "bits": case "motes":                              return 0xFF55FFFF; // aqua
+            case "copper":                                          return 0xFFFF7700; // orange
+            case "stardust":                                        return 0xFF55FF55; // green
+            case "location":                                        return 0xFFFFFF55; // yellow
+            case "slayer quest": case "combat exp": case "next tier": return 0xFFFF55FF; // light purple
+            case "kills":                                           return 0xFFFFFF55; // yellow
+            case "deaths":                                          return 0xFFFF5555; // red
+            case "secrets found": case "score": case "cleared":
+            case "the catacombs": case "crypts":                    return 0xFFFFFF55; // yellow
+            case "profile": case "skills": case "class":            return 0xFFAAAAAA; // gray
+            case "season": case "time": case "server_code":
+            case "timer": case "date":                              return 0xFFAAAAAA; // gray
+            default:                                                return 0xFFFFFFFF; // white
         }
     }
 
@@ -382,6 +406,7 @@ public final class HorizonConfig {
             if (P_BARE_DIGITS.matcher(key).matches()) {
                 return "time";
             }
+            if (key.length() <= 1) return "";
             return key;
         }
 
@@ -414,10 +439,16 @@ public final class HorizonConfig {
         s = P_TRAILING_SEP.matcher(s).replaceFirst("").trim();
 
         String dynamicKey = s.toLowerCase(Locale.ROOT);
-        if (!dynamicKey.isBlank() && !dynamicKey.equals(cleanLower.trim())) {
-            return dynamicKey;
-        }
-        return cleanLower.trim();
+        String finalKey = (!dynamicKey.isBlank() && !dynamicKey.equals(cleanLower.trim()))
+            ? dynamicKey : cleanLower.trim();
+        if (finalKey.length() <= 1) return "";
+        if (isSlayerBossKey(finalKey)) return "slayer quest";
+        return finalKey;
+    }
+
+    private static boolean isSlayerBossKey(String key) {
+        return key.contains("sven") || key.contains("tarantula") || key.contains("revenant")
+            || key.contains("voidgloom") || key.contains("inferno") || key.contains("riftstalker");
     }
 
     private String normalizeHudAccentColor(String value) {
