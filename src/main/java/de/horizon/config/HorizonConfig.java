@@ -329,6 +329,39 @@ public final class HorizonConfig {
             }
             return key;
         }
+
+        // ── Dynamic-value normalization ───────────────────────────────────────
+        // Strip changing numeric values so lines like "2/70 Kills" and "3/77 Kills"
+        // always produce the same stable key ("kills"), preventing duplicate toggle
+        // entries in the config screen for progress counters, timers, plot numbers, etc.
+        String s = clean;
+        // Remove parenthesised progress prefix: "(70/2.4k) " or "(3/10) "
+        s = s.replaceAll("^\\([\\d.,]+[kKmMbBtT]?/[\\d.,]+[kKmMbBtT]?\\)\\s*", "");
+        // Remove leading numeric fraction: "2/70 " or "3/77 "
+        s = s.replaceAll("^\\d[\\d.,]*/\\d[\\d.,]*\\s+", "");
+        // Remove leading non-alphanumeric characters (emoji, colour symbols, etc.)
+        s = s.replaceAll("^[^a-zA-Z0-9]+", "").trim();
+        // Remove trailing h/m/s timer: "3m9s", "1h30m20s", "45s"
+        s = s.replaceAll("\\s+\\d+[hms](\\d+[hms])*$", "").trim();
+        // Remove trailing clock: " 0:37:52", " 3:45"
+        s = s.replaceAll("\\s+\\d{1,2}:\\d{2}(:\\d{2})?$", "").trim();
+        // Remove trailing fraction: " 3/5"
+        s = s.replaceAll("\\s+\\d+/\\d+$", "").trim();
+        // Iteratively remove trailing numeric tokens (x1, 19, 1.2k, 1,234,567, etc.)
+        // and trailing symbol/emoji characters until the string stabilises
+        String prev;
+        do {
+            prev = s;
+            s = s.replaceAll("(\\s+x?[\\d,.]+[kKmMbBtT]?)+$", "").trim();
+            s = s.replaceAll("[^a-zA-Z0-9\\s]+$", "").trim();
+        } while (!s.equals(prev));
+        // Remove any leftover trailing punctuation/separators (" - ", " / ", etc.)
+        s = s.replaceAll("[\\s\\-/|]+$", "").trim();
+
+        String dynamicKey = s.toLowerCase(Locale.ROOT);
+        if (!dynamicKey.isBlank() && !dynamicKey.equals(clean.toLowerCase(Locale.ROOT).trim())) {
+            return dynamicKey;
+        }
         return clean.toLowerCase(Locale.ROOT).trim();
     }
 
