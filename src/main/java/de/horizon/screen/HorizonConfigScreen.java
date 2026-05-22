@@ -1024,7 +1024,7 @@ public final class HorizonConfigScreen extends Screen {
                 }
             }
         }
-        return islandDisplayLines();
+        return config().getScoreboardKnownLines(activeScoreboardIsland.id());
     }
 
     private void refreshChatBridgeBotNameInput() {
