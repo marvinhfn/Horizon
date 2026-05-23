@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class HorizonConfig {
@@ -328,6 +329,11 @@ public final class HorizonConfig {
             case "slayer quest": return "Slayer Quest";
             case "combat exp":  return "Slayer Quest Combat EXP";
             case "next tier":   return "Slayer Quest Next Tier";
+            case "archer":      return "Archer";
+            case "mage":        return "Mage";
+            case "tank":        return "Tank";
+            case "berserk":     return "Berserk";
+            case "healer":      return "Healer";
             default: {
                 // Title-case: "farming contest" → "Farming Contest"
                 String[] words = key.replace('_', ' ').split(" ");
@@ -357,6 +363,11 @@ public final class HorizonConfig {
             case "deaths":                                          return 0xFFFF5555; // red
             case "secrets found": case "score": case "cleared":
             case "the catacombs": case "crypts":                    return 0xFFFFFF55; // yellow
+            case "archer":                                          return 0xFFFF5555; // red
+            case "mage":                                            return 0xFF55FFFF; // aqua
+            case "tank":                                            return 0xFF55FF55; // green
+            case "berserk":                                         return 0xFFFFAA00; // gold
+            case "healer":                                          return 0xFFFF55FF; // light purple
             case "profile": case "skills": case "class":            return 0xFFAAAAAA; // gray
             case "season": case "time": case "server_code":
             case "timer": case "date":                              return 0xFFAAAAAA; // gray
@@ -383,6 +394,7 @@ public final class HorizonConfig {
     private static final Pattern P_TRAILING_NUMS    = Pattern.compile("(\\s+x?[\\d,.]+[kKmMbBtT]?)+$");
     private static final Pattern P_TRAILING_SYMBOLS = Pattern.compile("[^a-zA-Z0-9\\s]+$");
     private static final Pattern P_TRAILING_SEP     = Pattern.compile("[\\s\\-/|]+$");
+    private static final Pattern P_FIRST_ALPHA      = Pattern.compile("[a-z]+");
 
     public static String scoreboardLineKey(String line) {
         if (line == null || line.isBlank()) {
@@ -418,6 +430,23 @@ public final class HorizonConfig {
                 return "timer";
             }
         }
+        // Dungeon team-member HP lines contain ❤ with a numeric HP value.
+        // Map them to a stable class key so player names never pollute the config.
+        if (clean.contains("❤")) {
+            String lower = clean.toLowerCase(Locale.ROOT);
+            Matcher m = P_FIRST_ALPHA.matcher(lower);
+            if (m.find()) {
+                switch (m.group()) {
+                    case "archer":  return "archer";
+                    case "mage":    return "mage";
+                    case "tank":    return "tank";
+                    case "berserk": case "bers": return "berserk";
+                    case "healer":  return "healer";
+                }
+            }
+            return ""; // HP line without identifiable class → skip
+        }
+
         int colon = clean.indexOf(':');
         if (colon > 0) {
             String key = clean.substring(0, colon).toLowerCase(Locale.ROOT).trim();

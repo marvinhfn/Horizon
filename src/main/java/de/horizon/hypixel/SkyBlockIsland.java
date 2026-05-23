@@ -69,6 +69,10 @@ public enum SkyBlockIsland {
             if (n.contains("garden")) return GARDEN;
             // "Plot - N" lines only appear in the Garden
             if (n.contains("plot -") || n.contains("plot \u2013")) return GARDEN;
+            // Dojo is exclusive to the Crimson Isle
+            if (n.contains("dojo")) return CRIMSON_ISLE;
+            // Rift time countdown is exclusive to The Rift
+            if (n.contains("rift time") || n.contains("lifetime:")) return THE_RIFT;
         }
 
         // ⏣ line: check sub-location names comprehensively
@@ -103,7 +107,9 @@ public enum SkyBlockIsland {
             if (n.contains("crimson isle") || n.contains("dragontail") || n.contains("stronghold")
                 || n.contains("town of salt") || n.contains("mage outpost")
                 || n.contains("barbarian outpost") || n.contains("lava springs")
-                || n.contains("ruins of the nether") || n.contains("bastion")) return CRIMSON_ISLE;
+                || n.contains("ruins of the nether") || n.contains("bastion")
+                || n.contains("burning desert") || n.contains("scarecrow")
+                || n.contains("dojo")) return CRIMSON_ISLE;
 
             // Farming Islands
             if (n.contains("farming island") || n.contains("mushroom desert")
@@ -112,7 +118,8 @@ public enum SkyBlockIsland {
             // The Rift
             if (n.contains("the rift") || n.contains("still gorge") || n.contains("wyld woods")
                 || n.contains("west village") || n.contains("barter bank")
-                || n.contains("mirrorverse") || n.contains("lagoon")) return THE_RIFT;
+                || n.contains("mirrorverse") || n.contains("lagoon")
+                || n.contains("dreadfarm") || n.contains("rift")) return THE_RIFT;
 
             // Spider's Den
             if (n.contains("spider") || n.contains("arachneum")) return SPIDERS_DEN;

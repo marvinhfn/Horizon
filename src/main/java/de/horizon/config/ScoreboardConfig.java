@@ -110,6 +110,23 @@ public final class ScoreboardConfig {
         }
     }
 
+    /**
+     * Ensures the dungeons island always has one stable entry per class.
+     * Uses the key itself as stored value so that the deduplication in
+     * {@link #getKnownLines(String)} never remaps the key to a different string.
+     * Call this once after loading the config.
+     */
+    void ensureDungeonClassEntries() {
+        if (scoreboardKnownLines == null) scoreboardKnownLines = new HashMap<>();
+        Map<String, String> dungeonLines = scoreboardKnownLines.computeIfAbsent("dungeons", k -> new LinkedHashMap<>());
+        dungeonLines.putIfAbsent("archer",  "Archer");
+        dungeonLines.putIfAbsent("mage",    "Mage");
+        dungeonLines.putIfAbsent("tank",    "Tank");
+        // Store as "Berserk" so scoreboardLineKey("Berserk") → "berserk" (stable round-trip)
+        dungeonLines.putIfAbsent("berserk", "Berserk");
+        dungeonLines.putIfAbsent("healer",  "Healer");
+    }
+
     void reorderLine(String islandId, String key, int newIndex) {
         Map<String, String> known = scoreboardKnownLines.get(islandId);
         if (known == null) {

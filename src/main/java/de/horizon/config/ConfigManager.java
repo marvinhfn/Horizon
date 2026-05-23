@@ -42,6 +42,7 @@ public final class ConfigManager {
         antiSpam = loadSub("anti_spam.json", AntiSpamConfig.class, new AntiSpamConfig());
         particle = loadSub("particle.json", ParticleConfig.class, new ParticleConfig());
         scoreboard = loadSub("scoreboard.json", ScoreboardConfig.class, new ScoreboardConfig());
+        scoreboard.ensureDungeonClassEntries();
         config = build();
     }
 
