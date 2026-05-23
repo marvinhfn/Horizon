@@ -327,8 +327,9 @@ public final class HorizonConfig {
             case "archer":      return "Archer";
             case "mage":        return "Mage";
             case "tank":        return "Tank";
-            case "berserk":     return "Berserk";
-            case "healer":      return "Healer";
+            case "berserk":         return "Berserk";
+            case "healer":          return "Healer";
+            case "www.hypixel.net": return "www.hypixel.net";
             default: {
                 // Title-case: "farming contest" → "Farming Contest"
                 String[] words = key.replace('_', ' ').split(" ");

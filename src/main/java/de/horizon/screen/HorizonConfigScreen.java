@@ -71,6 +71,7 @@ public final class HorizonConfigScreen extends Screen {
     private SkyBlockIsland activeScoreboardIsland = SkyBlockIsland.HUB;
     private String pendingGlobalToggleKey = null;
     private String pendingGlobalToggleLabel = null;
+    private boolean showReloadPopup = false;
     private InputFocus inputFocus = InputFocus.NONE;
     private String catacombsInput;
     private String hudAccentColorInput;
@@ -114,6 +115,11 @@ public final class HorizonConfigScreen extends Screen {
         Rect frame = frame();
         if (!frame.contains(click.x(), click.y())) {
             return super.mouseClicked(click, doubled);
+        }
+
+        if (showReloadPopup) {
+            showReloadPopup = false;
+            return true;
         }
 
         if (pendingGlobalToggleKey != null) {
@@ -431,6 +437,9 @@ public final class HorizonConfigScreen extends Screen {
         if (pendingGlobalToggleKey != null) {
             drawConfirmationOverlay(context, frame, accent);
         }
+        if (showReloadPopup) {
+            drawReloadPopup(context, frame, accent);
+        }
         drawHeaderMask(context, frame, accent);
 
         super.render(context, mouseX, mouseY, delta);
@@ -466,6 +475,7 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().load();
             contentScrollOffset = 0;
             refreshInputs();
+            showReloadPopup = true;
             return true;
         }
         return false;
@@ -706,9 +716,10 @@ public final class HorizonConfigScreen extends Screen {
         int rowHeight = actionRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, HudStyle.selected(), false);
         Rect leftRect = actionButtonRect(x, y, true);
-        Rect rightRect = actionButtonRect(x, y, false);
         drawInlineAction(context, leftRect, left);
-        drawInlineAction(context, rightRect, right);
+        if (right != null && !right.isBlank()) {
+            drawInlineAction(context, actionButtonRect(x, y, false), right);
+        }
         drawWrappedText(context, x + DESCRIPTION_INDENT, leftRect.bottom() + 6, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
         return y + rowHeight;
     }
@@ -1729,6 +1740,19 @@ public final class HorizonConfigScreen extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(Lang.t("JA", "YES")), yes.centerX(), yes.y + 5, 0xFFF7FBFF);
         context.fill(no.x, no.y, no.right(), no.bottom(), 0xFF8A3A3A);
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(Lang.t("NEIN", "NO")), no.centerX(), no.y + 5, 0xFFF7FBFF);
+    }
+
+    private void drawReloadPopup(DrawContext context, Rect frame, int accent) {
+        int w = 280, h = 82;
+        int ox = frame.x + (frame.width - w) / 2;
+        int oy = frame.y + (frame.height - h) / 2;
+        context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
+        context.drawStrokedRectangle(ox, oy, w, h, HudStyle.border());
+        drawTextLine(context, ox + 12, oy + 12, Lang.t("Config Reload", "Config Reload"), accent);
+        drawTextLine(context, ox + 12, oy + 28, Lang.t("Konfiguration wurde neu geladen.", "Configuration reloaded successfully."), MUTED);
+        int bw = 80, bx = ox + (w - bw) / 2, by = oy + h - 28;
+        context.fill(bx, by, bx + bw, by + 18, 0xFF2DBA68);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("OK"), bx + bw / 2, by + 5, 0xFFF7FBFF);
     }
 
     private Rect confirmYesRect(Rect frame) {
