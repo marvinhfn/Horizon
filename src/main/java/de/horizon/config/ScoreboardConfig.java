@@ -1,6 +1,7 @@
 package de.horizon.config;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -9,6 +10,30 @@ import java.util.Map;
 import java.util.Set;
 
 public final class ScoreboardConfig {
+    private static final Map<String, LinkedHashMap<String, String>> ISLAND_DEFAULTS;
+    static {
+        Map<String, LinkedHashMap<String, String>> m = new LinkedHashMap<>();
+        m.put("hub",             defaults("purse","Purse", "bits","Bits", "profile","Profile", "skills","Skills", "time","Time", "season","Season", "server_code","Date"));
+        m.put("dungeons",        defaults("time elapsed","Time Elapsed", "score","Score", "cleared","Cleared", "secrets found","Secrets Found", "crypts","Crypts", "deaths","Deaths", "kills","Kills", "archer","Archer", "mage","Mage", "tank","Tank", "berserk","Berserk", "healer","Healer"));
+        m.put("garden",          defaults("purse","Purse", "bits","Bits", "plot","Plot", "time","Time", "season","Season"));
+        m.put("dwarven_mines",   defaults("purse","Purse", "commission","Commission", "mithril powder","Mithril Powder", "gemstone powder","Gemstone Powder"));
+        m.put("crystal_hollows", defaults("purse","Purse", "mithril powder","Mithril Powder", "gemstone powder","Gemstone Powder", "kills","Kills"));
+        m.put("crimson_isle",    defaults("purse","Purse", "motes","Motes", "slayer quest","Slayer Quest", "kills","Kills"));
+        m.put("farming_islands", defaults("purse","Purse", "bits","Bits", "time","Time", "season","Season"));
+        m.put("rift",            defaults("motes","Motes", "rift time","Rift Time", "lifetime","Lifetime"));
+        m.put("spiders_den",     defaults("purse","Purse", "kills","Kills"));
+        m.put("end",             defaults("purse","Purse", "kills","Kills"));
+        ISLAND_DEFAULTS = Collections.unmodifiableMap(m);
+    }
+
+    private static LinkedHashMap<String, String> defaults(String... pairs) {
+        LinkedHashMap<String, String> map = new LinkedHashMap<>();
+        for (int i = 0; i < pairs.length - 1; i += 2) {
+            map.put(pairs[i], pairs[i + 1]);
+        }
+        return map;
+    }
+
     boolean customScoreboardEnabled = true;
     Map<String, Set<String>> scoreboardHiddenKeys = new HashMap<>();
     Map<String, Map<String, String>> scoreboardKnownLines = new HashMap<>();
@@ -17,38 +42,9 @@ public final class ScoreboardConfig {
     Map<String, Set<String>> scoreboardIslandShownKeys = new HashMap<>();
 
     Map<String, String> getKnownLines(String islandId) {
-        Map<String, String> stored = scoreboardKnownLines != null
-            ? scoreboardKnownLines.get(islandId) : null;
-        if (stored == null) return new LinkedHashMap<>();
-        // Re-normalize keys from their stored values to deduplicate stale entries
-        // (e.g. "plot - 2" / "plot - 3" all normalize to "plot").
-        Map<String, String> deduped = new LinkedHashMap<>();
-        for (String value : stored.values()) {
-            if (value == null || value.isBlank()) continue;
-            String key = HorizonConfig.scoreboardLineKey(value);
-            if (!key.isBlank()) {
-                deduped.putIfAbsent(key, value);
-            }
-        }
-        if (deduped.size() != stored.size() || !deduped.keySet().equals(stored.keySet())) {
-            stored.clear();
-            stored.putAll(deduped);
-        }
-        return stored;
-    }
-
-    void recordLines(String islandId, java.util.List<String> lines) {
-        if (scoreboardKnownLines == null) scoreboardKnownLines = new HashMap<>();
-        Map<String, String> known = scoreboardKnownLines.computeIfAbsent(islandId, k -> new LinkedHashMap<>());
-        for (String line : lines) {
-            if (line == null || line.isBlank()) continue;
-            String key = HorizonConfig.scoreboardLineKey(line);
-            if (!key.isBlank()) {
-                // Store the stable display label, not the raw dynamic line text.
-                // putIfAbsent preserves the user's drag-and-drop order for new keys.
-                known.putIfAbsent(key, HorizonConfig.formatScoreboardKeyLabel(key));
-            }
-        }
+        if (scoreboardKnownLines == null) return new LinkedHashMap<>();
+        Map<String, String> stored = scoreboardKnownLines.get(islandId);
+        return stored != null ? stored : new LinkedHashMap<>();
     }
 
     /**
@@ -111,20 +107,26 @@ public final class ScoreboardConfig {
     }
 
     /**
-     * Ensures the dungeons island always has one stable entry per class.
-     * Uses the key itself as stored value so that the deduplication in
-     * {@link #getKnownLines(String)} never remaps the key to a different string.
+     * Initialises all islands with their static predefined line keys.
+     * Removes any keys not in the predefined set (cleanup from old dynamic recording).
+     * Preserves the user's drag-and-drop order for keys that already exist.
      * Call this once after loading the config.
      */
-    void ensureDungeonClassEntries() {
+    void ensureIslandDefaults() {
         if (scoreboardKnownLines == null) scoreboardKnownLines = new HashMap<>();
-        Map<String, String> dungeonLines = scoreboardKnownLines.computeIfAbsent("dungeons", k -> new LinkedHashMap<>());
-        dungeonLines.putIfAbsent("archer",  "Archer");
-        dungeonLines.putIfAbsent("mage",    "Mage");
-        dungeonLines.putIfAbsent("tank",    "Tank");
-        // Store as "Berserk" so scoreboardLineKey("Berserk") → "berserk" (stable round-trip)
-        dungeonLines.putIfAbsent("berserk", "Berserk");
-        dungeonLines.putIfAbsent("healer",  "Healer");
+        // Remove entries for islands that no longer have a tab (e.g. old glacite_tunnels, kuudra)
+        scoreboardKnownLines.keySet().retainAll(ISLAND_DEFAULTS.keySet());
+        for (Map.Entry<String, LinkedHashMap<String, String>> e : ISLAND_DEFAULTS.entrySet()) {
+            String islandId = e.getKey();
+            Map<String, String> defaults = e.getValue();
+            Map<String, String> known = scoreboardKnownLines.computeIfAbsent(islandId, k -> new LinkedHashMap<>());
+            // Remove non-predefined keys (pollution from old dynamic line recording)
+            known.keySet().retainAll(defaults.keySet());
+            // Add missing predefined keys at the end, preserving user order for existing ones
+            for (Map.Entry<String, String> d : defaults.entrySet()) {
+                known.putIfAbsent(d.getKey(), d.getValue());
+            }
+        }
     }
 
     void reorderLine(String islandId, String key, int newIndex) {

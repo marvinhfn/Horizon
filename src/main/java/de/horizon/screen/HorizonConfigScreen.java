@@ -4,7 +4,6 @@ import de.horizon.HorizonClient;
 import de.horizon.Lang;
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.chat.ChatCopyMode;
-import de.horizon.hypixel.HypixelSidebarOverlay;
 import de.horizon.hypixel.SkyBlockIsland;
 import de.horizon.feature.chat.SpamFilterOption;
 import de.horizon.feature.dungeon.PuzzleSolverOption;
@@ -24,7 +23,6 @@ import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -443,11 +441,13 @@ public final class HorizonConfigScreen extends Screen {
         y = drawSectionTitle(context, viewport.x, y, "General");
         Lang.Language lang = config().getLanguage();
         String langLabel = lang == Lang.Language.EN ? "English" : "Deutsch";
-        drawCycleRow(context, viewport.x, y,
+        y = drawCycleRow(context, viewport.x, y,
             Lang.t("Sprache", "Language"),
             langLabel,
             true,
             Lang.t("Sprache des Mods umschalten: Deutsch oder Englisch.", "Switch the mod language: German or English."));
+        drawActionRow(context, viewport.x, y, Lang.t("Config Reload", "Config Reload"), "",
+            Lang.t("Konfiguration neu laden.", "Reload the configuration from disk."));
     }
 
     private boolean handleGeneralClick(double mouseX, double mouseY, Rect frame) {
@@ -461,11 +461,19 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
+        y += toggleRowHeight(Lang.t("Sprache des Mods umschalten: Deutsch oder Englisch.", "Switch the mod language: German or English."));
+        if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
+            horizonClient.getConfigManager().load();
+            refreshInputs();
+            return true;
+        }
         return false;
     }
 
     private int generalContentHeight() {
-        return 24 + toggleRowHeight(Lang.t("Sprache des Mods umschalten: Deutsch oder Englisch.", "Switch the mod language: German or English."));
+        return 24
+            + toggleRowHeight(Lang.t("Sprache des Mods umschalten: Deutsch oder Englisch.", "Switch the mod language: German or English."))
+            + actionRowHeight(Lang.t("Konfiguration neu laden.", "Reload the configuration from disk."));
     }
 
     private void renderHudText(DrawContext context, Rect viewport) {
@@ -1150,30 +1158,7 @@ public final class HorizonConfigScreen extends Screen {
      * the player is on a different island.
      */
     private Map<String, String> islandDisplayLines() {
-        Map<String, String> configOrder = config().getScoreboardKnownLines(activeScoreboardIsland.id());
-        Map<String, String> liveLines = null;
-        if (client != null) {
-            SkyBlockIsland live = HypixelSidebarOverlay.liveIsland(client);
-            if (live == activeScoreboardIsland) {
-                Map<String, String> lines = HypixelSidebarOverlay.liveDeduplicatedLines(client);
-                if (!lines.isEmpty()) {
-                    liveLines = lines;
-                }
-            }
-        }
-        if (liveLines == null) {
-            return configOrder;
-        }
-        // Return live text but always in config order so the config screen
-        // reflects drag-and-drop reorders immediately.
-        Map<String, String> result = new LinkedHashMap<>();
-        for (String key : configOrder.keySet()) {
-            result.put(key, liveLines.getOrDefault(key, configOrder.get(key)));
-        }
-        for (Map.Entry<String, String> entry : liveLines.entrySet()) {
-            result.putIfAbsent(entry.getKey(), entry.getValue());
-        }
-        return result;
+        return config().getScoreboardKnownLines(activeScoreboardIsland.id());
     }
 
     private void refreshChatBridgeBotNameInput() {

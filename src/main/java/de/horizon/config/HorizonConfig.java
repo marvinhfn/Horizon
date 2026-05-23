@@ -4,7 +4,6 @@ import de.horizon.Lang;
 import de.horizon.feature.chat.ChatCopyMode;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -278,10 +277,6 @@ public final class HorizonConfig {
         return scoreboard.getKnownLines(islandId);
     }
 
-    public void recordScoreboardLines(String islandId, List<String> lines) {
-        scoreboard.recordLines(islandId, lines);
-    }
-
     public boolean isScoreboardLineHidden(String islandId, String lineKey) {
         return scoreboard.isLineEffectivelyHidden(islandId, lineKey);
     }
@@ -377,7 +372,7 @@ public final class HorizonConfig {
 
     // ── UTILITY ───────────────────────────────────────────────────────────────
 
-    private static final Pattern P_COLOR_CODE       = Pattern.compile("§[0-9a-fklmnorA-FK-LMN-OR]");
+    private static final Pattern P_COLOR_CODE       = Pattern.compile("§[0-9a-zA-Z]");
     private static final Pattern P_TIME_START       = Pattern.compile("\\d{1,2}:\\d{2}.*");
     private static final Pattern P_SEASON           = Pattern.compile(".*(spring|summer|autumm?|fall|winter).*");
     private static final Pattern P_ORDINAL          = Pattern.compile(".*\\d+(st|nd|rd|th).*");
@@ -445,6 +440,10 @@ public final class HorizonConfig {
                 }
             }
             return ""; // HP line without identifiable class → skip
+        }
+        // All "Plot" lines (Plot - 2, Plot - 19, etc.) collapse to a single stable key
+        if (cleanLower.startsWith("plot")) {
+            return "plot";
         }
 
         int colon = clean.indexOf(':');

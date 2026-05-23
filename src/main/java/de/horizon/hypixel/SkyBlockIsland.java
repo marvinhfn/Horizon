@@ -9,12 +9,11 @@ public enum SkyBlockIsland {
     GARDEN("Garden", "garden"),
     DWARVEN_MINES("Dwarven Mines", "dwarven_mines"),
     CRYSTAL_HOLLOWS("Crystal Hollows", "crystal_hollows"),
-    GLACITE_TUNNELS("Glacite Tunnels", "glacite_tunnels"),
-    KUUDRA("Kuudra", "kuudra"),
     CRIMSON_ISLE("Crimson Isle", "crimson_isle"),
     FARMING_ISLANDS("Farming Islands", "farming_islands"),
     THE_RIFT("The Rift", "rift"),
     SPIDERS_DEN("Spider's Den", "spiders_den"),
+    THE_END("The End", "end"),
     UNKNOWN("Unknown", "unknown");
 
     private final String label;
@@ -64,7 +63,6 @@ public enum SkyBlockIsland {
             if (n.contains("powder:") || n.contains("mithril powder") || n.contains("gemstone powder")) {
                 hasPowder = true;
             }
-            if (n.contains("kuudra")) return KUUDRA;
             // "garden" can appear anywhere in a line (location, title, sub-area)
             if (n.contains("garden")) return GARDEN;
             // "Plot - N" lines only appear in the Garden
@@ -83,8 +81,8 @@ public enum SkyBlockIsland {
             // Garden
             if (n.contains("garden") || n.contains("plot")) return GARDEN;
 
-            // Glacite Tunnels (check before dwarven since glacite is in same "area")
-            if (n.contains("glacite") || n.contains("fossil research")) return GLACITE_TUNNELS;
+            // Glacite Tunnels is part of Dwarven Mines
+            if (n.contains("glacite") || n.contains("fossil research")) return DWARVEN_MINES;
 
             // Crystal Hollows sub-locations
             if (n.contains("crystal hollow") || n.contains("crystal nucleus")
@@ -100,8 +98,8 @@ public enum SkyBlockIsland {
                 || n.contains("throne room") || n.contains("rampart") || n.contains("cliffside")
                 || n.contains("puzzle room")) return DWARVEN_MINES;
 
-            // Kuudra
-            if (n.contains("kuudra") || n.contains("molten ford") || n.contains("nether fortress")) return KUUDRA;
+            // Kuudra is part of Crimson Isle
+            if (n.contains("kuudra") || n.contains("molten ford") || n.contains("nether fortress")) return CRIMSON_ISLE;
 
             // Crimson Isle sub-locations
             if (n.contains("crimson isle") || n.contains("dragontail") || n.contains("stronghold")
@@ -123,6 +121,9 @@ public enum SkyBlockIsland {
 
             // Spider's Den
             if (n.contains("spider") || n.contains("arachneum")) return SPIDERS_DEN;
+
+            // The End sub-locations
+            if (n.contains("the end") || n.contains("dragon") || n.contains("void slate")) return THE_END;
 
             // Any other ⏣ line on SkyBlock → Hub (Hub has many sub-locations)
             return HUB;

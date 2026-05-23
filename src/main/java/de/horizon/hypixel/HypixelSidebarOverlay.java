@@ -144,13 +144,6 @@ public final class HypixelSidebarOverlay {
             return cachedSnapshot(client);
         }
         SidebarSnapshot snapshot = new SidebarSnapshot(title, lines);
-        HorizonClient horizon = HorizonClient.getInstance();
-        if (horizon != null) {
-            SkyBlockIsland island = SkyBlockIsland.detect(title, lines);
-            if (island != SkyBlockIsland.UNKNOWN) {
-                horizon.getConfigManager().getConfig().recordScoreboardLines(island.id(), lines);
-            }
-        }
         cachedSnapshot = snapshot;
         cachedSnapshotAt = now(client);
         return snapshot;
