@@ -44,6 +44,7 @@ public final class ConfigManager {
         scoreboard = loadSub("scoreboard.json", ScoreboardConfig.class, new ScoreboardConfig());
         scoreboard.ensureIslandDefaults();
         config = build();
+        save();
     }
 
     public void save() {

@@ -464,6 +464,7 @@ public final class HorizonConfigScreen extends Screen {
         y += toggleRowHeight(Lang.t("Sprache des Mods umschalten: Deutsch oder Englisch.", "Switch the mod language: German or English."));
         if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
             horizonClient.getConfigManager().load();
+            contentScrollOffset = 0;
             refreshInputs();
             return true;
         }

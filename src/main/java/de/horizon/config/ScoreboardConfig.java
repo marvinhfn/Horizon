@@ -13,16 +13,52 @@ public final class ScoreboardConfig {
     private static final Map<String, LinkedHashMap<String, String>> ISLAND_DEFAULTS;
     static {
         Map<String, LinkedHashMap<String, String>> m = new LinkedHashMap<>();
-        m.put("hub",             defaults("purse","Purse", "bits","Bits", "profile","Profile", "skills","Skills", "time","Time", "season","Season", "server_code","Date"));
-        m.put("dungeons",        defaults("time elapsed","Time Elapsed", "score","Score", "cleared","Cleared", "secrets found","Secrets Found", "crypts","Crypts", "deaths","Deaths", "kills","Kills", "archer","Archer", "mage","Mage", "tank","Tank", "berserk","Berserk", "healer","Healer"));
-        m.put("garden",          defaults("purse","Purse", "bits","Bits", "plot","Plot", "time","Time", "season","Season"));
-        m.put("dwarven_mines",   defaults("purse","Purse", "commission","Commission", "mithril powder","Mithril Powder", "gemstone powder","Gemstone Powder"));
-        m.put("crystal_hollows", defaults("purse","Purse", "mithril powder","Mithril Powder", "gemstone powder","Gemstone Powder", "kills","Kills"));
-        m.put("crimson_isle",    defaults("purse","Purse", "motes","Motes", "slayer quest","Slayer Quest", "kills","Kills"));
-        m.put("farming_islands", defaults("purse","Purse", "bits","Bits", "time","Time", "season","Season"));
-        m.put("rift",            defaults("motes","Motes", "rift time","Rift Time", "lifetime","Lifetime"));
-        m.put("spiders_den",     defaults("purse","Purse", "kills","Kills"));
-        m.put("end",             defaults("purse","Purse", "kills","Kills"));
+        m.put("hub",             defaults(
+            "location","Location (⏣)", "purse","Purse", "bits","Bits",
+            "profile","Profile", "skills","Skills",
+            "time","Time", "season","Season", "server_code","Date",
+            "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier"
+        ));
+        m.put("dungeons",        defaults(
+            "time elapsed","Time Elapsed", "score","Score", "cleared","Cleared",
+            "secrets found","Secrets Found", "crypts","Crypts", "deaths","Deaths", "kills","Kills",
+            "archer","Archer", "mage","Mage", "tank","Tank", "berserk","Berserk", "healer","Healer"
+        ));
+        m.put("garden",          defaults(
+            "location","Location (⏣)", "purse","Purse", "bits","Bits",
+            "plot","Plot", "time","Time", "season","Season"
+        ));
+        m.put("dwarven_mines",   defaults(
+            "location","Location (⏣)", "purse","Purse",
+            "commission","Commission", "mithril powder","Mithril Powder", "gemstone powder","Gemstone Powder"
+        ));
+        m.put("crystal_hollows", defaults(
+            "location","Location (⏣)", "purse","Purse",
+            "mithril powder","Mithril Powder", "gemstone powder","Gemstone Powder", "kills","Kills"
+        ));
+        m.put("crimson_isle",    defaults(
+            "location","Location (⏣)", "purse","Purse", "motes","Motes",
+            "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier",
+            "kills","Kills"
+        ));
+        m.put("farming_islands", defaults(
+            "location","Location (⏣)", "purse","Purse", "bits","Bits",
+            "time","Time", "season","Season"
+        ));
+        m.put("rift",            defaults(
+            "location","Location (⏣)", "motes","Motes", "rift time","Rift Time", "lifetime","Lifetime",
+            "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier"
+        ));
+        m.put("spiders_den",     defaults(
+            "location","Location (⏣)", "purse","Purse",
+            "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier",
+            "kills","Kills"
+        ));
+        m.put("end",             defaults(
+            "location","Location (⏣)", "purse","Purse",
+            "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier",
+            "kills","Kills"
+        ));
         ISLAND_DEFAULTS = Collections.unmodifiableMap(m);
     }
 
@@ -119,7 +155,19 @@ public final class ScoreboardConfig {
         for (Map.Entry<String, LinkedHashMap<String, String>> e : ISLAND_DEFAULTS.entrySet()) {
             String islandId = e.getKey();
             Map<String, String> defaults = e.getValue();
-            Map<String, String> known = scoreboardKnownLines.computeIfAbsent(islandId, k -> new LinkedHashMap<>());
+            // GSON may deserialize inner maps as LinkedTreeMap (alphabetically sorted).
+            // Always work with a LinkedHashMap to preserve insertion/drag-drop order.
+            Map<String, String> raw = scoreboardKnownLines.get(islandId);
+            LinkedHashMap<String, String> known;
+            if (raw instanceof LinkedHashMap) {
+                known = (LinkedHashMap<String, String>) raw;
+            } else if (raw != null) {
+                known = new LinkedHashMap<>(raw);
+                scoreboardKnownLines.put(islandId, known);
+            } else {
+                known = new LinkedHashMap<>();
+                scoreboardKnownLines.put(islandId, known);
+            }
             // Remove non-predefined keys (pollution from old dynamic line recording)
             known.keySet().retainAll(defaults.keySet());
             // Add missing predefined keys at the end, preserving user order for existing ones
