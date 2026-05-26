@@ -25,6 +25,7 @@ public final class ConfigManager {
     private AntiSpamConfig antiSpam = new AntiSpamConfig();
     private ParticleConfig particle = new ParticleConfig();
     private ScoreboardConfig scoreboard = new ScoreboardConfig();
+    private InventoryButtonConfig inventoryButtons = new InventoryButtonConfig();
 
     private HorizonConfig config = build();
 
@@ -43,6 +44,7 @@ public final class ConfigManager {
         particle = loadSub("particle.json", ParticleConfig.class, new ParticleConfig());
         scoreboard = loadSub("scoreboard.json", ScoreboardConfig.class, new ScoreboardConfig());
         scoreboard.ensureIslandDefaults();
+        inventoryButtons = loadSub("inventory_buttons.json", InventoryButtonConfig.class, new InventoryButtonConfig());
         config = build();
         save();
     }
@@ -57,6 +59,7 @@ public final class ConfigManager {
         saveSub("anti_spam.json", config.antiSpam);
         saveSub("particle.json", config.particle);
         saveSub("scoreboard.json", config.scoreboard);
+        saveSub("inventory_buttons.json", config.inventoryButtons);
     }
 
     public HudPosition getOrCreatePosition(String id, int defaultX, int defaultY) {
@@ -69,7 +72,8 @@ public final class ConfigManager {
     }
 
     private HorizonConfig build() {
-        return new HorizonConfig(hud, dungeon, spotify, youtube, chat, misc, antiSpam, particle, scoreboard);
+        return new HorizonConfig(hud, dungeon, spotify, youtube, chat, misc, antiSpam, particle, scoreboard,
+                inventoryButtons);
     }
 
     private <T> T loadSub(String filename, Class<T> clazz, T defaultValue) {

@@ -39,7 +39,31 @@ public enum SpamFilterOption {
         "Hide Blood and Wither Door announcements."),
     LOCKED_CHEST_MESSAGES("Locked Chest",
         "This chest is locked-Meldungen ausblenden.",
-        "Hide locked chest messages.");
+        "Hide locked chest messages."),
+    BOSS_MESSAGES("Boss Messages",
+        "Boss-Nachrichten in Dungeons ausblenden.",
+        "Hide boss chat messages in dungeons."),
+    WARPING_MESSAGES("Warping",
+        "Warping...-Meldungen ausblenden.",
+        "Hide warping messages."),
+    SENDING_TO_SERVER_MESSAGES("Sending to Server",
+        "Sending to Server-Meldungen ausblenden.",
+        "Hide sending to server messages."),
+    PROFILE_MESSAGES("Profile / Profile ID",
+        "Profil-ID und Profil-Nachrichten ausblenden.",
+        "Hide profile ID and profile messages."),
+    GUILD_JOIN_LEAVE_MESSAGES("Guild Join / Leave",
+        "Beitritts- und Austritts-Nachrichten der Gilde ausblenden.",
+        "Hide guild member join and leave messages."),
+    FIRESALE_MESSAGES("Firesales",
+        "Firesale-Ankuendigungen ausblenden.",
+        "Hide fire sale announcements."),
+    RADIO_SIGNAL_MESSAGES("Radio Signal",
+        "Radio-Signal-Nachrichten ausblenden.",
+        "Hide radio signal messages."),
+    SACKS_MESSAGES("Sacks",
+        "[Sacks]-Chatmeldungen ausblenden.",
+        "Hide [Sacks] chat messages.");
 
     private final String title;
     private final String descriptionDe;
@@ -73,6 +97,14 @@ public enum SpamFilterOption {
             case HEALING_MESSAGES -> config.isHideHealingMessages();
             case DUNGEON_EVENT_MESSAGES -> config.isHideDungeonEventMessages();
             case LOCKED_CHEST_MESSAGES -> config.isHideLockedChestMessages();
+            case BOSS_MESSAGES -> config.isHideBossMessages();
+            case WARPING_MESSAGES -> config.isHideWarpingMessages();
+            case SENDING_TO_SERVER_MESSAGES -> config.isHideSendingToServerMessages();
+            case PROFILE_MESSAGES -> config.isHideProfileMessages();
+            case GUILD_JOIN_LEAVE_MESSAGES -> config.isHideGuildJoinLeaveMessages();
+            case FIRESALE_MESSAGES -> config.isHideFiresaleMessages();
+            case RADIO_SIGNAL_MESSAGES -> config.isHideRadioSignalMessages();
+            case SACKS_MESSAGES -> config.isHideSacksMessages();
         };
     }
 
@@ -90,6 +122,14 @@ public enum SpamFilterOption {
             case HEALING_MESSAGES -> config.setHideHealingMessages(!config.isHideHealingMessages());
             case DUNGEON_EVENT_MESSAGES -> config.setHideDungeonEventMessages(!config.isHideDungeonEventMessages());
             case LOCKED_CHEST_MESSAGES -> config.setHideLockedChestMessages(!config.isHideLockedChestMessages());
+            case BOSS_MESSAGES -> config.setHideBossMessages(!config.isHideBossMessages());
+            case WARPING_MESSAGES -> config.setHideWarpingMessages(!config.isHideWarpingMessages());
+            case SENDING_TO_SERVER_MESSAGES -> config.setHideSendingToServerMessages(!config.isHideSendingToServerMessages());
+            case PROFILE_MESSAGES -> config.setHideProfileMessages(!config.isHideProfileMessages());
+            case GUILD_JOIN_LEAVE_MESSAGES -> config.setHideGuildJoinLeaveMessages(!config.isHideGuildJoinLeaveMessages());
+            case FIRESALE_MESSAGES -> config.setHideFiresaleMessages(!config.isHideFiresaleMessages());
+            case RADIO_SIGNAL_MESSAGES -> config.setHideRadioSignalMessages(!config.isHideRadioSignalMessages());
+            case SACKS_MESSAGES -> config.setHideSacksMessages(!config.isHideSacksMessages());
         }
     }
 }

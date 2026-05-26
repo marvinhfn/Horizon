@@ -7,6 +7,7 @@ import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 public final class ChatTabManager {
@@ -36,6 +37,14 @@ public final class ChatTabManager {
     }
 
     public void repopulateAfterBridgeToggle(HorizonConfig config) {
+        repopulate(config);
+    }
+
+    public void repopulateAfterGuildToggle(HorizonConfig config) {
+        repopulate(config);
+    }
+
+    public void repopulateAfterSpamFilterChange(HorizonConfig config) {
         repopulate(config);
     }
 
@@ -75,12 +84,41 @@ public final class ChatTabManager {
         if (config.isChatBridgeHidden() && isBridgeMessage(plainMsg, config.getChatBridgeBotName())) {
             return false;
         }
+        if (config.isGuildChatHidden() && category == ChatTab.GUILD) {
+            return false;
+        }
+        if (config.isHideGuildJoinLeaveMessages() && isGuildJoinLeaveMessage(plainMsg)) {
+            return false;
+        }
+        if (config.isHideRadioSignalMessages() && isRadioSignalMessage(plainMsg)) {
+            return false;
+        }
+        if (config.isHideSacksMessages() && plainMsg.toLowerCase(Locale.ROOT).startsWith("[sacks]")) {
+            return false;
+        }
         if (activeTab == ChatTab.ALL) {
             return true;
         }
         // Specific tabs (Party, Guild, DM) show only their own category.
         // Everything else — public chat, server messages, system messages — is All-only.
         return category == activeTab;
+    }
+
+    private boolean isGuildJoinLeaveMessage(String msg) {
+        String lower = msg.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("guild >") && (lower.contains(" joined") || lower.contains(" leaved") || lower.contains(" left") || lower.contains(" kicked"))) {
+            return true;
+        }
+        return lower.contains("joined the guild")
+            || lower.contains("left the guild")
+            || lower.contains("was kicked from the guild");
+    }
+
+    private boolean isRadioSignalMessage(String msg) {
+        String lower = msg.toLowerCase(Locale.ROOT);
+        return lower.contains("radio signal")
+            || lower.contains("your radio is weak")
+            || lower.contains("find another enjoyer to boost");
     }
 
     public ChatTab classify(String raw) {

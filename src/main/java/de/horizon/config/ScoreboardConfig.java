@@ -16,65 +16,66 @@ public final class ScoreboardConfig {
         m.put("hub",             defaults(
             "location","Location (⏣)", "purse","Purse", "bits","Bits",
             "profile","Profile", "skills","Skills",
-            "time","Time", "season","Season", "server_code","Date",
+            "time","Time", "timer","Timer", "season","Season", "server_code","Date",
             "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier",
             "www.hypixel.net","www.hypixel.net"
         ));
         m.put("dungeons",        defaults(
             "location","Location (⏣)",
+            "the catacombs","The Catacombs",
             "time elapsed","Time Elapsed", "score","Score", "cleared","Cleared",
             "secrets found","Secrets Found", "crypts","Crypts", "deaths","Deaths", "kills","Kills",
             "archer","Archer", "mage","Mage", "tank","Tank", "berserk","Berserk", "healer","Healer",
-            "profile","Profile", "time","Time", "season","Season", "server_code","Date",
+            "profile","Profile", "time","Time", "timer","Timer", "season","Season", "server_code","Date",
             "www.hypixel.net","www.hypixel.net"
         ));
         m.put("garden",          defaults(
             "location","Location (⏣)", "purse","Purse", "bits","Bits",
-            "plot","Plot", "time","Time", "season","Season",
+            "plot","Plot", "time","Time", "timer","Timer", "season","Season",
             "profile","Profile", "server_code","Date", "www.hypixel.net","www.hypixel.net"
         ));
         m.put("dwarven_mines",   defaults(
             "location","Location (⏣)", "purse","Purse",
             "commission","Commission", "mithril powder","Mithril Powder", "gemstone powder","Gemstone Powder",
-            "profile","Profile", "time","Time", "season","Season", "server_code","Date",
+            "profile","Profile", "time","Time", "timer","Timer", "season","Season", "server_code","Date",
             "www.hypixel.net","www.hypixel.net"
         ));
         m.put("crystal_hollows", defaults(
             "location","Location (⏣)", "purse","Purse",
             "mithril powder","Mithril Powder", "gemstone powder","Gemstone Powder", "kills","Kills",
-            "profile","Profile", "time","Time", "season","Season", "server_code","Date",
+            "profile","Profile", "time","Time", "timer","Timer", "season","Season", "server_code","Date",
             "www.hypixel.net","www.hypixel.net"
         ));
         m.put("crimson_isle",    defaults(
             "location","Location (⏣)", "purse","Purse", "motes","Motes",
             "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier",
             "kills","Kills",
-            "profile","Profile", "time","Time", "season","Season", "server_code","Date",
+            "profile","Profile", "time","Time", "timer","Timer", "season","Season", "server_code","Date",
             "www.hypixel.net","www.hypixel.net"
         ));
         m.put("farming_islands", defaults(
             "location","Location (⏣)", "purse","Purse", "bits","Bits",
-            "time","Time", "season","Season",
+            "time","Time", "timer","Timer", "season","Season",
             "profile","Profile", "server_code","Date", "www.hypixel.net","www.hypixel.net"
         ));
         m.put("rift",            defaults(
             "location","Location (⏣)", "motes","Motes", "rift time","Rift Time", "lifetime","Lifetime",
             "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier",
-            "profile","Profile", "time","Time", "season","Season", "server_code","Date",
+            "profile","Profile", "time","Time", "timer","Timer", "season","Season", "server_code","Date",
             "www.hypixel.net","www.hypixel.net"
         ));
         m.put("spiders_den",     defaults(
             "location","Location (⏣)", "purse","Purse",
             "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier",
             "kills","Kills",
-            "profile","Profile", "time","Time", "season","Season", "server_code","Date",
+            "profile","Profile", "time","Time", "timer","Timer", "season","Season", "server_code","Date",
             "www.hypixel.net","www.hypixel.net"
         ));
         m.put("end",             defaults(
             "location","Location (⏣)", "purse","Purse",
             "slayer quest","Slayer Quest", "combat exp","Slayer Quest Combat EXP", "next tier","Slayer Quest Next Tier",
             "kills","Kills",
-            "profile","Profile", "time","Time", "season","Season", "server_code","Date",
+            "profile","Profile", "time","Time", "timer","Timer", "season","Season", "server_code","Date",
             "www.hypixel.net","www.hypixel.net"
         ));
         ISLAND_DEFAULTS = Collections.unmodifiableMap(m);

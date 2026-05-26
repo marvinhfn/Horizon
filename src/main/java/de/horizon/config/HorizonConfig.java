@@ -2,8 +2,10 @@ package de.horizon.config;
 
 import de.horizon.Lang;
 import de.horizon.feature.chat.ChatCopyMode;
+import de.horizon.feature.inventory.InventoryButton;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -20,9 +22,11 @@ public final class HorizonConfig {
     final AntiSpamConfig antiSpam;
     final ParticleConfig particle;
     final ScoreboardConfig scoreboard;
+    final InventoryButtonConfig inventoryButtons;
 
     HorizonConfig(HudConfig hud, DungeonConfig dungeon, SpotifyConfig spotify, YoutubeConfig youtube, ChatConfig chat,
-                  MiscConfig misc, AntiSpamConfig antiSpam, ParticleConfig particle, ScoreboardConfig scoreboard) {
+                  MiscConfig misc, AntiSpamConfig antiSpam, ParticleConfig particle, ScoreboardConfig scoreboard,
+                  InventoryButtonConfig inventoryButtons) {
         this.hud = hud;
         this.dungeon = dungeon;
         this.spotify = spotify;
@@ -32,6 +36,7 @@ public final class HorizonConfig {
         this.antiSpam = antiSpam;
         this.particle = particle;
         this.scoreboard = scoreboard;
+        this.inventoryButtons = inventoryButtons;
     }
 
     // ── HUD ──────────────────────────────────────────────────────────────────
@@ -136,6 +141,9 @@ public final class HorizonConfig {
     public boolean isPuzzleTeleportMazeEnabled() { return dungeon.puzzleTeleportMazeEnabled; }
     public void setPuzzleTeleportMazeEnabled(boolean v) { dungeon.puzzleTeleportMazeEnabled = v; }
 
+    public boolean isRagAxeNotificationEnabled() { return dungeon.ragAxeNotificationEnabled; }
+    public void setRagAxeNotificationEnabled(boolean v) { dungeon.ragAxeNotificationEnabled = v; }
+
     // ── SPOTIFY ───────────────────────────────────────────────────────────────
 
     public boolean isSpotifyInventoryControlsEnabled() { return spotify.spotifyInventoryControlsEnabled; }
@@ -185,6 +193,9 @@ public final class HorizonConfig {
 
     public boolean isChatBridgeHidden() { return chat.chatBridgeHidden; }
     public void setChatBridgeHidden(boolean v) { chat.chatBridgeHidden = v; }
+
+    public boolean isGuildChatHidden() { return chat.guildChatHidden; }
+    public void setGuildChatHidden(boolean v) { chat.guildChatHidden = v; }
 
     public ChatCopyMode getChatCopyMode() { return chat.chatCopyMode == null ? ChatCopyMode.OFF : chat.chatCopyMode; }
     public void setChatCopyMode(ChatCopyMode v) { chat.chatCopyMode = v == null ? ChatCopyMode.OFF : v; }
@@ -264,9 +275,40 @@ public final class HorizonConfig {
     public boolean isHideLockedChestMessages() { return antiSpam.hideLockedChestMessages; }
     public void setHideLockedChestMessages(boolean v) { antiSpam.hideLockedChestMessages = v; }
 
+    public boolean isHideBossMessages() { return antiSpam.hideBossMessages; }
+    public void setHideBossMessages(boolean v) { antiSpam.hideBossMessages = v; }
+
+    public boolean isHideWarpingMessages() { return antiSpam.hideWarpingMessages; }
+    public void setHideWarpingMessages(boolean v) { antiSpam.hideWarpingMessages = v; }
+
+    public boolean isHideSendingToServerMessages() { return antiSpam.hideSendingToServerMessages; }
+    public void setHideSendingToServerMessages(boolean v) { antiSpam.hideSendingToServerMessages = v; }
+
+    public boolean isHideProfileMessages() { return antiSpam.hideProfileMessages; }
+    public void setHideProfileMessages(boolean v) { antiSpam.hideProfileMessages = v; }
+
+    public boolean isHideGuildJoinLeaveMessages() { return antiSpam.hideGuildJoinLeaveMessages; }
+    public void setHideGuildJoinLeaveMessages(boolean v) { antiSpam.hideGuildJoinLeaveMessages = v; }
+
+    public boolean isHideFiresaleMessages() { return antiSpam.hideFiresaleMessages; }
+    public void setHideFiresaleMessages(boolean v) { antiSpam.hideFiresaleMessages = v; }
+
+    public boolean isHideRadioSignalMessages() { return antiSpam.hideRadioSignalMessages; }
+    public void setHideRadioSignalMessages(boolean v) { antiSpam.hideRadioSignalMessages = v; }
+
+    public boolean isHideSacksMessages() { return antiSpam.hideSacksMessages; }
+    public void setHideSacksMessages(boolean v) { antiSpam.hideSacksMessages = v; }
+
     // ── PARTICLE ──────────────────────────────────────────────────────────────
 
     public Map<String, Boolean> getParticleStates() { return particle.particleStates; }
+
+    // ── INVENTORY BUTTONS ─────────────────────────────────────────────────────
+
+    public boolean isInventoryButtonsEnabled() { return inventoryButtons.inventoryButtonsEnabled; }
+    public void setInventoryButtonsEnabled(boolean v) { inventoryButtons.inventoryButtonsEnabled = v; }
+
+    public List<InventoryButton> getInventoryButtons() { return inventoryButtons.buttons; }
 
     // ── SCOREBOARD ────────────────────────────────────────────────────────────
 
@@ -399,6 +441,10 @@ public final class HorizonConfig {
         String clean = P_COLOR_CODE.matcher(line).replaceAll("").trim();
         if (clean.contains("⏣")) {
             return "location";
+        }
+        // Dungeon floor line: "The Catacombs M7", "The Catacombs - Floor VII", etc.
+        if (clean.toLowerCase(Locale.ROOT).startsWith("the catacombs")) {
+            return "the catacombs";
         }
         // Time line: starts with 1-2 digits followed by colon (e.g. "3:45 PM", "12:00")
         if (P_TIME_START.matcher(clean).matches()) {

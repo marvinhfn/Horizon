@@ -9,6 +9,8 @@
     "InGameHudMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientPlayerInteractionManagerMixin",
+    "HandledScreenMixin",
+    "KeyBindingAccessor",
     "ParticleManagerMixin",
     "SuggestionWindowAccessor",
     "SuggestionWindowMixin"

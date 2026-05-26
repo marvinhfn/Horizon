@@ -10,8 +10,13 @@ public final class ReviveTracker {
     private static final int TICKS_PER_SECOND = 20;
     private final Map<ReviveSource, Integer> remainingTicks = new EnumMap<>(ReviveSource.class);
 
+    private static final java.util.regex.Pattern FORMATTING = java.util.regex.Pattern.compile("(?i)\u00a7[0-9a-fk-or]");
+
     public void handleChatMessage(String rawMessage, HorizonConfig config) {
-        String normalized = rawMessage.strip().toLowerCase(Locale.ROOT);
+        String normalized = FORMATTING.matcher(rawMessage == null ? "" : rawMessage)
+            .replaceAll("")
+            .strip()
+            .toLowerCase(Locale.ROOT);
         for (ReviveSource source : ReviveSource.values()) {
             for (String trigger : source.chatTriggers()) {
                 if (normalized.contains(trigger)) {

@@ -27,6 +27,8 @@ import de.horizon.hud.SystemStatsHudElement;
 import de.horizon.hud.TimeHudElement;
 import de.horizon.screen.HorizonConfigScreen;
 import de.horizon.screen.PlayerProfileScreen;
+import de.horizon.feature.inventory.InventoryButtonOverlay;
+import de.horizon.feature.inventory.InventoryButtonService;
 import de.horizon.spotify.SpotifyInventoryOverlay;
 import de.horizon.spotify.SpotifyService;
 import de.horizon.youtube.YoutubeMusicInventoryOverlay;
@@ -36,6 +38,9 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
+import net.minecraft.util.Formatting;
+
+import java.util.regex.Pattern;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -54,6 +59,7 @@ import org.lwjgl.glfw.GLFW;
 
 public final class HorizonClient implements ClientModInitializer {
     private static HorizonClient instance;
+    private static final Pattern FORMATTING_STRIP = Pattern.compile("(?i)\u00a7[0-9a-fk-or]");
     private static final KeyBinding.Category HORIZON_CATEGORY = KeyBinding.Category.create(Identifier.of("horizon", "controls"));
 
     private final ConfigManager configManager = new ConfigManager();
@@ -73,6 +79,8 @@ public final class HorizonClient implements ClientModInitializer {
     private final SpotifyInventoryOverlay spotifyInventoryOverlay = new SpotifyInventoryOverlay(spotifyService);
     private final YoutubeService youtubeService = new YoutubeService(configManager);
     private final YoutubeMusicInventoryOverlay youtubeMusicInventoryOverlay = new YoutubeMusicInventoryOverlay(youtubeService);
+    private final InventoryButtonService inventoryButtonService = new InventoryButtonService(configManager);
+    private final InventoryButtonOverlay inventoryButtonOverlay = new InventoryButtonOverlay(configManager, inventoryButtonService);
     private final HypixelProfileService hypixelProfileService = new HypixelProfileService(configManager);
     private final HorizonApiAuthService horizonApiAuthService = new HorizonApiAuthService(configManager);
     private final HorizonApiClient horizonApiClient = new HorizonApiClient(configManager, horizonApiAuthService);
@@ -113,7 +121,8 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonRoomDetector.handleChatMessage(raw);
             dungeonSolverOverlay.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
-            return !spamHider.shouldHide(raw, configManager.getConfig());
+            handleRagAxeNotification(raw);
+            return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon());
         });
         ClientReceiveMessageEvents.ALLOW_CHAT.register((message, signedMessage, sender, params, receptionTimestamp) -> {
             String raw = message.getString();
@@ -121,7 +130,7 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonRoomDetector.handleChatMessage(raw);
             dungeonSolverOverlay.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
-            return !spamHider.shouldHide(raw, configManager.getConfig());
+            return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon());
         });
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, MinecraftClient.getInstance() == null ? null : MinecraftClient.getInstance().currentScreen));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -179,6 +188,7 @@ public final class HorizonClient implements ClientModInitializer {
         dungeonSolverOverlay.tick(client, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
         pingService.tick(client);
         reviveTracker.tick();
+        inventoryButtonService.tick(client);
         while (openConfigKeyBinding != null && openConfigKeyBinding.wasPressed()) {
             HorizonMod.LOGGER.info("Opening Horizon config through keybind");
             openConfigScreen(client.currentScreen);
@@ -253,6 +263,14 @@ public final class HorizonClient implements ClientModInitializer {
         return systemStatsService;
     }
 
+    public InventoryButtonService getInventoryButtonService() {
+        return inventoryButtonService;
+    }
+
+    public InventoryButtonOverlay getInventoryButtonOverlay() {
+        return inventoryButtonOverlay;
+    }
+
     private int openProfileScreen(String player) {
         return openProfileScreen(player, MinecraftClient.getInstance() == null ? null : MinecraftClient.getInstance().currentScreen);
     }
@@ -266,6 +284,17 @@ public final class HorizonClient implements ClientModInitializer {
         String target = player == null || player.isBlank() ? client.player.getName().getString() : player.trim();
         pendingScreen = new PlayerProfileScreen(normalizeCommandParent(parent), target, horizonProfileGateway);
         return 1;
+    }
+
+    private void handleRagAxeNotification(String raw) {
+        if (!configManager.getConfig().isRagAxeNotificationEnabled()) return;
+        if (!dungeonStateService.isInDungeon()) return;
+        String plain = FORMATTING_STRIP.matcher(raw).replaceAll("").toLowerCase(java.util.Locale.ROOT);
+        if (!plain.contains("i no longer wish to fight, but i know that will not stop you")) return;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc == null || mc.inGameHud == null) return;
+        mc.inGameHud.setTitle(net.minecraft.text.Text.literal("Rag!").formatted(Formatting.GOLD));
+        mc.inGameHud.setTitleTicks(5, 40, 10);
     }
 
     private Screen normalizeCommandParent(Screen parent) {
@@ -307,11 +336,15 @@ public final class HorizonClient implements ClientModInitializer {
                 dungeonSolverOverlay.render(handledScreen, context, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
             }
             );
-            ScreenMouseEvents.afterMouseClick(screen).register((currentScreen, click, doubled) ->
-                "YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())
-                    ? youtubeMusicInventoryOverlay.mouseClicked(click.x(), click.y(), click.button())
-                    : spotifyInventoryOverlay.mouseClicked(click.x(), click.y(), click.button())
-            );
+            ScreenMouseEvents.afterMouseClick(screen).register((currentScreen, click, doubled) -> {
+                if ("YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())) {
+                    youtubeMusicInventoryOverlay.mouseClicked(click.x(), click.y(), click.button());
+                } else {
+                    spotifyInventoryOverlay.mouseClicked(click.x(), click.y(), click.button());
+                }
+                inventoryButtonOverlay.mouseClicked(click.x(), click.y(), click.button());
+                return false;
+            });
             ScreenMouseEvents.afterMouseDrag(screen).register((currentScreen, click, deltaX, deltaY, cancelled) ->
                 "YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())
                     ? youtubeMusicInventoryOverlay.mouseDragged(click.x(), click.y(), click.button())

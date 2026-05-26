@@ -8,15 +8,29 @@ import java.util.regex.Pattern;
 public final class SpamHider {
     private static final Pattern FORMATTING_CODES = Pattern.compile("(?i)\\u00a7[0-9a-fk-or]");
 
-    public boolean shouldHide(String rawMessage, HorizonConfig config) {
-        if (!config.isAntiSpamEnabled()) {
-            return false;
-        }
-
+    public boolean shouldHide(String rawMessage, HorizonConfig config, boolean inDungeon) {
         String message = FORMATTING_CODES.matcher(rawMessage == null ? "" : rawMessage)
             .replaceAll("")
             .strip()
             .toLowerCase(Locale.ROOT);
+
+        // These filters are independent of the master anti-spam toggle
+        if (isBossMessageSpam(message, config, inDungeon)
+            || isWarpingSpam(message, config)
+            || isSendingToServerSpam(message, config)
+            || isProfileSpam(message, config)
+            || isGuildChatHidden(message, config)
+            || isGuildJoinLeaveSpam(message, config)
+            || isFiresaleSpam(message, config)
+            || isRadioSignalSpam(message, config)
+            || isSacksSpam(message, config)) {
+            return true;
+        }
+
+        if (!config.isAntiSpamEnabled()) {
+            return false;
+        }
+
         return isBlocksInTheWay(message, config)
             || isAbilitySpam(message, config)
             || isManaSpam(message, config)
@@ -150,5 +164,63 @@ public final class SpamHider {
         return config.isHideLockedChestMessages()
             && (message.contains("this chest is locked")
             || message.contains("chest is locked"));
+    }
+
+    private boolean isBossMessageSpam(String message, HorizonConfig config, boolean inDungeon) {
+        return inDungeon && config.isHideBossMessages()
+            && message.startsWith("[boss]");
+    }
+
+    private boolean isWarpingSpam(String message, HorizonConfig config) {
+        return config.isHideWarpingMessages()
+            && message.startsWith("warping...");
+    }
+
+    private boolean isSendingToServerSpam(String message, HorizonConfig config) {
+        return config.isHideSendingToServerMessages()
+            && message.startsWith("sending to server");
+    }
+
+    private boolean isProfileSpam(String message, HorizonConfig config) {
+        return config.isHideProfileMessages()
+            && (message.startsWith("profile id:")
+                || message.startsWith("your profile"));
+    }
+
+    private boolean isGuildChatHidden(String message, HorizonConfig config) {
+        return config.isGuildChatHidden()
+            && message.startsWith("guild >");
+    }
+
+    private boolean isGuildJoinLeaveSpam(String message, HorizonConfig config) {
+        if (!config.isHideGuildJoinLeaveMessages()) {
+            return false;
+        }
+        if (message.startsWith("guild >") && (message.contains(" joined") || message.contains(" leaved") || message.contains(" left") || message.contains(" kicked"))) {
+            return true;
+        }
+        return message.contains("joined the guild")
+            || message.contains("left the guild")
+            || message.contains("was kicked from the guild");
+    }
+
+    private boolean isFiresaleSpam(String message, HorizonConfig config) {
+        return config.isHideFiresaleMessages()
+            && message.contains("fire sale");
+    }
+
+    private boolean isRadioSignalSpam(String message, HorizonConfig config) {
+        if (!config.isHideRadioSignalMessages()) {
+            return false;
+        }
+        return message.contains("radio signal")
+            || message.contains("your radio is weak")
+            || message.contains("find another enjoyer to boost")
+            || message.contains("too many") && message.contains("enjoyers on this channel");
+    }
+
+    private boolean isSacksSpam(String message, HorizonConfig config) {
+        return config.isHideSacksMessages()
+            && message.startsWith("[sacks]");
     }
 }

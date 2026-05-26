@@ -20,4 +20,5 @@ public final class DungeonConfig {
     boolean puzzleBoulderEnabled = true;
     boolean puzzleIcePathEnabled = true;
     boolean puzzleTeleportMazeEnabled = true;
+    boolean ragAxeNotificationEnabled = true;
 }

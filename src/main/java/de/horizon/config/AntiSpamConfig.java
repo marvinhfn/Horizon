@@ -14,4 +14,12 @@ public final class AntiSpamConfig {
     boolean hideHealingMessages = false;
     boolean hideDungeonEventMessages = false;
     boolean hideLockedChestMessages = true;
+    boolean hideBossMessages = true;
+    boolean hideWarpingMessages = true;
+    boolean hideSendingToServerMessages = true;
+    boolean hideProfileMessages = true;
+    boolean hideGuildJoinLeaveMessages = false;
+    boolean hideFiresaleMessages = false;
+    boolean hideRadioSignalMessages = false;
+    boolean hideSacksMessages = false;
 }

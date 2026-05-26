@@ -96,6 +96,14 @@ public abstract class ChatScreenMixin extends Screen {
         int bridgeText = bridgeHidden ? 0xFFCCCCCC : 0xFF1E2A37;
         context.fill(x, tabY, x + 12, tabY + 10, bridgeBg);
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("B"), x + 6, tabY + 1, bridgeText);
+
+        // Guild Chat toggle — highlighted when guild chat IS visible (not hidden)
+        x += 14;
+        boolean guildHidden = config.isGuildChatHidden();
+        int guildBg = guildHidden ? 0x80333333 : 0xCC75E7CA;
+        int guildTextColor = guildHidden ? 0xFFCCCCCC : 0xFF1E2A37;
+        context.fill(x, tabY, x + 12, tabY + 10, guildBg);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("G"), x + 6, tabY + 1, guildTextColor);
     }
 
 
@@ -178,6 +186,17 @@ public abstract class ChatScreenMixin extends Screen {
             config.setChatBridgeHidden(!config.isChatBridgeHidden());
             horizonClient.getConfigManager().save();
             horizonClient.getChatTabManager().repopulateAfterBridgeToggle(config);
+            cir.setReturnValue(true);
+            return;
+        }
+
+        // Guild Chat button
+        x += 14;
+        if (mx >= x && mx <= x + 12) {
+            HorizonConfig config = horizonClient.getConfigManager().getConfig();
+            config.setGuildChatHidden(!config.isGuildChatHidden());
+            horizonClient.getConfigManager().save();
+            horizonClient.getChatTabManager().repopulateAfterGuildToggle(config);
             cir.setReturnValue(true);
         }
     }

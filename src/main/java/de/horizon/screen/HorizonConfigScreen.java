@@ -3,6 +3,7 @@ package de.horizon.screen;
 import de.horizon.HorizonClient;
 import de.horizon.Lang;
 import de.horizon.config.HorizonConfig;
+import de.horizon.screen.InventoryButtonLayoutScreen;
 import de.horizon.feature.chat.ChatCopyMode;
 import de.horizon.hypixel.SkyBlockIsland;
 import de.horizon.feature.chat.SpamFilterOption;
@@ -67,6 +68,8 @@ public final class HorizonConfigScreen extends Screen {
     private Tab activeTab = Tab.GENERAL;
     private DungeonSection activeDungeonSection = DungeonSection.GENERAL;
     private MusicSection activeMusicSection = MusicSection.GENERAL;
+    private ChatSection activeChatSection = ChatSection.GENERAL;
+    private InventorySection activeInventorySection = InventorySection.GENERAL;
     private boolean scoreboardGeneralActive = true;
     private SkyBlockIsland activeScoreboardIsland = SkyBlockIsland.HUB;
     private String pendingGlobalToggleKey = null;
@@ -178,6 +181,28 @@ public final class HorizonConfigScreen extends Screen {
             }
         }
 
+        if (activeTab == Tab.CHAT) {
+            Rect bar = subTabBarRect(frame);
+            for (int index = 0; index < ChatSection.values().length; index++) {
+                if (subTabRect(bar, index, ChatSection.values().length).contains(click.x(), click.y())) {
+                    activeChatSection = ChatSection.values()[index];
+                    contentScrollOffset = 0;
+                    return true;
+                }
+            }
+        }
+
+        if (activeTab == Tab.INVENTORY) {
+            Rect bar = subTabBarRect(frame);
+            for (int index = 0; index < InventorySection.values().length; index++) {
+                if (subTabRect(bar, index, InventorySection.values().length).contains(click.x(), click.y())) {
+                    activeInventorySection = InventorySection.values()[index];
+                    contentScrollOffset = 0;
+                    return true;
+                }
+            }
+        }
+
         if (activeTab == Tab.SCOREBOARD) {
             Rect bar = scoreboardSubTabBarRect(frame);
             if (scoreboardSubTabRect(bar, 0).contains(click.x(), click.y())) {
@@ -210,10 +235,10 @@ public final class HorizonConfigScreen extends Screen {
             case DUNGEON -> handleDungeonClick(click.x(), click.y(), frame);
             case PARTICLE -> handleParticleClick(click.x(), click.y(), frame);
             case MISC -> handleMiscClick(click.x(), click.y(), frame);
-            case ANTI_SPAM -> handleAntiSpamClick(click.x(), click.y(), frame);
             case CHAT -> handleChatClick(click.x(), click.y(), frame);
             case MUSIC_CONTROL -> handleMusicClick(click.x(), click.y(), frame);
             case SCOREBOARD -> handleScoreboardClick(click.x(), click.y(), frame);
+            case INVENTORY -> handleInventoryClick(click.x(), click.y(), frame);
         } || super.mouseClicked(click, doubled);
     }
 
@@ -404,6 +429,24 @@ public final class HorizonConfigScreen extends Screen {
             }
         }
 
+        if (activeTab == Tab.CHAT) {
+            Rect bar = subTabBarRect(frame);
+            for (int index = 0; index < ChatSection.values().length; index++) {
+                boolean active = ChatSection.values()[index] == activeChatSection;
+                Rect rect = subTabRect(bar, index, ChatSection.values().length);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + ChatSection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+            }
+        }
+
+        if (activeTab == Tab.INVENTORY) {
+            Rect bar = subTabBarRect(frame);
+            for (int index = 0; index < InventorySection.values().length; index++) {
+                boolean active = InventorySection.values()[index] == activeInventorySection;
+                Rect rect = subTabRect(bar, index, InventorySection.values().length);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + InventorySection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+            }
+        }
+
         if (activeTab == Tab.SCOREBOARD) {
             Rect bar = scoreboardSubTabBarRect(frame);
             drawTextLine(context, scoreboardSubTabRect(bar, 0).x, scoreboardSubTabRect(bar, 0).y,
@@ -427,10 +470,10 @@ public final class HorizonConfigScreen extends Screen {
                 case DUNGEON -> renderDungeonText(context, viewport);
                 case PARTICLE -> renderParticleText(context, viewport);
                 case MISC -> renderMiscText(context, viewport);
-                case ANTI_SPAM -> renderAntiSpamText(context, viewport);
                 case CHAT -> renderChatText(context, viewport);
                 case MUSIC_CONTROL -> renderMusicText(context, viewport);
                 case SCOREBOARD -> renderScoreboardText(context, viewport);
+                case INVENTORY -> renderInventoryText(context, viewport);
             }
         }
         context.disableScissor();
@@ -500,7 +543,8 @@ public final class HorizonConfigScreen extends Screen {
             case GENERAL -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeons / General");
                 y = drawToggleRow(context, viewport.x, y, "Party Finder Overlay", config().isDungeonPartyFinderOverlayEnabled(), Lang.t("Zeigt beste S+ Zeiten im Party Finder.", "Shows best S+ times in Party Finder."));
-                drawToggleRow(context, viewport.x, y, "Rare Room Alerts", config().isDungeonRareRoomAlertsEnabled(), Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
+                y = drawToggleRow(context, viewport.x, y, "Rare Room Alerts", config().isDungeonRareRoomAlertsEnabled(), Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
+                drawToggleRow(context, viewport.x, y, "Rag Axe Notification", config().isRagAxeNotificationEnabled(), Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."));
             }
             case REVIVAL -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeons / Revive");
@@ -554,12 +598,24 @@ public final class HorizonConfigScreen extends Screen {
 
     private void renderChatText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
-        y = drawSectionTitle(context, viewport.x, y, "Chat");
-        y = drawToggleRow(context, viewport.x, y, Lang.t("Bridge verstecken", "Hide Bridge"), config().isChatBridgeHidden(), Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."));
-        y = drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."));
-        ChatCopyMode copyMode = config().getChatCopyMode();
-        y = drawCycleRow(context, viewport.x, y, Lang.t("Nachrichten kopieren", "Copy Messages"), copyMode.label(), copyMode != ChatCopyMode.OFF, Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."));
-        drawToggleRow(context, viewport.x + 16, y, Lang.t("Gesamte Nachricht", "Full Message"), config().isChatCopyFullMessage(), Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
+        switch (activeChatSection) {
+            case GENERAL -> {
+                y = drawSectionTitle(context, viewport.x, y, "Chat / General");
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Guild Chat verstecken", "Hide Guild Chat"), config().isGuildChatHidden(), Lang.t("Alle Guild-Chat-Nachrichten ausblenden.", "Hide all guild chat messages."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Bridge verstecken", "Hide Bridge"), config().isChatBridgeHidden(), Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."));
+                y = drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."));
+                ChatCopyMode copyMode = config().getChatCopyMode();
+                y = drawCycleRow(context, viewport.x, y, Lang.t("Nachrichten kopieren", "Copy Messages"), copyMode.label(), copyMode != ChatCopyMode.OFF, Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."));
+                drawToggleRow(context, viewport.x + 16, y, Lang.t("Gesamte Nachricht", "Full Message"), config().isChatCopyFullMessage(), Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
+            }
+            case SPAM_FILTERS -> {
+                y = drawSectionTitle(context, viewport.x, y, "Chat / Spam Filters");
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Anti Spam Gesamt", "Anti Spam All"), config().isAntiSpamEnabled(), Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
+                for (SpamFilterOption option : SpamFilterOption.values()) {
+                    y = drawToggleRow(context, viewport.x, y, option.title(), option.isEnabled(config()), option.description());
+                }
+            }
+        }
     }
 
     private void renderScoreboardText(DrawContext context, Rect viewport) {
@@ -653,13 +709,60 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private void renderAntiSpamText(DrawContext context, Rect viewport) {
+
+    // ── Inventory tab ─────────────────────────────────────────────────────────
+
+    private void renderInventoryText(DrawContext context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
-        y = drawSectionTitle(context, viewport.x, y, "Anti Spam");
-        y = drawToggleRow(context, viewport.x, y, Lang.t("Anti Spam Gesamt", "Anti Spam All"), config().isAntiSpamEnabled(), Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
-        for (SpamFilterOption option : SpamFilterOption.values()) {
-            y = drawToggleRow(context, viewport.x, y, option.title(), option.isEnabled(config()), option.description());
+        switch (activeInventorySection) {
+            case GENERAL -> {
+                y = drawSectionTitle(context, viewport.x, y, "Inventory / General");
+                drawToggleRow(context, viewport.x, y,
+                        "Inventory Buttons",
+                        config().isInventoryButtonsEnabled(),
+                        "Zeigt konfigurierte Buttons um das Inventar herum.");
+            }
+            case INVENTORY_BUTTONS -> {
+                y = drawSectionTitle(context, viewport.x, y, "Inventory / Inventory Buttons");
+                int count = config().getInventoryButtons().size();
+                String btnCountLabel = count + " Button" + (count == 1 ? "" : "s") + " konfiguriert";
+                drawActionRow(context, viewport.x, y,
+                        "Layout bearbeiten", "",
+                        btnCountLabel + ". Klicke um Buttons zu platzieren und zu konfigurieren.");
+            }
         }
+    }
+
+    private boolean handleInventoryClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24;
+        switch (activeInventorySection) {
+            case GENERAL -> {
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setInventoryButtonsEnabled(!config().isInventoryButtonsEnabled());
+                    horizonClient.getConfigManager().save();
+                    return true;
+                }
+            }
+            case INVENTORY_BUTTONS -> {
+                if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
+                    client.setScreen(new InventoryButtonLayoutScreen(this, horizonClient));
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private int inventoryContentHeight() {
+        return 24 + switch (activeInventorySection) {
+            case GENERAL -> toggleRowHeight("Zeigt konfigurierte Buttons um das Inventar herum.");
+            case INVENTORY_BUTTONS -> {
+                int count = config().getInventoryButtons().size();
+                String desc = count + " Buttons konfiguriert. Klicke um Buttons zu platzieren.";
+                yield actionRowHeight(desc);
+            }
+        };
     }
 
     private void renderSearchResults(DrawContext context, Rect viewport) {
@@ -828,6 +931,12 @@ public final class HorizonConfigScreen extends Screen {
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
+                y += toggleRowHeight(Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setRagAxeNotificationEnabled(!config().isRagAxeNotificationEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
                 yield false;
             }
             case REVIVAL -> handleReviveClick(mouseX, mouseY, viewport, y);
@@ -965,31 +1074,60 @@ public final class HorizonConfigScreen extends Screen {
     private boolean handleChatClick(double mouseX, double mouseY, Rect frame) {
         Rect viewport = contentViewportRect(frame);
         int y = viewport.y - contentScrollOffset + 24;
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setChatBridgeHidden(!config().isChatBridgeHidden());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight(Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."));
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            inputFocus = InputFocus.CHAT_BRIDGE_BOT_NAME;
-            return true;
-        }
-        y += fieldRowHeight(Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."));
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            ChatCopyMode[] modes = ChatCopyMode.values();
-            int next = (config().getChatCopyMode().ordinal() + 1) % modes.length;
-            config().setChatCopyMode(modes[next]);
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."));
-        if (rowRect(viewport.x + 16, y).contains(mouseX, mouseY)) {
-            config().setChatCopyFullMessage(!config().isChatCopyFullMessage());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        return false;
+        return switch (activeChatSection) {
+            case GENERAL -> {
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setGuildChatHidden(!config().isGuildChatHidden());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Alle Guild-Chat-Nachrichten ausblenden.", "Hide all guild chat messages."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setChatBridgeHidden(!config().isChatBridgeHidden());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    inputFocus = InputFocus.CHAT_BRIDGE_BOT_NAME;
+                    yield true;
+                }
+                y += fieldRowHeight(Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    ChatCopyMode[] modes = ChatCopyMode.values();
+                    int next = (config().getChatCopyMode().ordinal() + 1) % modes.length;
+                    config().setChatCopyMode(modes[next]);
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."));
+                if (rowRect(viewport.x + 16, y).contains(mouseX, mouseY)) {
+                    config().setChatCopyFullMessage(!config().isChatCopyFullMessage());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                yield false;
+            }
+            case SPAM_FILTERS -> {
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setAntiSpamEnabled(!config().isAntiSpamEnabled());
+                    horizonClient.getConfigManager().save();
+                    horizonClient.getChatTabManager().repopulateAfterSpamFilterChange(config());
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
+                for (SpamFilterOption option : SpamFilterOption.values()) {
+                    if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                        option.toggle(config());
+                        horizonClient.getConfigManager().save();
+                        horizonClient.getChatTabManager().repopulateAfterSpamFilterChange(config());
+                        yield true;
+                    }
+                    y += toggleRowHeight(option.description());
+                }
+                yield false;
+            }
+        };
     }
 
     private boolean handleMusicClick(double mouseX, double mouseY, Rect frame) {
@@ -1036,25 +1174,6 @@ public final class HorizonConfigScreen extends Screen {
         return false;
     }
 
-    private boolean handleAntiSpamClick(double mouseX, double mouseY, Rect frame) {
-        Rect viewport = contentViewportRect(frame);
-        int y = viewport.y - contentScrollOffset + 24;
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setAntiSpamEnabled(!config().isAntiSpamEnabled());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
-        for (SpamFilterOption option : SpamFilterOption.values()) {
-            if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                option.toggle(config());
-                horizonClient.getConfigManager().save();
-                return true;
-            }
-            y += toggleRowHeight(option.description());
-        }
-        return false;
-    }
 
     private boolean handleScoreboardClick(double mouseX, double mouseY, Rect frame) {
         if (scoreboardGeneralActive) {
@@ -1343,10 +1462,10 @@ public final class HorizonConfigScreen extends Screen {
             case DUNGEON -> dungeonContentHeight();
             case PARTICLE -> particleContentHeight();
             case MISC -> miscContentHeight();
-            case ANTI_SPAM -> antiSpamContentHeight();
             case CHAT -> chatContentHeight();
             case MUSIC_CONTROL -> musicContentHeight();
             case SCOREBOARD -> scoreboardContentHeight();
+            case INVENTORY -> inventoryContentHeight();
         };
         return Math.max(0, contentHeight - viewport.height);
     }
@@ -1406,13 +1525,14 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Solver Debug HUD", "Misc", Tab.MISC, null, "solver debug hud");
         addSearchResult(results, query, "Defense Bar", "Misc", Tab.MISC, null, "defense bar ruestung armor");
         addSearchResult(results, query, "Kompakte Herzen", "Misc", Tab.MISC, null, "kompakte herzen hypixel health herz absorption");
-        addSearchResult(results, query, "Anti Spam Gesamt", "Anti Spam", Tab.ANTI_SPAM, null, "anti spam gesamt");
+        addSearchResult(results, query, "Rag Axe Notification", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "rag axe notification necron m7 phase dungeon");
+        addSearchResult(results, query, "Bridge verstecken", "Chat / General", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
+        addSearchResult(results, query, "Bridge Bot Name", "Chat / General", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
+        addSearchResult(results, query, "Nachrichten kopieren", "Chat / General", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
+        addSearchResult(results, query, "Anti Spam Gesamt", "Chat / Spam Filters", Tab.CHAT, null, "anti spam gesamt");
         for (SpamFilterOption option : SpamFilterOption.values()) {
-            addSearchResult(results, query, option.title(), "Anti Spam", Tab.ANTI_SPAM, null, option.title() + " " + option.description());
+            addSearchResult(results, query, option.title(), "Chat / Spam Filters", Tab.CHAT, null, option.title() + " " + option.description());
         }
-        addSearchResult(results, query, "Bridge verstecken", "Chat", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
-        addSearchResult(results, query, "Bridge Bot Name", "Chat", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
-        addSearchResult(results, query, "Nachrichten kopieren", "Chat", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
         addSearchResult(results, query, "Custom Scoreboard", "Scoreboard", Tab.SCOREBOARD, null, "custom scoreboard sidebar hypixel leiste");
         for (SkyBlockIsland island : SkyBlockIsland.knownIslands()) {
             addSearchResult(results, query, island.label(), "Scoreboard", Tab.SCOREBOARD, null, "scoreboard " + island.label().toLowerCase(Locale.ROOT) + " island zeilen filter");
@@ -1452,7 +1572,8 @@ public final class HorizonConfigScreen extends Screen {
     private Rect contentViewportRect(Rect frame) {
         int left = sidebarRect(frame).right() + 18;
         int top;
-        if (activeTab == Tab.DUNGEON || activeTab == Tab.MUSIC_CONTROL) {
+        if (activeTab == Tab.DUNGEON || activeTab == Tab.MUSIC_CONTROL
+                || activeTab == Tab.CHAT || activeTab == Tab.INVENTORY) {
             top = frame.y + 62;
         } else if (activeTab == Tab.SCOREBOARD) {
             top = frame.y + 80;
@@ -1618,7 +1739,8 @@ public final class HorizonConfigScreen extends Screen {
     private int dungeonContentHeight() {
         return 24 + switch (activeDungeonSection) {
             case GENERAL -> toggleRowHeight(Lang.t("Zeigt beste S+ Zeiten im Party Finder.", "Shows best S+ times in Party Finder."))
-                + toggleRowHeight(Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
+                + toggleRowHeight(Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."))
+                + toggleRowHeight(Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."));
             case REVIVAL -> {
                 int height = toggleRowHeight(Lang.t("Spirit, Bonzo und Phoenix als Status-Panel.", "Spirit, Bonzo and Phoenix as status panel."))
                     + numberRowHeight(Lang.t("Nutze [-] und [+] oder tippe direkt.", "Use [-] and [+] or type directly."))
@@ -1660,20 +1782,22 @@ public final class HorizonConfigScreen extends Screen {
             + toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
     }
 
-    private int antiSpamContentHeight() {
-        int height = 24 + toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
-        for (SpamFilterOption option : SpamFilterOption.values()) {
-            height += toggleRowHeight(option.description());
-        }
-        return height;
-    }
 
     private int chatContentHeight() {
-        return 24
-            + toggleRowHeight(Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."))
-            + fieldRowHeight(Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."))
-            + toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."))
-            + toggleRowHeight(Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
+        return 24 + switch (activeChatSection) {
+            case GENERAL -> toggleRowHeight(Lang.t("Alle Guild-Chat-Nachrichten ausblenden.", "Hide all guild chat messages."))
+                + toggleRowHeight(Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."))
+                + fieldRowHeight(Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."))
+                + toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."))
+                + toggleRowHeight(Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
+            case SPAM_FILTERS -> {
+                int height = toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
+                for (SpamFilterOption option : SpamFilterOption.values()) {
+                    height += toggleRowHeight(option.description());
+                }
+                yield height;
+            }
+        };
     }
 
     private int scoreboardContentHeight() {
@@ -1793,10 +1917,10 @@ public final class HorizonConfigScreen extends Screen {
         DUNGEON("Dungeons"),
         PARTICLE("Particle"),
         MISC("Misc"),
-        ANTI_SPAM("Anti Spam"),
         CHAT("Chat"),
         MUSIC_CONTROL("Music Control"),
-        SCOREBOARD("Scoreboard");
+        SCOREBOARD("Scoreboard"),
+        INVENTORY("Inventory");
 
         private final String label;
 
@@ -1817,6 +1941,17 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
+    private enum ChatSection {
+        GENERAL("General"),
+        SPAM_FILTERS("Spam Filters");
+
+        private final String label;
+
+        ChatSection(String label) {
+            this.label = label;
+        }
+    }
+
     private enum DungeonSection {
         GENERAL("General"),
         REVIVAL("Revive"),
@@ -1826,6 +1961,17 @@ public final class HorizonConfigScreen extends Screen {
         private final String label;
 
         DungeonSection(String label) {
+            this.label = label;
+        }
+    }
+
+    private enum InventorySection {
+        GENERAL("General"),
+        INVENTORY_BUTTONS("Inventory Buttons");
+
+        private final String label;
+
+        InventorySection(String label) {
             this.label = label;
         }
     }
