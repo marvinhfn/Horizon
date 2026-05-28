@@ -3,6 +3,8 @@ package de.horizon.screen;
 import de.horizon.HorizonClient;
 import de.horizon.Lang;
 import de.horizon.config.HorizonConfig;
+import de.horizon.feature.fishing.ElusiveSeaCreature;
+import de.horizon.feature.fishing.FishingAlertSound;
 import de.horizon.screen.InventoryButtonLayoutScreen;
 import de.horizon.feature.chat.ChatCopyMode;
 import de.horizon.hypixel.SkyBlockIsland;
@@ -87,6 +89,7 @@ public final class HorizonConfigScreen extends Screen {
     private boolean isDragging = false;
     private int dragMouseOffsetY = 0;
     private int dragCurrentMouseY = 0;
+    private boolean fishingCreatureListExpanded = false;
 
     public HorizonConfigScreen(Screen parent, HorizonClient horizonClient) {
         super(Text.literal("Horizon"));
@@ -239,6 +242,7 @@ public final class HorizonConfigScreen extends Screen {
             case MUSIC_CONTROL -> handleMusicClick(click.x(), click.y(), frame);
             case SCOREBOARD -> handleScoreboardClick(click.x(), click.y(), frame);
             case INVENTORY -> handleInventoryClick(click.x(), click.y(), frame);
+            case FISHING -> handleFishingClick(click.x(), click.y(), frame);
         } || super.mouseClicked(click, doubled);
     }
 
@@ -474,6 +478,7 @@ public final class HorizonConfigScreen extends Screen {
                 case MUSIC_CONTROL -> renderMusicText(context, viewport);
                 case SCOREBOARD -> renderScoreboardText(context, viewport);
                 case INVENTORY -> renderInventoryText(context, viewport);
+                case FISHING -> renderFishingText(context, viewport);
             }
         }
         context.disableScissor();
@@ -611,9 +616,27 @@ public final class HorizonConfigScreen extends Screen {
             case SPAM_FILTERS -> {
                 y = drawSectionTitle(context, viewport.x, y, "Chat / Spam Filters");
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Anti Spam Gesamt", "Anti Spam All"), config().isAntiSpamEnabled(), Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
+                SpamFilterOption.Category prevCat = null;
                 for (SpamFilterOption option : SpamFilterOption.values()) {
+                    if (option.category() != prevCat) {
+                        y = drawSectionTitle(context, viewport.x, y, option.category().label());
+                        prevCat = option.category();
+                    }
                     y = drawToggleRow(context, viewport.x, y, option.title(), option.isEnabled(config()), option.description());
                 }
+                y = drawSectionTitle(context, viewport.x, y, "Fishing");
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Sea Creatures filtern", "Filter Sea Creatures"),
+                        config().isHideSeaCreatureMessages(), SEA_CREATURE_SPAM_DESC);
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Elusive Creatures filtern", "Filter Elusive Creatures"),
+                        config().isHideElusiveSeaCreatureMessages(), ELUSIVE_SPAM_DESC);
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Trophy Fish filtern", "Filter Trophy Fish"),
+                        config().isHideTrophyFishMessages(), TROPHY_FISH_SPAM_DESC);
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Trophy Frogs filtern", "Filter Trophy Frogs"),
+                        config().isHideTrophyFrogMessages(), TROPHY_FROG_SPAM_DESC);
+                y = drawToggleRow(context, viewport.x + 16, y, Lang.t("Diamond Trophies filtern", "Filter Diamond Trophies"),
+                        config().isHideFishingDiamondTrophies(), FISH_DIAMOND_DESC);
+                drawToggleRow(context, viewport.x, y, Lang.t("Good/Great/Outstanding filtern", "Filter Good/Great/Outstanding"),
+                        config().isHideGoodGreatOutstandingMessages(), GOOD_GREAT_DESC);
             }
         }
     }
@@ -1116,7 +1139,12 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
+                SpamFilterOption.Category prevCat = null;
                 for (SpamFilterOption option : SpamFilterOption.values()) {
+                    if (option.category() != prevCat) {
+                        y += 24; // section title
+                        prevCat = option.category();
+                    }
                     if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                         option.toggle(config());
                         horizonClient.getConfigManager().save();
@@ -1124,6 +1152,42 @@ public final class HorizonConfigScreen extends Screen {
                         yield true;
                     }
                     y += toggleRowHeight(option.description());
+                }
+                y += 24; // "Fishing" section title
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setHideSeaCreatureMessages(!config().isHideSeaCreatureMessages());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(SEA_CREATURE_SPAM_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setHideElusiveSeaCreatureMessages(!config().isHideElusiveSeaCreatureMessages());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(ELUSIVE_SPAM_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setHideTrophyFishMessages(!config().isHideTrophyFishMessages());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(TROPHY_FISH_SPAM_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setHideTrophyFrogMessages(!config().isHideTrophyFrogMessages());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(TROPHY_FROG_SPAM_DESC);
+                if (rowRect(viewport.x + 16, y).contains(mouseX, mouseY)) {
+                    config().setHideFishingDiamondTrophies(!config().isHideFishingDiamondTrophies());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(FISH_DIAMOND_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setHideGoodGreatOutstandingMessages(!config().isHideGoodGreatOutstandingMessages());
+                    horizonClient.getConfigManager().save();
+                    yield true;
                 }
                 yield false;
             }
@@ -1466,6 +1530,7 @@ public final class HorizonConfigScreen extends Screen {
             case MUSIC_CONTROL -> musicContentHeight();
             case SCOREBOARD -> scoreboardContentHeight();
             case INVENTORY -> inventoryContentHeight();
+            case FISHING -> fishingContentHeight();
         };
         return Math.max(0, contentHeight - viewport.height);
     }
@@ -1533,9 +1598,21 @@ public final class HorizonConfigScreen extends Screen {
         for (SpamFilterOption option : SpamFilterOption.values()) {
             addSearchResult(results, query, option.title(), "Chat / Spam Filters", Tab.CHAT, null, option.title() + " " + option.description());
         }
+        addSearchResult(results, query, Lang.t("Sea Creatures filtern", "Filter Sea Creatures"), "Chat / Spam Filters", Tab.CHAT, null, "sea creatures filtern fishing fang nachrichten atoll lotus");
+        addSearchResult(results, query, Lang.t("Elusive Creatures filtern", "Filter Elusive Creatures"), "Chat / Spam Filters", Tab.CHAT, null, "elusive creatures filtern fishing rare fang nachrichten");
+        addSearchResult(results, query, Lang.t("Trophy Fish filtern", "Filter Trophy Fish"), "Chat / Spam Filters", Tab.CHAT, null, "trophy fish filtern fishing fang nachrichten");
+        addSearchResult(results, query, Lang.t("Trophy Frogs filtern", "Filter Trophy Frogs"), "Chat / Spam Filters", Tab.CHAT, null, "trophy frogs filtern fishing fang nachrichten");
+        addSearchResult(results, query, Lang.t("Diamond Trophies filtern", "Filter Diamond Trophies"), "Chat / Spam Filters", Tab.CHAT, null, "diamond trophies filtern fishing fang nachrichten");
+        addSearchResult(results, query, Lang.t("Good/Great/Outstanding filtern", "Filter Good/Great/Outstanding"), "Chat / Spam Filters", Tab.CHAT, null, "good great outstanding perfect catch filtern fishing");
         addSearchResult(results, query, "Custom Scoreboard", "Scoreboard", Tab.SCOREBOARD, null, "custom scoreboard sidebar hypixel leiste");
         for (SkyBlockIsland island : SkyBlockIsland.knownIslands()) {
             addSearchResult(results, query, island.label(), "Scoreboard", Tab.SCOREBOARD, null, "scoreboard " + island.label().toLowerCase(Locale.ROOT) + " island zeilen filter");
+        }
+        addSearchResult(results, query, "Announce Rare Sea Creatures", "Fishing", Tab.FISHING, null, "fishing rare sea creatures elusive announce title sound alert");
+        addSearchResult(results, query, Lang.t("Alert Sound", "Alert Sound"), "Fishing", Tab.FISHING, null, "fishing alert sound rare meow katze custom boo womp");
+        addSearchResult(results, query, "Creature Filter", "Fishing", Tab.FISHING, null, "fishing creature filter sea creatures toggle enable disable");
+        for (ElusiveSeaCreature creature : ElusiveSeaCreature.values()) {
+            addSearchResult(results, query, creature.displayName(), "Fishing", Tab.FISHING, null, "fishing " + creature.displayName().toLowerCase(Locale.ROOT) + " elusive sea creature");
         }
         return results;
     }
@@ -1782,6 +1859,89 @@ public final class HorizonConfigScreen extends Screen {
             + toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
     }
 
+    private static final String FISH_ALERT_DESC        = Lang.t("Title + Sound wenn ein Elusive Sea Creature erkannt wird.", "Title + sound when an Elusive Sea Creature is detected.");
+    private static final String FISH_SOUND_DESC        = Lang.t("Rare Sound, Miau oder Custom (Boo Womp).", "Rare Sound, Meow or Custom (Boo Womp).");
+    private static final String FISH_FILTER_DESC       = Lang.t("Einzelne Sea Creatures vom Alert ausschliessen.", "Exclude individual sea creatures from the alert.");
+    private static final String SEA_CREATURE_SPAM_DESC  = Lang.t("Fangnachrichten fuer Sea Creatures ausblenden (inkl. Atoll).", "Hide catch messages for sea creatures (incl. Atoll).");
+    private static final String ELUSIVE_SPAM_DESC        = Lang.t("Elusive-Catch-Nachrichten im Chat ausblenden (Alert bleibt aktiv).", "Hide Elusive Creature catch messages in chat (alert still fires).");
+    private static final String TROPHY_FISH_SPAM_DESC    = Lang.t("Fangnachrichten fuer Trophy Fish ausblenden.", "Hide catch messages for trophy fish.");
+    private static final String TROPHY_FROG_SPAM_DESC    = Lang.t("Fangnachrichten fuer Trophy Frogs ausblenden.", "Hide catch messages for trophy frogs.");
+    private static final String FISH_DIAMOND_DESC        = Lang.t("Diamond-Tier-Faenge auch filtern (standardmaessig sichtbar).", "Also filter diamond-tier catches (visible by default).");
+    private static final String GOOD_GREAT_DESC          = Lang.t("GOOD, GREAT, OUTSTANDING und PERFECT Fangnachrichten ausblenden.", "Hide GOOD, GREAT, OUTSTANDING and PERFECT catch messages.");
+
+    private int fishingContentHeight() {
+        int h = 24
+            + toggleRowHeight(FISH_ALERT_DESC)
+            + toggleRowHeight(FISH_SOUND_DESC)
+            + toggleRowHeight(FISH_FILTER_DESC);
+        if (fishingCreatureListExpanded) {
+            for (ElusiveSeaCreature creature : ElusiveSeaCreature.values()) {
+                h += toggleRowHeight(creature.displayName() + ".");
+            }
+        }
+        return h;
+    }
+
+    private void renderFishingText(DrawContext context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        y = drawSectionTitle(context, viewport.x, y, "Fishing");
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Announce Rare Sea Creatures", "Announce Rare Sea Creatures"),
+                config().isFishingRareAlertEnabled(), FISH_ALERT_DESC);
+        FishingAlertSound alertSound = config().getFishingAlertSound();
+        y = drawCycleRow(context, viewport.x, y, Lang.t("Alert Sound", "Alert Sound"),
+                alertSound.label(), true, FISH_SOUND_DESC);
+        int disabled = config().fishingDisabledCount();
+        String badgeLabel = disabled == 0
+                ? Lang.t("Alle AN", "All ON")
+                : disabled + " " + Lang.t("AUS", "OFF");
+        String filterTitle = Lang.t("Creature Filter", "Creature Filter")
+                + (fishingCreatureListExpanded ? " \u25be" : " \u25b8");
+        y = drawCycleRow(context, viewport.x, y, filterTitle, badgeLabel, disabled == 0, FISH_FILTER_DESC);
+        if (fishingCreatureListExpanded) {
+            for (ElusiveSeaCreature creature : ElusiveSeaCreature.values()) {
+                boolean enabled = config().isFishingCreatureEnabled(creature.id());
+                y = drawToggleRow(context, viewport.x + 16, y, creature.displayName(), enabled,
+                        creature.displayName() + ".");
+            }
+        }
+    }
+
+    private boolean handleFishingClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24;
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setFishingRareAlertEnabled(!config().isFishingRareAlertEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(FISH_ALERT_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            FishingAlertSound[] sounds = FishingAlertSound.values();
+            int next = (config().getFishingAlertSound().ordinal() + 1) % sounds.length;
+            config().setFishingAlertSound(sounds[next]);
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(FISH_SOUND_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            fishingCreatureListExpanded = !fishingCreatureListExpanded;
+            contentScrollOffset = 0;
+            return true;
+        }
+        y += toggleRowHeight(FISH_FILTER_DESC);
+        if (fishingCreatureListExpanded) {
+            for (ElusiveSeaCreature creature : ElusiveSeaCreature.values()) {
+                if (rowRect(viewport.x + 16, y).contains(mouseX, mouseY)) {
+                    config().toggleFishingCreature(creature.id());
+                    horizonClient.getConfigManager().save();
+                    return true;
+                }
+                y += toggleRowHeight(creature.displayName() + ".");
+            }
+        }
+        return false;
+    }
+
 
     private int chatContentHeight() {
         return 24 + switch (activeChatSection) {
@@ -1792,9 +1952,21 @@ public final class HorizonConfigScreen extends Screen {
                 + toggleRowHeight(Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
             case SPAM_FILTERS -> {
                 int height = toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
+                SpamFilterOption.Category prevCat = null;
                 for (SpamFilterOption option : SpamFilterOption.values()) {
+                    if (option.category() != prevCat) {
+                        height += 24; // section title per category
+                        prevCat = option.category();
+                    }
                     height += toggleRowHeight(option.description());
                 }
+                height += 24 // "Fishing" section title
+                    + toggleRowHeight(SEA_CREATURE_SPAM_DESC)
+                    + toggleRowHeight(ELUSIVE_SPAM_DESC)
+                    + toggleRowHeight(TROPHY_FISH_SPAM_DESC)
+                    + toggleRowHeight(TROPHY_FROG_SPAM_DESC)
+                    + toggleRowHeight(FISH_DIAMOND_DESC)
+                    + toggleRowHeight(GOOD_GREAT_DESC);
                 yield height;
             }
         };
@@ -1920,7 +2092,8 @@ public final class HorizonConfigScreen extends Screen {
         CHAT("Chat"),
         MUSIC_CONTROL("Music Control"),
         SCOREBOARD("Scoreboard"),
-        INVENTORY("Inventory");
+        INVENTORY("Inventory"),
+        FISHING("Fishing");
 
         private final String label;
 

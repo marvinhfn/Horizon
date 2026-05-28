@@ -2,6 +2,8 @@ package de.horizon.config;
 
 import de.horizon.Lang;
 import de.horizon.feature.chat.ChatCopyMode;
+import de.horizon.feature.fishing.ElusiveSeaCreature;
+import de.horizon.feature.fishing.FishingAlertSound;
 import de.horizon.feature.inventory.InventoryButton;
 
 import java.util.LinkedHashMap;
@@ -23,10 +25,11 @@ public final class HorizonConfig {
     final ParticleConfig particle;
     final ScoreboardConfig scoreboard;
     final InventoryButtonConfig inventoryButtons;
+    final FishingConfig fishing;
 
     HorizonConfig(HudConfig hud, DungeonConfig dungeon, SpotifyConfig spotify, YoutubeConfig youtube, ChatConfig chat,
                   MiscConfig misc, AntiSpamConfig antiSpam, ParticleConfig particle, ScoreboardConfig scoreboard,
-                  InventoryButtonConfig inventoryButtons) {
+                  InventoryButtonConfig inventoryButtons, FishingConfig fishing) {
         this.hud = hud;
         this.dungeon = dungeon;
         this.spotify = spotify;
@@ -37,6 +40,7 @@ public final class HorizonConfig {
         this.particle = particle;
         this.scoreboard = scoreboard;
         this.inventoryButtons = inventoryButtons;
+        this.fishing = fishing;
     }
 
     // ── HUD ──────────────────────────────────────────────────────────────────
@@ -299,6 +303,24 @@ public final class HorizonConfig {
     public boolean isHideSacksMessages() { return antiSpam.hideSacksMessages; }
     public void setHideSacksMessages(boolean v) { antiSpam.hideSacksMessages = v; }
 
+    public boolean isHideSeaCreatureMessages() { return antiSpam.hideSeaCreatureMessages; }
+    public void setHideSeaCreatureMessages(boolean v) { antiSpam.hideSeaCreatureMessages = v; }
+
+    public boolean isHideElusiveSeaCreatureMessages() { return antiSpam.hideElusiveSeaCreatureMessages; }
+    public void setHideElusiveSeaCreatureMessages(boolean v) { antiSpam.hideElusiveSeaCreatureMessages = v; }
+
+    public boolean isHideTrophyFishMessages() { return antiSpam.hideTrophyFishMessages; }
+    public void setHideTrophyFishMessages(boolean v) { antiSpam.hideTrophyFishMessages = v; }
+
+    public boolean isHideTrophyFrogMessages() { return antiSpam.hideTrophyFrogMessages; }
+    public void setHideTrophyFrogMessages(boolean v) { antiSpam.hideTrophyFrogMessages = v; }
+
+    public boolean isHideFishingDiamondTrophies() { return antiSpam.hideFishingDiamondTrophies; }
+    public void setHideFishingDiamondTrophies(boolean v) { antiSpam.hideFishingDiamondTrophies = v; }
+
+    public boolean isHideGoodGreatOutstandingMessages() { return antiSpam.hideGoodGreatOutstandingMessages; }
+    public void setHideGoodGreatOutstandingMessages(boolean v) { antiSpam.hideGoodGreatOutstandingMessages = v; }
+
     // ── PARTICLE ──────────────────────────────────────────────────────────────
 
     public Map<String, Boolean> getParticleStates() { return particle.particleStates; }
@@ -309,6 +331,33 @@ public final class HorizonConfig {
     public void setInventoryButtonsEnabled(boolean v) { inventoryButtons.inventoryButtonsEnabled = v; }
 
     public List<InventoryButton> getInventoryButtons() { return inventoryButtons.buttons; }
+
+    // ── FISHING ───────────────────────────────────────────────────────────────
+
+    public boolean isFishingRareAlertEnabled() { return fishing.fishingRareAlertEnabled; }
+    public void setFishingRareAlertEnabled(boolean v) { fishing.fishingRareAlertEnabled = v; }
+
+    public FishingAlertSound getFishingAlertSound() {
+        return fishing.fishingAlertSound == null ? FishingAlertSound.RARE : fishing.fishingAlertSound;
+    }
+    public void setFishingAlertSound(FishingAlertSound v) {
+        fishing.fishingAlertSound = v == null ? FishingAlertSound.RARE : v;
+    }
+
+    public boolean isFishingCreatureEnabled(String id) { return !fishing.disabledCreatures.contains(id); }
+    public void toggleFishingCreature(String id) {
+        if (!fishing.disabledCreatures.remove(id)) {
+            fishing.disabledCreatures.add(id);
+        }
+    }
+
+    public int fishingDisabledCount() {
+        int count = 0;
+        for (ElusiveSeaCreature c : ElusiveSeaCreature.values()) {
+            if (!isFishingCreatureEnabled(c.id())) count++;
+        }
+        return count;
+    }
 
     // ── SCOREBOARD ────────────────────────────────────────────────────────────
 

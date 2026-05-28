@@ -4,75 +4,95 @@ import de.horizon.Lang;
 import de.horizon.config.HorizonConfig;
 
 public enum SpamFilterOption {
-    BLOCKS_IN_THE_WAY("Blocks in the way",
-        "Teleport- und Portalblockaden ausblenden.",
-        "Hide teleport and portal blockage messages."),
-    ABILITY_MESSAGES("Ability spam",
-        "Wither-Impact- und aehnliche Ability-Messages ausblenden.",
-        "Hide Wither Impact and similar ability messages."),
-    MANA_MESSAGES("Mana Messages",
-        "Nicht-genug-Mana-Messages ausblenden.",
-        "Hide not-enough-mana messages."),
-    COOLDOWN_MESSAGES("Cooldown Messages",
-        "Allgemeine Cooldown-Chatmeldungen ausblenden.",
-        "Hide general cooldown chat messages."),
-    BLESSING_MESSAGES("Dungeon Blessings",
+    // ── Dungeon ───────────────────────────────────────────────────────────────
+    BLESSING_MESSAGES(Category.DUNGEON, "Dungeon Blessings",
         "Blessing-Chatmeldungen in Dungeons ausblenden.",
         "Hide blessing chat messages in dungeons."),
-    DUNGEON_PICKUPS("Dungeon Pickups",
+    DUNGEON_PICKUPS(Category.DUNGEON, "Dungeon Pickups",
         "Keys, Superboom und Revive Stones ausblenden.",
         "Hide keys, superboom and revive stones."),
-    AUTOPET_MESSAGES("AutoPet",
-        "AutoPet-Swap-Messages ausblenden.",
-        "Hide AutoPet swap messages."),
-    FULL_STATUS_MESSAGES("Full HP / Mana",
-        "Meldungen bei vollem Leben oder Mana ausblenden.",
-        "Hide messages at full HP or mana."),
-    EFFECT_MESSAGES("Effect Warnings",
-        "Doppelte Effekt- und Potion-Warnungen ausblenden.",
-        "Hide duplicate effect and potion warnings."),
-    HEALING_MESSAGES("Heal Messages",
-        "Heilungs-Chatmeldungen ausblenden.",
-        "Hide healing chat messages."),
-    DUNGEON_EVENT_MESSAGES("Dungeon Events",
+    DUNGEON_EVENT_MESSAGES(Category.DUNGEON, "Dungeon Events",
         "Blood- und Wither-Door-Ansagen ausblenden.",
         "Hide Blood and Wither Door announcements."),
-    LOCKED_CHEST_MESSAGES("Locked Chest",
+    LOCKED_CHEST_MESSAGES(Category.DUNGEON, "Locked Chest",
         "This chest is locked-Meldungen ausblenden.",
         "Hide locked chest messages."),
-    BOSS_MESSAGES("Boss Messages",
+    BOSS_MESSAGES(Category.DUNGEON, "Boss Messages",
         "Boss-Nachrichten in Dungeons ausblenden.",
         "Hide boss chat messages in dungeons."),
-    WARPING_MESSAGES("Warping",
+
+    // ── General ───────────────────────────────────────────────────────────────
+    BLOCKS_IN_THE_WAY(Category.GENERAL, "Blocks in the way",
+        "Teleport- und Portalblockaden ausblenden.",
+        "Hide teleport and portal blockage messages."),
+    ABILITY_MESSAGES(Category.GENERAL, "Ability spam",
+        "Wither-Impact- und aehnliche Ability-Messages ausblenden.",
+        "Hide Wither Impact and similar ability messages."),
+    MANA_MESSAGES(Category.GENERAL, "Mana Messages",
+        "Nicht-genug-Mana-Messages ausblenden.",
+        "Hide not-enough-mana messages."),
+    COOLDOWN_MESSAGES(Category.GENERAL, "Cooldown Messages",
+        "Allgemeine Cooldown-Chatmeldungen ausblenden.",
+        "Hide general cooldown chat messages."),
+    AUTOPET_MESSAGES(Category.GENERAL, "AutoPet",
+        "AutoPet-Swap-Messages ausblenden.",
+        "Hide AutoPet swap messages."),
+    FULL_STATUS_MESSAGES(Category.GENERAL, "Full HP / Mana",
+        "Meldungen bei vollem Leben oder Mana ausblenden.",
+        "Hide messages at full HP or mana."),
+    EFFECT_MESSAGES(Category.GENERAL, "Effect Warnings",
+        "Doppelte Effekt- und Potion-Warnungen ausblenden.",
+        "Hide duplicate effect and potion warnings."),
+    HEALING_MESSAGES(Category.GENERAL, "Heal Messages",
+        "Heilungs-Chatmeldungen ausblenden.",
+        "Hide healing chat messages."),
+    WARPING_MESSAGES(Category.GENERAL, "Warping",
         "Warping...-Meldungen ausblenden.",
         "Hide warping messages."),
-    SENDING_TO_SERVER_MESSAGES("Sending to Server",
+    SENDING_TO_SERVER_MESSAGES(Category.GENERAL, "Sending to Server",
         "Sending to Server-Meldungen ausblenden.",
         "Hide sending to server messages."),
-    PROFILE_MESSAGES("Profile / Profile ID",
+    PROFILE_MESSAGES(Category.GENERAL, "Profile / Profile ID",
         "Profil-ID und Profil-Nachrichten ausblenden.",
         "Hide profile ID and profile messages."),
-    GUILD_JOIN_LEAVE_MESSAGES("Guild Join / Leave",
+    GUILD_JOIN_LEAVE_MESSAGES(Category.GENERAL, "Guild Join / Leave",
         "Beitritts- und Austritts-Nachrichten der Gilde ausblenden.",
         "Hide guild member join and leave messages."),
-    FIRESALE_MESSAGES("Firesales",
+    FIRESALE_MESSAGES(Category.GENERAL, "Firesales",
         "Firesale-Ankuendigungen ausblenden.",
         "Hide fire sale announcements."),
-    RADIO_SIGNAL_MESSAGES("Radio Signal",
+    RADIO_SIGNAL_MESSAGES(Category.GENERAL, "Radio Signal",
         "Radio-Signal-Nachrichten ausblenden.",
         "Hide radio signal messages."),
-    SACKS_MESSAGES("Sacks",
+    SACKS_MESSAGES(Category.GENERAL, "Sacks",
         "[Sacks]-Chatmeldungen ausblenden.",
         "Hide [Sacks] chat messages.");
 
+    public enum Category {
+        DUNGEON, GENERAL;
+
+        public String label() {
+            return switch (this) {
+                case DUNGEON -> "Dungeon";
+                case GENERAL -> Lang.t("Allgemein", "General");
+            };
+        }
+    }
+
+    private final Category category;
     private final String title;
     private final String descriptionDe;
     private final String descriptionEn;
 
-    SpamFilterOption(String title, String descriptionDe, String descriptionEn) {
+    SpamFilterOption(Category category, String title, String descriptionDe, String descriptionEn) {
+        this.category = category;
         this.title = title;
         this.descriptionDe = descriptionDe;
         this.descriptionEn = descriptionEn;
+    }
+
+    public Category category() {
+        return category;
     }
 
     public String title() {

@@ -22,4 +22,12 @@ public final class AntiSpamConfig {
     boolean hideFiresaleMessages = false;
     boolean hideRadioSignalMessages = false;
     boolean hideSacksMessages = false;
+
+    // Fishing spam filters
+    boolean hideSeaCreatureMessages = false;
+    boolean hideElusiveSeaCreatureMessages = false;
+    boolean hideTrophyFishMessages = false;
+    boolean hideTrophyFrogMessages = false;
+    boolean hideFishingDiamondTrophies = false;
+    boolean hideGoodGreatOutstandingMessages = false;
 }

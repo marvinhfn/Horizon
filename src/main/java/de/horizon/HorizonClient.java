@@ -8,6 +8,7 @@ import de.horizon.config.ConfigManager;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.feature.chat.SpamHider;
 import de.horizon.feature.dungeon.DungeonAlertService;
+import de.horizon.feature.fishing.FishingAlertService;
 import de.horizon.feature.dungeon.DungeonStateService;
 import de.horizon.feature.dungeon.DungeonSolverOverlay;
 import de.horizon.feature.dungeon.room.DungeonRoomDetector;
@@ -67,6 +68,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final ChatTabManager chatTabManager = new ChatTabManager();
     private final ReviveTracker reviveTracker = new ReviveTracker();
     private final DungeonAlertService dungeonAlertService = new DungeonAlertService();
+    private final FishingAlertService fishingAlertService = new FishingAlertService();
     private final DungeonStateService dungeonStateService = new DungeonStateService();
     private final DungeonRoomDetector dungeonRoomDetector = new DungeonRoomDetector();
     private final DungeonSolverOverlay dungeonSolverOverlay = new DungeonSolverOverlay();
@@ -99,6 +101,7 @@ public final class HorizonClient implements ClientModInitializer {
         instance = this;
         HorizonMod.LOGGER.info("Initializing Horizon client");
 
+        HorizonSounds.register();
         configManager.load();
         Lang.set(configManager.getConfig().getLanguage());
         hudRegistry.register(new RevivalStatusHudElement(configManager, reviveTracker, dungeonStateService));
@@ -121,8 +124,10 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonRoomDetector.handleChatMessage(raw);
             dungeonSolverOverlay.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
+            fishingAlertService.handleChatMessage(raw, configManager.getConfig());
             handleRagAxeNotification(raw);
-            return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon());
+            return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon())
+                    && !fishingAlertService.shouldHideMessage(raw, configManager.getConfig());
         });
         ClientReceiveMessageEvents.ALLOW_CHAT.register((message, signedMessage, sender, params, receptionTimestamp) -> {
             String raw = message.getString();
@@ -130,7 +135,9 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonRoomDetector.handleChatMessage(raw);
             dungeonSolverOverlay.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
-            return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon());
+            fishingAlertService.handleChatMessage(raw, configManager.getConfig());
+            return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon())
+                    && !fishingAlertService.shouldHideMessage(raw, configManager.getConfig());
         });
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, MinecraftClient.getInstance() == null ? null : MinecraftClient.getInstance().currentScreen));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -188,6 +195,7 @@ public final class HorizonClient implements ClientModInitializer {
         dungeonSolverOverlay.tick(client, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
         pingService.tick(client);
         reviveTracker.tick();
+        fishingAlertService.tick(client, configManager.getConfig());
         inventoryButtonService.tick(client);
         while (openConfigKeyBinding != null && openConfigKeyBinding.wasPressed()) {
             HorizonMod.LOGGER.info("Opening Horizon config through keybind");

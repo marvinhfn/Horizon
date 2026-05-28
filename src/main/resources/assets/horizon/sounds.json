@@ -1,0 +1,18 @@
+{
+  "fishing_alert_custom": {
+    "sounds": [
+      {
+        "name": "horizon:fishing_alert_custom",
+        "stream": false
+      }
+    ]
+  },
+  "fishing_alert_mr": {
+    "sounds": [
+      {
+        "name": "horizon:fishing_alert_mr",
+        "stream": false
+      }
+    ]
+  }
+}

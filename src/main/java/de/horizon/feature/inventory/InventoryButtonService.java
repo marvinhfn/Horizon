@@ -6,9 +6,16 @@ import de.horizon.mixin.KeyBindingAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.HoeItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Manages inventory button activations and the FARMING_TOOL_REBIND key-remapping.
@@ -21,6 +28,23 @@ import java.util.List;
  *   the toggle is turned off.
  */
 public final class InventoryButtonService {
+
+    // Substrings present in the SkyBlock item-ID of every Farming Toolkit tool.
+    // Covers all tiers and both old (THEORETICAL_HOE_*) and new named variants.
+    private static final Set<String> FARMING_TOOL_PATTERNS = new HashSet<>(Arrays.asList(
+        "WHEAT_HOE",      "HOE_WHEAT",   // Euclid's Wheat Hoe / old Theoretical
+        "CARROT_HOE",     "HOE_CARROT",  // Gauss Carrot Hoe / old
+        "POTATO_HOE",     "HOE_POTATO",  // Pythagorean Potato Hoe / old
+        "SUGAR_CANE_HOE", "HOE_CANE",    // Turing Sugar Cane Hoe / old
+        "NETHER_WART_HOE","HOE_WART",    // Newton Nether Wart Hoe / old
+        "PUMPKIN_DICER",                 // Pumpkin Dicer
+        "MELON_DICER",                   // Melon Dicer
+        "FUNGI_CUTTER",                  // Fungi Cutter
+        "CACTUS_KNIFE",                  // Cactus Knife
+        "COCOA_CHOPPER",                 // Cocoa Chopper
+        "ECLIPSE_HOE",                   // Eclipse Hoe
+        "WILD_ROSE_HOE"                  // Wild Rose Hoe
+    ));
 
     private final ConfigManager configManager;
 
@@ -47,7 +71,7 @@ public final class InventoryButtonService {
         }
 
         if (wantFarmingRebind) {
-            boolean holdsFarmingTool = mc.player.getMainHandStack().getItem() instanceof HoeItem;
+            boolean holdsFarmingTool = isFarmingTool(mc.player.getMainHandStack());
             if (holdsFarmingTool && !rebindApplied) {
                 applyRebind(true, mc);
             } else if (!holdsFarmingTool && rebindApplied) {
@@ -125,6 +149,28 @@ public final class InventoryButtonService {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private static boolean isFarmingTool(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        // Vanilla hoes as fallback (shouldn't appear in SkyBlock but safe to keep)
+        if (stack.getItem() instanceof HoeItem) return true;
+        String sbId = getSkyBlockItemId(stack);
+        if (sbId == null) return false;
+        for (String pattern : FARMING_TOOL_PATTERNS) {
+            if (sbId.contains(pattern)) return true;
+        }
+        return false;
+    }
+
+    /** Reads the Hypixel SkyBlock item ID from ExtraAttributes NBT, or null. */
+    private static String getSkyBlockItemId(ItemStack stack) {
+        NbtComponent customData = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (customData == null) return null;
+        NbtCompound nbt = customData.copyNbt();
+        NbtCompound extra = nbt.getCompoundOrEmpty("ExtraAttributes");
+        String id = extra.getString("id", "");
+        return id.isEmpty() ? null : id;
+    }
 
     private List<InventoryButton> buttons() {
         return configManager.getConfig().getInventoryButtons();
