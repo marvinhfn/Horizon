@@ -5,9 +5,11 @@ import de.horizon.api.HorizonApiClient;
 import de.horizon.api.auth.HorizonApiAuthService;
 import de.horizon.api.profile.HorizonProfileGateway;
 import de.horizon.config.ConfigManager;
+import de.horizon.render.PillarboxState;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.feature.chat.SpamHider;
 import de.horizon.feature.dungeon.DungeonAlertService;
+import de.horizon.feature.dungeon.DungeonMapService;
 import de.horizon.feature.fishing.FishingAlertService;
 import de.horizon.feature.dungeon.DungeonStateService;
 import de.horizon.feature.dungeon.DungeonSolverOverlay;
@@ -20,6 +22,7 @@ import de.horizon.feature.revive.ReviveTracker;
 import de.horizon.hypixel.HypixelProfileService;
 import de.horizon.hypixel.PartyFinderOverlay;
 import de.horizon.hypixel.HypixelSidebarOverlay;
+import de.horizon.hud.DungeonMapHudElement;
 import de.horizon.hud.HudElement;
 import de.horizon.hud.HudRegistry;
 import de.horizon.hud.PerformanceHudElement;
@@ -70,6 +73,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final DungeonAlertService dungeonAlertService = new DungeonAlertService();
     private final FishingAlertService fishingAlertService = new FishingAlertService();
     private final DungeonStateService dungeonStateService = new DungeonStateService();
+    private final DungeonMapService dungeonMapService = new DungeonMapService();
     private final DungeonRoomDetector dungeonRoomDetector = new DungeonRoomDetector();
     private final DungeonSolverOverlay dungeonSolverOverlay = new DungeonSolverOverlay();
     private final HudRegistry hudRegistry = new HudRegistry();
@@ -108,6 +112,7 @@ public final class HorizonClient implements ClientModInitializer {
         hudRegistry.register(new TimeHudElement());
         hudRegistry.register(new PerformanceHudElement());
         hudRegistry.register(new SystemStatsHudElement());
+        hudRegistry.register(new DungeonMapHudElement(dungeonMapService, dungeonStateService));
         openConfigKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             "key.horizon.open_config",
             InputUtil.Type.KEYSYM,
@@ -190,6 +195,7 @@ public final class HorizonClient implements ClientModInitializer {
         }
         horizonApiAuthService.tick();
         dungeonStateService.tick(client);
+        dungeonMapService.tick(client, dungeonStateService);
         dungeonRoomDetector.tick(client, dungeonStateService);
         dungeonAlertService.tick(client, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
         dungeonSolverOverlay.tick(client, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
@@ -255,6 +261,10 @@ public final class HorizonClient implements ClientModInitializer {
         return dungeonStateService;
     }
 
+    public DungeonMapService getDungeonMapService() {
+        return dungeonMapService;
+    }
+
     public DungeonRoomDetector getDungeonRoomDetector() {
         return dungeonRoomDetector;
     }
@@ -315,6 +325,12 @@ public final class HorizonClient implements ClientModInitializer {
             return;
         }
 
+        int barScaled = PillarboxState.scaledBarWidth();
+        if (barScaled > 0) {
+            drawContext.getMatrices().pushMatrix();
+            drawContext.getMatrices().translate(barScaled, 0.0f);
+        }
+
         for (HudElement element : hudRegistry.getElements()) {
             if (!element.isEnabled(configManager.getConfig())) {
                 continue;
@@ -325,6 +341,26 @@ public final class HorizonClient implements ClientModInitializer {
         if (configManager.getConfig().isCustomScoreboardEnabled()) {
             hypixelSidebarOverlay.render(drawContext, client);
         }
+
+        if (barScaled > 0) {
+            drawContext.getMatrices().popMatrix();
+        }
+        renderPillarboxBars(drawContext, client);
+    }
+
+    private void renderPillarboxBars(DrawContext drawContext, MinecraftClient client) {
+        if (!configManager.getConfig().isPillarboxEnabled()) return;
+        int fbW = client.getWindow().getFramebufferWidth();
+        int fbH = client.getWindow().getFramebufferHeight();
+        if ((long) fbW * 9 <= (long) fbH * 16) return;
+        int scaledW = client.getWindow().getScaledWidth();
+        int scaledH = client.getWindow().getScaledHeight();
+        int targetFbW = fbH * 16 / 9;
+        int barFbW = (fbW - targetFbW) / 2;
+        int sf = Math.max(1, Math.round((float) fbH / scaledH));
+        int barScaled = (int) Math.ceil((double) barFbW / sf);
+        drawContext.fill(0, 0, barScaled, scaledH, 0xFF000000);
+        drawContext.fill(scaledW - barScaled, 0, scaledW, scaledH, 0xFF000000);
     }
 
     private void registerScreenHooks() {
@@ -372,4 +408,5 @@ public final class HorizonClient implements ClientModInitializer {
             });
         });
     }
+
 }

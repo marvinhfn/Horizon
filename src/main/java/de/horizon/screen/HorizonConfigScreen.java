@@ -71,6 +71,7 @@ public final class HorizonConfigScreen extends Screen {
     private DungeonSection activeDungeonSection = DungeonSection.GENERAL;
     private MusicSection activeMusicSection = MusicSection.GENERAL;
     private ChatSection activeChatSection = ChatSection.GENERAL;
+    private DisplaySection activeDisplaySection = DisplaySection.GENERAL;
     private InventorySection activeInventorySection = InventorySection.GENERAL;
     private boolean scoreboardGeneralActive = true;
     private SkyBlockIsland activeScoreboardIsland = SkyBlockIsland.HUB;
@@ -89,6 +90,7 @@ public final class HorizonConfigScreen extends Screen {
     private boolean isDragging = false;
     private int dragMouseOffsetY = 0;
     private int dragCurrentMouseY = 0;
+    private int activeSliderIndex = -1;
     private boolean fishingCreatureListExpanded = false;
 
     public HorizonConfigScreen(Screen parent, HorizonClient horizonClient) {
@@ -195,6 +197,17 @@ public final class HorizonConfigScreen extends Screen {
             }
         }
 
+        if (activeTab == Tab.DISPLAY) {
+            Rect bar = subTabBarRect(frame);
+            for (int index = 0; index < DisplaySection.values().length; index++) {
+                if (subTabRect(bar, index, DisplaySection.values().length).contains(click.x(), click.y())) {
+                    activeDisplaySection = DisplaySection.values()[index];
+                    contentScrollOffset = 0;
+                    return true;
+                }
+            }
+        }
+
         if (activeTab == Tab.INVENTORY) {
             Rect bar = subTabBarRect(frame);
             for (int index = 0; index < InventorySection.values().length; index++) {
@@ -238,6 +251,7 @@ public final class HorizonConfigScreen extends Screen {
             case DUNGEON -> handleDungeonClick(click.x(), click.y(), frame);
             case PARTICLE -> handleParticleClick(click.x(), click.y(), frame);
             case MISC -> handleMiscClick(click.x(), click.y(), frame);
+            case DISPLAY -> handleDisplayClick(click.x(), click.y(), frame);
             case CHAT -> handleChatClick(click.x(), click.y(), frame);
             case MUSIC_CONTROL -> handleMusicClick(click.x(), click.y(), frame);
             case SCOREBOARD -> handleScoreboardClick(click.x(), click.y(), frame);
@@ -339,6 +353,11 @@ public final class HorizonConfigScreen extends Screen {
 
     @Override
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+        if (click.button() == 0 && activeSliderIndex >= 0 && activeTab == Tab.DISPLAY && activeDisplaySection == DisplaySection.ANIMATIONS) {
+            Rect viewport = contentViewportRect(frame());
+            applySliderValue(activeSliderIndex, click.x(), viewport.x);
+            return true;
+        }
         if (click.button() == 0 && dragKey != null) {
             isDragging = true;
             dragCurrentMouseY = (int) click.y();
@@ -349,6 +368,10 @@ public final class HorizonConfigScreen extends Screen {
 
     @Override
     public boolean mouseReleased(Click click) {
+        if (click.button() == 0 && activeSliderIndex >= 0) {
+            activeSliderIndex = -1;
+            return true;
+        }
         if (click.button() == 0 && dragKey != null) {
             String key = dragKey;
             boolean wasDragging = isDragging;
@@ -442,6 +465,15 @@ public final class HorizonConfigScreen extends Screen {
             }
         }
 
+        if (activeTab == Tab.DISPLAY) {
+            Rect bar = subTabBarRect(frame);
+            for (int index = 0; index < DisplaySection.values().length; index++) {
+                boolean active = DisplaySection.values()[index] == activeDisplaySection;
+                Rect rect = subTabRect(bar, index, DisplaySection.values().length);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + DisplaySection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+            }
+        }
+
         if (activeTab == Tab.INVENTORY) {
             Rect bar = subTabBarRect(frame);
             for (int index = 0; index < InventorySection.values().length; index++) {
@@ -474,6 +506,7 @@ public final class HorizonConfigScreen extends Screen {
                 case DUNGEON -> renderDungeonText(context, viewport);
                 case PARTICLE -> renderParticleText(context, viewport);
                 case MISC -> renderMiscText(context, viewport);
+                case DISPLAY -> renderDisplayText(context, viewport);
                 case CHAT -> renderChatText(context, viewport);
                 case MUSIC_CONTROL -> renderMusicText(context, viewport);
                 case SCOREBOARD -> renderScoreboardText(context, viewport);
@@ -573,6 +606,12 @@ public final class HorizonConfigScreen extends Screen {
                     y = drawToggleRow(context, viewport.x, y, option.title(), option.isEnabled(config()), option.description());
                 }
             }
+            case MAP -> {
+                y = drawSectionTitle(context, viewport.x, y, "Dungeons / Map");
+                y = drawToggleRow(context, viewport.x, y, "Dungeon Map HUD", config().isDungeonMapEnabled(), Lang.t("Karte als HUD-Element anzeigen.", "Show dungeon map as HUD element."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Spieler anzeigen", "Show Players"), config().isDungeonMapShowPlayers(), Lang.t("Spielerpunkte auf der Karte einblenden.", "Show player dots on the map."));
+                drawToggleRow(context, viewport.x, y, "Outline", config().isDungeonMapOutlineEnabled(), Lang.t("Rahmen um die Karte anzeigen.", "Show outline around the map."));
+            }
         }
     }
 
@@ -599,6 +638,66 @@ public final class HorizonConfigScreen extends Screen {
         y = drawToggleRow(context, viewport.x, y, "Solver Debug HUD", config().isSolverDebugHudEnabled(), Lang.t("Diagnoseanzeige fuer Dungeon Solver.", "Diagnostic display for Dungeon Solver."));
         y = drawToggleRow(context, viewport.x, y, "Defense Bar", config().isHideDefenseBar(), Lang.t("Blendet die Vanilla-Ruestungsanzeige aus.", "Hides the vanilla armor display."));
         drawToggleRow(context, viewport.x, y, Lang.t("Kompakte Herzen", "Compact Hearts"), config().isCompactHypixelHealthEnabled(), Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
+    }
+
+    private void renderDisplayText(DrawContext context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        switch (activeDisplaySection) {
+            case GENERAL -> {
+                y = drawSectionTitle(context, viewport.x, y, "Anzeige / General");
+                drawToggleRow(context, viewport.x, y, "16:9 Pillarbox", config().isPillarboxEnabled(),
+                    Lang.t("Begrenzt die Spielansicht auf 16:9 mit schwarzen Balken links und rechts (Samsung Odyssey G9).",
+                           "Limits game view to 16:9 with black bars on the sides (Samsung Odyssey G9)."));
+            }
+            case ANIMATIONS -> {
+                y = drawSectionTitle(context, viewport.x, y, "Anzeige / Animationen");
+                y = drawSliderRow(context, viewport.x, y, "Position X", config().getItemPositionX(), -1.5, 1.5,
+                    Lang.t("Horizontale Position des gehaltenen Items.", "Horizontal position of the held item."));
+                y = drawSliderRow(context, viewport.x, y, "Position Y", config().getItemPositionY(), -1.5, 1.5,
+                    Lang.t("Vertikale Position des gehaltenen Items.", "Vertical position of the held item."));
+                y = drawSliderRow(context, viewport.x, y, "Position Z", config().getItemPositionZ(), -1.5, 1.5,
+                    Lang.t("Tiefe des gehaltenen Items.", "Depth of the held item."));
+                y = drawSliderRow(context, viewport.x, y, Lang.t("Groesse", "Scale"), config().getItemScale(), 0.1, 2.0,
+                    Lang.t("Skalierung des gehaltenen Items.", "Scale of the held item."));
+                drawSliderRow(context, viewport.x, y, Lang.t("Schlaggeschwindigkeit", "Swing Speed"), config().getSwingSpeed(), 0.1, 4.0,
+                    Lang.t("Geschwindigkeit der Schlaganimation.", "Speed of the swing animation."));
+            }
+        }
+    }
+
+    private boolean handleDisplayClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24;
+        return switch (activeDisplaySection) {
+            case GENERAL -> {
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setPillarboxEnabled(!config().isPillarboxEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                yield false;
+            }
+            case ANIMATIONS -> {
+                for (int i = 0; i < 5; i++) {
+                    if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
+                        activeSliderIndex = i;
+                        applySliderValue(i, mouseX, viewport.x);
+                        yield true;
+                    }
+                    y += sliderRowHeight();
+                }
+                yield false;
+            }
+        };
+    }
+
+    private int displayContentHeight() {
+        return 24 + switch (activeDisplaySection) {
+            case GENERAL -> toggleRowHeight(Lang.t(
+                "Begrenzt die Spielansicht auf 16:9 mit schwarzen Balken links und rechts (Samsung Odyssey G9).",
+                "Limits game view to 16:9 with black bars on the sides (Samsung Odyssey G9)."));
+            case ANIMATIONS -> 5 * sliderRowHeight();
+        };
     }
 
     private void renderChatText(DrawContext context, Rect viewport) {
@@ -821,6 +920,53 @@ public final class HorizonConfigScreen extends Screen {
         return y + rowHeight;
     }
 
+    private static final int SLIDER_WIDTH = 200;
+    private static final int SLIDER_HEIGHT = 10;
+    private static final int SLIDER_ROW_HEIGHT = CARD_PADDING_TOP + LINE_HEIGHT + SLIDER_HEIGHT + 8 + CARD_PADDING_BOTTOM + CARD_GAP;
+
+    private int drawSliderRow(DrawContext context, int x, int y, String title, double value, double min, double max, String description) {
+        int rowHeight = sliderRowHeight();
+        drawSettingCard(context, x, y, rowHeight, accentColor(), false);
+        String formatted = String.format("%.2f", value);
+        drawTextLine(context, x + 4, y + CARD_PADDING_TOP, title + ": " + formatted, TEXT);
+        int sliderX = x + CONTENT_ROW_WIDTH - SLIDER_WIDTH - 10;
+        int sliderY = y + CARD_PADDING_TOP;
+        context.fill(sliderX, sliderY, sliderX + SLIDER_WIDTH, sliderY + SLIDER_HEIGHT, 0xFF3A3F4B);
+        double fraction = (value - min) / (max - min);
+        int thumbX = sliderX + (int) (fraction * (SLIDER_WIDTH - 6));
+        context.fill(thumbX, sliderY, thumbX + 6, sliderY + SLIDER_HEIGHT, accentColor());
+        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT + 2, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
+        return y + rowHeight;
+    }
+
+    private int sliderRowHeight() {
+        return SLIDER_ROW_HEIGHT;
+    }
+
+    private Rect sliderRect(int x, int y) {
+        int sliderX = x + CONTENT_ROW_WIDTH - SLIDER_WIDTH - 10;
+        return new Rect(sliderX, y + CARD_PADDING_TOP, SLIDER_WIDTH, SLIDER_HEIGHT);
+    }
+
+    private double sliderValueFromMouse(double mouseX, int viewportX, double min, double max) {
+        int sliderX = viewportX + CONTENT_ROW_WIDTH - SLIDER_WIDTH - 10;
+        double fraction = (mouseX - sliderX) / SLIDER_WIDTH;
+        fraction = Math.max(0.0, Math.min(1.0, fraction));
+        double raw = min + fraction * (max - min);
+        return Math.round(raw * 100.0) / 100.0;
+    }
+
+    private void applySliderValue(int index, double mouseX, int viewportX) {
+        switch (index) {
+            case 0 -> config().setItemPositionX(sliderValueFromMouse(mouseX, viewportX, -1.5, 1.5));
+            case 1 -> config().setItemPositionY(sliderValueFromMouse(mouseX, viewportX, -1.5, 1.5));
+            case 2 -> config().setItemPositionZ(sliderValueFromMouse(mouseX, viewportX, -1.5, 1.5));
+            case 3 -> config().setItemScale(sliderValueFromMouse(mouseX, viewportX, 0.1, 2.0));
+            case 4 -> config().setSwingSpeed(sliderValueFromMouse(mouseX, viewportX, 0.1, 4.0));
+        }
+        horizonClient.getConfigManager().save();
+    }
+
     private int drawCycleRow(DrawContext context, int x, int y, String title, String modeLabel, boolean active, String description) {
         int rowHeight = toggleRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, active ? 0xFF2DBA68 : 0xFF8A97A8, false);
@@ -965,6 +1111,7 @@ public final class HorizonConfigScreen extends Screen {
             case REVIVAL -> handleReviveClick(mouseX, mouseY, viewport, y);
             case TERMINAL_SOLVER -> handleTerminalRows(mouseX, mouseY, viewport, y);
             case PUZZLE_SOLVER -> handlePuzzleRows(mouseX, mouseY, viewport, y);
+            case MAP -> handleMapClick(mouseX, mouseY, viewport, y);
         };
     }
 
@@ -1032,6 +1179,27 @@ public final class HorizonConfigScreen extends Screen {
                 return true;
             }
             y += toggleRowHeight(option.description());
+        }
+        return false;
+    }
+
+    private boolean handleMapClick(double mouseX, double mouseY, Rect viewport, int y) {
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setDungeonMapEnabled(!config().isDungeonMapEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Karte als HUD-Element anzeigen.", "Show dungeon map as HUD element."));
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setDungeonMapShowPlayers(!config().isDungeonMapShowPlayers());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Spielerpunkte auf der Karte einblenden.", "Show player dots on the map."));
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setDungeonMapOutlineEnabled(!config().isDungeonMapOutlineEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
         }
         return false;
     }
@@ -1526,6 +1694,7 @@ public final class HorizonConfigScreen extends Screen {
             case DUNGEON -> dungeonContentHeight();
             case PARTICLE -> particleContentHeight();
             case MISC -> miscContentHeight();
+            case DISPLAY -> displayContentHeight();
             case CHAT -> chatContentHeight();
             case MUSIC_CONTROL -> musicContentHeight();
             case SCOREBOARD -> scoreboardContentHeight();
@@ -1591,6 +1760,9 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Defense Bar", "Misc", Tab.MISC, null, "defense bar ruestung armor");
         addSearchResult(results, query, "Kompakte Herzen", "Misc", Tab.MISC, null, "kompakte herzen hypixel health herz absorption");
         addSearchResult(results, query, "Rag Axe Notification", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "rag axe notification necron m7 phase dungeon");
+        addSearchResult(results, query, "Dungeon Map HUD", "Dungeons / Map", Tab.DUNGEON, DungeonSection.MAP, "dungeon map hud minimap karte");
+        addSearchResult(results, query, "Show Players on Map", "Dungeons / Map", Tab.DUNGEON, DungeonSection.MAP, "dungeon map spieler player dots show");
+        addSearchResult(results, query, "Map Outline", "Dungeons / Map", Tab.DUNGEON, DungeonSection.MAP, "dungeon map outline rahmen");
         addSearchResult(results, query, "Bridge verstecken", "Chat / General", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
         addSearchResult(results, query, "Bridge Bot Name", "Chat / General", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
         addSearchResult(results, query, "Nachrichten kopieren", "Chat / General", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
@@ -1614,6 +1786,12 @@ public final class HorizonConfigScreen extends Screen {
         for (ElusiveSeaCreature creature : ElusiveSeaCreature.values()) {
             addSearchResult(results, query, creature.displayName(), "Fishing", Tab.FISHING, null, "fishing " + creature.displayName().toLowerCase(Locale.ROOT) + " elusive sea creature");
         }
+        addSearchResult(results, query, "16:9 Pillarbox", "Anzeige", Tab.DISPLAY, null, "pillarbox 16:9 anzeige display monitor ultrawide 32:9 odyssey g9 schwarze balken letterbox");
+        addSearchResult(results, query, "Position X", "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand item position x horizontal devonian");
+        addSearchResult(results, query, "Position Y", "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand item position y vertikal vertical devonian");
+        addSearchResult(results, query, "Position Z", "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand item position z tiefe depth devonian");
+        addSearchResult(results, query, Lang.t("Groesse", "Scale"), "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand item groesse scale size devonian skalierung");
+        addSearchResult(results, query, Lang.t("Schlaggeschwindigkeit", "Swing Speed"), "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand swing speed schlaggeschwindigkeit geschwindigkeit devonian");
         return results;
     }
 
@@ -1842,6 +2020,9 @@ public final class HorizonConfigScreen extends Screen {
                 }
                 yield height;
             }
+            case MAP -> toggleRowHeight(Lang.t("Karte als HUD-Element anzeigen.", "Show dungeon map as HUD element."))
+                + toggleRowHeight(Lang.t("Spielerpunkte auf der Karte einblenden.", "Show player dots on the map."))
+                + toggleRowHeight(Lang.t("Rahmen um die Karte anzeigen.", "Show outline around the map."));
         };
     }
 
@@ -2089,6 +2270,7 @@ public final class HorizonConfigScreen extends Screen {
         DUNGEON("Dungeons"),
         PARTICLE("Particle"),
         MISC("Misc"),
+        DISPLAY("Anzeige"),
         CHAT("Chat"),
         MUSIC_CONTROL("Music Control"),
         SCOREBOARD("Scoreboard"),
@@ -2129,11 +2311,23 @@ public final class HorizonConfigScreen extends Screen {
         GENERAL("General"),
         REVIVAL("Revive"),
         TERMINAL_SOLVER("Terminal Solver"),
-        PUZZLE_SOLVER("Puzzle Solver");
+        PUZZLE_SOLVER("Puzzle Solver"),
+        MAP("Map");
 
         private final String label;
 
         DungeonSection(String label) {
+            this.label = label;
+        }
+    }
+
+    private enum DisplaySection {
+        GENERAL("General"),
+        ANIMATIONS("Animationen");
+
+        private final String label;
+
+        DisplaySection(String label) {
             this.label = label;
         }
     }

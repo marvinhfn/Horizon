@@ -21,4 +21,7 @@ public final class DungeonConfig {
     boolean puzzleIcePathEnabled = true;
     boolean puzzleTeleportMazeEnabled = true;
     boolean ragAxeNotificationEnabled = true;
+    boolean dungeonMapEnabled = true;
+    boolean dungeonMapShowPlayers = true;
+    boolean dungeonMapOutline = true;
 }

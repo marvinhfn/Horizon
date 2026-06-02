@@ -27,6 +27,7 @@ public final class ConfigManager {
     private ScoreboardConfig scoreboard = new ScoreboardConfig();
     private InventoryButtonConfig inventoryButtons = new InventoryButtonConfig();
     private FishingConfig fishing = new FishingConfig();
+    private DisplayConfig display = new DisplayConfig();
 
     private HorizonConfig config = build();
 
@@ -47,6 +48,7 @@ public final class ConfigManager {
         scoreboard.ensureIslandDefaults();
         inventoryButtons = loadSub("inventory_buttons.json", InventoryButtonConfig.class, new InventoryButtonConfig());
         fishing = loadSub("fishing.json", FishingConfig.class, new FishingConfig());
+        display = loadSub("display.json", DisplayConfig.class, new DisplayConfig());
         config = build();
         save();
     }
@@ -63,6 +65,7 @@ public final class ConfigManager {
         saveSub("scoreboard.json", config.scoreboard);
         saveSub("inventory_buttons.json", config.inventoryButtons);
         saveSub("fishing.json", config.fishing);
+        saveSub("display.json", config.display);
     }
 
     public HudPosition getOrCreatePosition(String id, int defaultX, int defaultY) {
@@ -76,7 +79,7 @@ public final class ConfigManager {
 
     private HorizonConfig build() {
         return new HorizonConfig(hud, dungeon, spotify, youtube, chat, misc, antiSpam, particle, scoreboard,
-                inventoryButtons, fishing);
+                inventoryButtons, fishing, display);
     }
 
     private <T> T loadSub(String filename, Class<T> clazz, T defaultValue) {

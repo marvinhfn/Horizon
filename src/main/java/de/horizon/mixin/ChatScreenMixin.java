@@ -7,6 +7,7 @@ import de.horizon.feature.chat.ChatHudAccess;
 import de.horizon.feature.chat.ChatTab;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;
+import de.horizon.render.PillarboxState;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.screen.ChatScreen;
@@ -39,6 +40,11 @@ public abstract class ChatScreenMixin extends Screen {
             return;
         }
         chatField.setY(adjustedScreenHeight(height) - 12);
+        int barOffset = PillarboxState.scaledBarWidth();
+        if (barOffset > 0) {
+            chatField.setX(chatField.getX() + barOffset);
+            chatField.setWidth(chatField.getWidth() - 2 * barOffset);
+        }
     }
 
     @Inject(method = "sendMessage(Ljava/lang/String;Z)V", at = @At("HEAD"), cancellable = true)
@@ -62,7 +68,8 @@ public abstract class ChatScreenMixin extends Screen {
     @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;fill(IIIII)V"))
     private void horizon$raiseChatInputBackground(DrawContext context, int x1, int y1, int x2, int y2, int color) {
         int offset = HypixelSidebarOverlay.lowerHudOffset(client);
-        context.fill(x1, y1 - offset, x2, y2 - offset, color);
+        int barOffset = PillarboxState.scaledBarWidth();
+        context.fill(x1 + barOffset, y1 - offset, x2 - barOffset, y2 - offset, color);
     }
 
     @Inject(method = "render", at = @At("TAIL"))
@@ -78,7 +85,7 @@ public abstract class ChatScreenMixin extends Screen {
         HorizonConfig config = horizonClient.getConfigManager().getConfig();
 
         int tabY = chatField.getY() - 14;
-        int x = 2;
+        int x = 2 + PillarboxState.scaledBarWidth();
 
         for (ChatTab tab : ChatTab.values()) {
             boolean active = tab == tabManager.getActiveTab();
@@ -169,7 +176,7 @@ public abstract class ChatScreenMixin extends Screen {
             return;
         }
 
-        int x = 2;
+        int x = 2 + PillarboxState.scaledBarWidth();
         for (ChatTab tab : ChatTab.values()) {
             if (mx >= x && mx <= x + 12) {
                 horizonClient.getChatTabManager().setActiveTabAndRepopulate(tab, horizonClient.getConfigManager().getConfig());

@@ -6,14 +6,21 @@
     "ChatHudMixin",
     "ChatScreenMixin",
     "ExperienceBarMixin",
+    "GameRendererMixin",
+    "GlCommandEncoderMixin",
+    "GlStateManagerMixin",
+    "HeldItemRendererMixin",
     "InGameHudMixin",
+    "LivingEntityMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientPlayerInteractionManagerMixin",
     "HandledScreenMixin",
     "KeyBindingAccessor",
+    "MouseMixin",
     "ParticleManagerMixin",
     "SuggestionWindowAccessor",
-    "SuggestionWindowMixin"
+    "SuggestionWindowMixin",
+    "WindowMixin"
   ],
   "injectors": {
     "defaultRequire": 1

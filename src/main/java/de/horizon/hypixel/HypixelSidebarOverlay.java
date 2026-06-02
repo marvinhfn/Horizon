@@ -3,6 +3,7 @@ package de.horizon.hypixel;
 import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.hud.HudStyle;
+import de.horizon.render.PillarboxState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -37,7 +38,8 @@ public final class HypixelSidebarOverlay {
         }
 
         TextRenderer textRenderer = client.textRenderer;
-        int width = context.getScaledWindowWidth();
+        int barOffset = PillarboxState.scaledBarWidth();
+        int width = context.getScaledWindowWidth() - 2 * barOffset;
         int height = context.getScaledWindowHeight();
         int top = height - BAR_HEIGHT;
         context.fill(0, top, width, height, HudStyle.panel());

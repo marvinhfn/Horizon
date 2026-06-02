@@ -26,10 +26,11 @@ public final class HorizonConfig {
     final ScoreboardConfig scoreboard;
     final InventoryButtonConfig inventoryButtons;
     final FishingConfig fishing;
+    final DisplayConfig display;
 
     HorizonConfig(HudConfig hud, DungeonConfig dungeon, SpotifyConfig spotify, YoutubeConfig youtube, ChatConfig chat,
                   MiscConfig misc, AntiSpamConfig antiSpam, ParticleConfig particle, ScoreboardConfig scoreboard,
-                  InventoryButtonConfig inventoryButtons, FishingConfig fishing) {
+                  InventoryButtonConfig inventoryButtons, FishingConfig fishing, DisplayConfig display) {
         this.hud = hud;
         this.dungeon = dungeon;
         this.spotify = spotify;
@@ -41,6 +42,7 @@ public final class HorizonConfig {
         this.scoreboard = scoreboard;
         this.inventoryButtons = inventoryButtons;
         this.fishing = fishing;
+        this.display = display;
     }
 
     // ── HUD ──────────────────────────────────────────────────────────────────
@@ -147,6 +149,15 @@ public final class HorizonConfig {
 
     public boolean isRagAxeNotificationEnabled() { return dungeon.ragAxeNotificationEnabled; }
     public void setRagAxeNotificationEnabled(boolean v) { dungeon.ragAxeNotificationEnabled = v; }
+
+    public boolean isDungeonMapEnabled() { return dungeon.dungeonMapEnabled; }
+    public void setDungeonMapEnabled(boolean v) { dungeon.dungeonMapEnabled = v; }
+
+    public boolean isDungeonMapShowPlayers() { return dungeon.dungeonMapShowPlayers; }
+    public void setDungeonMapShowPlayers(boolean v) { dungeon.dungeonMapShowPlayers = v; }
+
+    public boolean isDungeonMapOutlineEnabled() { return dungeon.dungeonMapOutline; }
+    public void setDungeonMapOutlineEnabled(boolean v) { dungeon.dungeonMapOutline = v; }
 
     // ── SPOTIFY ───────────────────────────────────────────────────────────────
 
@@ -460,6 +471,30 @@ public final class HorizonConfig {
             case "timer": case "date":                              return 0xFFAAAAAA; // gray
             default:                                                return 0xFFFFFFFF; // white
         }
+    }
+
+    // ── DISPLAY ───────────────────────────────────────────────────────────────
+
+    public boolean isPillarboxEnabled() { return display.pillarboxEnabled; }
+    public void setPillarboxEnabled(boolean v) { display.pillarboxEnabled = v; }
+
+    public double getItemPositionX() { return display.animation.itemPositionX; }
+    public void setItemPositionX(double v) { display.animation.itemPositionX = clamp(v, -1.5, 1.5); }
+
+    public double getItemPositionY() { return display.animation.itemPositionY; }
+    public void setItemPositionY(double v) { display.animation.itemPositionY = clamp(v, -1.5, 1.5); }
+
+    public double getItemPositionZ() { return display.animation.itemPositionZ; }
+    public void setItemPositionZ(double v) { display.animation.itemPositionZ = clamp(v, -1.5, 1.5); }
+
+    public double getItemScale() { return display.animation.itemScale; }
+    public void setItemScale(double v) { display.animation.itemScale = clamp(v, 0.1, 2.0); }
+
+    public double getSwingSpeed() { return display.animation.swingSpeed; }
+    public void setSwingSpeed(double v) { display.animation.swingSpeed = clamp(v, 0.1, 4.0); }
+
+    private static double clamp(double v, double min, double max) {
+        return Math.max(min, Math.min(max, v));
     }
 
     // ── UTILITY ───────────────────────────────────────────────────────────────

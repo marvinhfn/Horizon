@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import de.horizon.config.HorizonConfig;
+import de.horizon.render.PillarboxState;
 import de.horizon.feature.dungeon.room.DetectedDungeonRoom;
 import de.horizon.feature.dungeon.room.DungeonRoomDetector;
 import de.horizon.hud.HudStyle;
@@ -440,7 +441,7 @@ public final class DungeonSolverOverlay {
 
         int width = 230;
         int height = 24 + solverLines.size() * 13;
-        int x = client.getWindow().getScaledWidth() - width - 14;
+        int x = client.getWindow().getScaledWidth() - 2 * PillarboxState.scaledBarWidth() - width - 14;
         int y = 14;
         context.fill(x, y, x + width, y + height, HudStyle.panel());
         context.drawStrokedRectangle(x, y, width, height, HudStyle.border());

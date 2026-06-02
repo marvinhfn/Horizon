@@ -3,6 +3,7 @@ package de.horizon.mixin;
 import de.horizon.HorizonClient;
 import de.horizon.feature.chat.ChatHudAccess;
 import de.horizon.feature.chat.ChatTabManager;
+import de.horizon.render.PillarboxState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -130,9 +131,11 @@ public abstract class ChatHudMixin implements ChatHudAccess {
     private void horizon$pushChatLift(DrawContext context, TextRenderer textRenderer, int ticks,
                                        int mouseX, int mouseY, boolean focused, boolean showingQueued,
                                        CallbackInfo ci) {
-        if (focused) {
+        int barOffset = PillarboxState.scaledBarWidth();
+        if (focused || barOffset > 0) {
             context.getMatrices().pushMatrix();
-            context.getMatrices().translate(0.0f, -ChatTabManager.TAB_BAR_LIFT);
+            float translateY = focused ? -ChatTabManager.TAB_BAR_LIFT : 0.0f;
+            context.getMatrices().translate(barOffset, translateY);
         }
     }
 
@@ -140,7 +143,8 @@ public abstract class ChatHudMixin implements ChatHudAccess {
     private void horizon$popChatLift(DrawContext context, TextRenderer textRenderer, int ticks,
                                       int mouseX, int mouseY, boolean focused, boolean showingQueued,
                                       CallbackInfo ci) {
-        if (focused) {
+        int barOffset = PillarboxState.scaledBarWidth();
+        if (focused || barOffset > 0) {
             context.getMatrices().popMatrix();
         }
     }
