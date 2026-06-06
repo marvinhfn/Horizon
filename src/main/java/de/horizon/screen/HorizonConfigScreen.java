@@ -842,7 +842,7 @@ public final class HorizonConfigScreen extends Screen {
                 drawToggleRow(context, viewport.x, y,
                         "Inventory Buttons",
                         config().isInventoryButtonsEnabled(),
-                        "Zeigt konfigurierte Buttons um das Inventar herum.");
+                        Lang.t("Zeigt konfigurierte Buttons um das Inventar herum.", "Shows configured buttons around the inventory."));
             }
             case INVENTORY_BUTTONS -> {
                 y = drawSectionTitle(context, viewport.x, y, "Inventory / Inventory Buttons");
@@ -1780,6 +1780,7 @@ public final class HorizonConfigScreen extends Screen {
         for (SkyBlockIsland island : SkyBlockIsland.knownIslands()) {
             addSearchResult(results, query, island.label(), "Scoreboard", Tab.SCOREBOARD, null, "scoreboard " + island.label().toLowerCase(Locale.ROOT) + " island zeilen filter");
         }
+        addSearchResult(results, query, "Inventory Buttons", "Inventory / General", Tab.INVENTORY, null, "inventory buttons inventar");
         addSearchResult(results, query, "Announce Rare Sea Creatures", "Fishing", Tab.FISHING, null, "fishing rare sea creatures elusive announce title sound alert");
         addSearchResult(results, query, Lang.t("Alert Sound", "Alert Sound"), "Fishing", Tab.FISHING, null, "fishing alert sound rare meow katze custom boo womp");
         addSearchResult(results, query, "Creature Filter", "Fishing", Tab.FISHING, null, "fishing creature filter sea creatures toggle enable disable");

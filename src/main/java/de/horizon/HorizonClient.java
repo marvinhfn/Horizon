@@ -50,6 +50,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -144,6 +145,7 @@ public final class HorizonClient implements ClientModInitializer {
             return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon())
                     && !fishingAlertService.shouldHideMessage(raw, configManager.getConfig());
         });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> inventoryButtonService.onDisconnect());
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, MinecraftClient.getInstance() == null ? null : MinecraftClient.getInstance().currentScreen));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
             dispatcher.register(ClientCommandManager.literal("horizon")

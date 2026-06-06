@@ -71,6 +71,9 @@ public final class InventoryButtonLayoutScreen extends Screen {
     private boolean editIslandFilterEnabled = false;
     private final java.util.LinkedHashSet<String> editAllowedIslands = new java.util.LinkedHashSet<>();
     private String islandSearch = "";
+    // Garden-only state (only for FARMING_TOOL_REBIND)
+    private boolean editGardenOnly = false;
+    private boolean editSqueakyMousemat = false;
 
     // Which text field in the popup has focus
     private enum PopupFocus { NONE, LABEL, COMMAND, ISLAND_SEARCH }
@@ -458,6 +461,29 @@ public final class InventoryButtonLayoutScreen extends Screen {
             y += islandRowCount() * 18;
         }
 
+        // Garden-only toggle (only for FARMING_TOOL_REBIND)
+        if (editFunction == InventoryButtonFunction.FARMING_TOOL_REBIND) {
+            String gardenLabel = editGardenOnly ? "[AN]  Nur auf Garden aktiv" : "[AUS] Nur auf Garden aktiv";
+            Rect gardenBtn = new Rect(px + 12, y, 200, 16);
+            context.fill(gardenBtn.x, gardenBtn.y,
+                    gardenBtn.x + gardenBtn.w, gardenBtn.y + gardenBtn.h,
+                    editGardenOnly ? BUTTON_ACTIVE : BUTTON_FILL);
+            drawBorder(context, gardenBtn.x, gardenBtn.y, gardenBtn.w, gardenBtn.h, POPUP_BORDER);
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal(gardenLabel),
+                    gardenBtn.x + gardenBtn.w / 2, gardenBtn.y + 4, TEXT_COLOR);
+            y += 22;
+
+            String mouseLabel = editSqueakyMousemat ? "[AN]  Squeaky Mousemat" : "[AUS] Squeaky Mousemat";
+            Rect mouseBtn = new Rect(px + 12, y, 200, 16);
+            context.fill(mouseBtn.x, mouseBtn.y,
+                    mouseBtn.x + mouseBtn.w, mouseBtn.y + mouseBtn.h,
+                    editSqueakyMousemat ? BUTTON_ACTIVE : BUTTON_FILL);
+            drawBorder(context, mouseBtn.x, mouseBtn.y, mouseBtn.w, mouseBtn.h, POPUP_BORDER);
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal(mouseLabel),
+                    mouseBtn.x + mouseBtn.w / 2, mouseBtn.y + 4, TEXT_COLOR);
+            y += 22;
+        }
+
         // Action buttons: Save / Delete / Cancel
         y = py + ph - 26;
         Rect saveBtn   = new Rect(px + 12,           y, 80, 18);
@@ -495,6 +521,10 @@ public final class InventoryButtonLayoutScreen extends Screen {
         if (editIslandFilterEnabled) {
             base += 20; // island search field
             base += islandRowCount() * 18; // island grid rows
+        }
+        if (editFunction == InventoryButtonFunction.FARMING_TOOL_REBIND) {
+            base += 22; // garden-only toggle
+            base += 22; // squeaky mousemat toggle
         }
         base += 26 + 10; // action buttons + padding
         return base;
@@ -616,6 +646,23 @@ public final class InventoryButtonLayoutScreen extends Screen {
             y += islandRowCount() * 18;
         }
 
+        // Garden-only toggle (only for FARMING_TOOL_REBIND)
+        if (editFunction == InventoryButtonFunction.FARMING_TOOL_REBIND) {
+            if (inRect(mx, my, px + 12, y, 200, 16)) {
+                editGardenOnly = !editGardenOnly;
+                popupFocus = PopupFocus.NONE;
+                return true;
+            }
+            y += 22;
+
+            if (inRect(mx, my, px + 12, y, 200, 16)) {
+                editSqueakyMousemat = !editSqueakyMousemat;
+                popupFocus = PopupFocus.NONE;
+                return true;
+            }
+            y += 22;
+        }
+
         // Action buttons
         int actionY = py + ph - 26;
         // Save
@@ -668,6 +715,8 @@ public final class InventoryButtonLayoutScreen extends Screen {
         btn.itemIdInactive      = editItemInactive;
         btn.islandFilterEnabled = editIslandFilterEnabled;
         btn.allowedIslands      = new java.util.ArrayList<>(editAllowedIslands);
+        btn.gardenOnly          = editGardenOnly;
+        btn.squeakyMousemat     = editSqueakyMousemat;
         horizonClient.getConfigManager().save();
         closePopup();
     }
@@ -697,6 +746,8 @@ public final class InventoryButtonLayoutScreen extends Screen {
             editIslandFilterEnabled = existing.islandFilterEnabled;
             editAllowedIslands.clear();
             editAllowedIslands.addAll(existing.allowedIslands);
+            editGardenOnly          = existing.gardenOnly;
+            editSqueakyMousemat     = existing.squeakyMousemat;
         } else {
             existingButton        = false;
             editLabel             = "";
@@ -707,6 +758,8 @@ public final class InventoryButtonLayoutScreen extends Screen {
             editItemInactive      = "minecraft:red_stained_glass_pane";
             editIslandFilterEnabled = false;
             editAllowedIslands.clear();
+            editGardenOnly          = false;
+            editSqueakyMousemat     = false;
         }
         islandSearch = "";
         popupOpen = true;

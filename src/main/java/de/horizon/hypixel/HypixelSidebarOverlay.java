@@ -97,13 +97,20 @@ public final class HypixelSidebarOverlay {
         return result;
     }
 
-    /** Returns the island detected from the current (or cached) snapshot. */
+    /** Returns the island detected from the tab list "Area:" entry. */
     public static SkyBlockIsland liveIsland(MinecraftClient client) {
+        return SkyBlockIsland.fromTabList(client);
+    }
+
+    /** Returns true if the sidebar contains a "Plot" line, indicating the player is on a garden plot. */
+    public static boolean isOnPlot(MinecraftClient client) {
         SidebarSnapshot snap = cachedSnapshot;
-        if (snap == null) {
-            return SkyBlockIsland.UNKNOWN;
+        if (snap == null) return false;
+        for (String line : snap.lines()) {
+            String n = normalize(line);
+            if (n.contains("plot")) return true;
         }
-        return SkyBlockIsland.detect(snap.title(), snap.lines());
+        return false;
     }
 
     public static boolean shouldReplaceVanillaSidebar(MinecraftClient client) {

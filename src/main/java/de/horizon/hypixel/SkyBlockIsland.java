@@ -1,5 +1,11 @@
 package de.horizon.hypixel;
 
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.text.Text;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
@@ -14,6 +20,10 @@ public enum SkyBlockIsland {
     THE_RIFT("The Rift", "rift"),
     SPIDERS_DEN("Spider's Den", "spiders_den"),
     THE_END("The End", "end"),
+    DUNGEON_HUB("Dungeon Hub", "dungeon_hub"),
+    PRIVATE_ISLAND("Private Island", "private_island"),
+    JERRY_ISLAND("Jerry's Workshop", "jerry"),
+    KUUDRA("Kuudra", "kuudra"),
     UNKNOWN("Unknown", "unknown");
 
     private final String label;
@@ -44,6 +54,10 @@ public enum SkyBlockIsland {
         return known;
     }
 
+    /**
+     * Detects the current island from scoreboard title and lines.
+     * Used by the custom scoreboard overlay for display purposes.
+     */
     public static SkyBlockIsland detect(String title, List<String> lines) {
         // Dungeons: high-confidence content signals
         String normTitle = norm(title);
@@ -131,6 +145,49 @@ public enum SkyBlockIsland {
 
         // Fallback via powder if no ⏣ matched
         if (hasPowder) return DWARVEN_MINES;
+
+        return UNKNOWN;
+    }
+
+    /**
+     * Reads the current island from the tab list "Area: <name>" entry.
+     * Used for feature gating (island filters, dungeon-only features, etc.).
+     */
+    public static SkyBlockIsland fromTabList(MinecraftClient mc) {
+        if (mc == null) return UNKNOWN;
+        ClientPlayNetworkHandler handler = mc.getNetworkHandler();
+        if (handler == null) return UNKNOWN;
+        Collection<PlayerListEntry> entries = handler.getPlayerList();
+        for (PlayerListEntry entry : entries) {
+            Text display = entry.getDisplayName();
+            if (display == null) continue;
+            String text = display.getString().toLowerCase(Locale.ROOT).trim();
+            if (text.contains("area:")) {
+                String area = text.substring(text.indexOf("area:") + 5).trim();
+                return fromAreaName(area);
+            }
+        }
+        return UNKNOWN;
+    }
+
+    /** Maps an area name (from tab list) to an island enum value. */
+    private static SkyBlockIsland fromAreaName(String area) {
+        if (area.isEmpty()) return UNKNOWN;
+
+        if (area.contains("garden")) return GARDEN;
+        if (area.contains("dungeon hub")) return DUNGEON_HUB;
+        if (area.contains("catacombs") || area.contains("dungeon")) return DUNGEONS;
+        if (area.contains("hub")) return HUB;
+        if (area.contains("dwarven") || area.contains("glacite") || area.contains("forge")) return DWARVEN_MINES;
+        if (area.contains("crystal hollow")) return CRYSTAL_HOLLOWS;
+        if (area.contains("crimson")) return CRIMSON_ISLE;
+        if (area.contains("kuudra")) return KUUDRA;
+        if (area.contains("farming island") || area.contains("barn") || area.contains("mushroom desert")) return FARMING_ISLANDS;
+        if (area.contains("rift")) return THE_RIFT;
+        if (area.contains("spider")) return SPIDERS_DEN;
+        if (area.contains("the end") || area.contains("dragon")) return THE_END;
+        if (area.contains("jerry")) return JERRY_ISLAND;
+        if (area.contains("private island") || area.contains("your island")) return PRIVATE_ISLAND;
 
         return UNKNOWN;
     }

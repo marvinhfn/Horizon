@@ -36,4 +36,8 @@ public class InventoryButton {
     public boolean islandFilterEnabled = false;
     /** SkyBlockIsland.id() values for which this button should be shown. */
     public List<String> allowedIslands = new ArrayList<>();
+    /** If true, FARMING_TOOL_REBIND only activates on the Garden island. */
+    public boolean gardenOnly = false;
+    /** If true, mouse movement is locked while holding a farming tool on a plot. */
+    public boolean squeakyMousemat = false;
 }

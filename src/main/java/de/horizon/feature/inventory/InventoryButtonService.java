@@ -2,13 +2,14 @@ package de.horizon.feature.inventory;
 
 import de.horizon.HorizonMod;
 import de.horizon.config.ConfigManager;
+import de.horizon.hypixel.HypixelSidebarOverlay;
+import de.horizon.hypixel.SkyBlockIsland;
 import de.horizon.mixin.KeyBindingAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.HoeItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 
@@ -46,11 +47,20 @@ public final class InventoryButtonService {
         "WILD_ROSE_HOE"                  // Wild Rose Hoe
     ));
 
+    // Display-name substrings for fallback detection when SkyBlock item-ID is unavailable.
+    private static final Set<String> FARMING_TOOL_NAME_PATTERNS = new HashSet<>(Arrays.asList(
+        "WHEAT HOE", "CARROT HOE", "POTATO HOE", "SUGAR CANE HOE",
+        "NETHER WART HOE", "NETHER WARTS HOE",
+        "PUMPKIN DICER", "MELON DICER", "FUNGI CUTTER",
+        "CACTUS KNIFE", "COCOA CHOPPER", "ECLIPSE HOE", "WILD ROSE HOE"
+    ));
+
     private final ConfigManager configManager;
 
     private InputUtil.Key savedJumpKey = null;
     private InputUtil.Key savedAttackKey = null;
     private boolean rebindApplied = false;
+    private boolean mouseLocked = false;
 
     public InventoryButtonService(ConfigManager configManager) {
         this.configManager = configManager;
@@ -65,21 +75,42 @@ public final class InventoryButtonService {
         for (InventoryButton button : buttons()) {
             if (button.function == InventoryButtonFunction.FARMING_TOOL_REBIND
                     && button.toggle && button.toggleActive) {
+                if (button.gardenOnly
+                        && HypixelSidebarOverlay.liveIsland(mc) != SkyBlockIsland.GARDEN) {
+                    continue;
+                }
                 wantFarmingRebind = true;
                 break;
             }
         }
 
+        ItemStack heldStack = mc.player.getMainHandStack();
+        boolean holdsFarmingTool = isFarmingTool(heldStack);
+        boolean holdsMousemat = isSqueakyMousemat(heldStack);
+        boolean holdsRebindItem = holdsFarmingTool || holdsMousemat;
+
         if (wantFarmingRebind) {
-            boolean holdsFarmingTool = isFarmingTool(mc.player.getMainHandStack());
-            if (holdsFarmingTool && !rebindApplied) {
+            if (holdsRebindItem && !rebindApplied) {
                 applyRebind(true, mc);
-            } else if (!holdsFarmingTool && rebindApplied) {
+            } else if (!holdsRebindItem && rebindApplied) {
                 applyRebind(false, mc);
             }
         } else if (rebindApplied) {
             applyRebind(false, mc);
         }
+
+        // Squeaky Mousemat: lock mouse when holding a farming tool or
+        // Squeaky Mousemat on a plot
+        boolean wantMouseLock = false;
+        for (InventoryButton button : buttons()) {
+            if (button.function == InventoryButtonFunction.FARMING_TOOL_REBIND
+                    && button.toggle && button.toggleActive && button.squeakyMousemat) {
+                wantMouseLock = true;
+                break;
+            }
+        }
+        boolean onPlot = HypixelSidebarOverlay.isOnPlot(mc);
+        mouseLocked = wantMouseLock && holdsRebindItem && onPlot;
     }
 
     // ── Button activation ────────────────────────────────────────────────────
@@ -146,20 +177,44 @@ public final class InventoryButtonService {
         if (mc != null && rebindApplied) {
             applyRebind(false, mc);
         }
+        mouseLocked = false;
+        // Reset toggle state so the rebind does not persist across sessions
+        for (InventoryButton button : buttons()) {
+            if (button.function == InventoryButtonFunction.FARMING_TOOL_REBIND && button.toggleActive) {
+                button.toggleActive = false;
+            }
+        }
+        configManager.save();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static boolean isFarmingTool(ItemStack stack) {
         if (stack.isEmpty()) return false;
-        // Vanilla hoes as fallback (shouldn't appear in SkyBlock but safe to keep)
-        if (stack.getItem() instanceof HoeItem) return true;
         String sbId = getSkyBlockItemId(stack);
-        if (sbId == null) return false;
-        for (String pattern : FARMING_TOOL_PATTERNS) {
-            if (sbId.contains(pattern)) return true;
+        if (sbId != null) {
+            for (String pattern : FARMING_TOOL_PATTERNS) {
+                if (sbId.contains(pattern)) return true;
+            }
+        }
+        // Fallback: match against the item's display name (stripped of formatting)
+        String name = stack.getName().getString()
+                .replaceAll("(?i)\u00a7[0-9a-fk-or]", "")
+                .toUpperCase(java.util.Locale.ROOT);
+        for (String pattern : FARMING_TOOL_NAME_PATTERNS) {
+            if (name.contains(pattern)) return true;
         }
         return false;
+    }
+
+    private static boolean isSqueakyMousemat(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String sbId = getSkyBlockItemId(stack);
+        if (sbId != null && sbId.contains("SQUEAKY_MOUSEMAT")) return true;
+        String name = stack.getName().getString()
+                .replaceAll("(?i)\u00a7[0-9a-fk-or]", "")
+                .toUpperCase(java.util.Locale.ROOT);
+        return name.contains("SQUEAKY MOUSEMAT");
     }
 
     /** Reads the Hypixel SkyBlock item ID from ExtraAttributes NBT, or null. */
@@ -167,8 +222,12 @@ public final class InventoryButtonService {
         NbtComponent customData = stack.get(DataComponentTypes.CUSTOM_DATA);
         if (customData == null) return null;
         NbtCompound nbt = customData.copyNbt();
+        // Hypixel stores ExtraAttributes as a sub-compound in custom_data
         NbtCompound extra = nbt.getCompoundOrEmpty("ExtraAttributes");
         String id = extra.getString("id", "");
+        if (!id.isEmpty()) return id;
+        // Fallback: id might be directly in custom_data root
+        id = nbt.getString("id", "");
         return id.isEmpty() ? null : id;
     }
 
@@ -178,5 +237,9 @@ public final class InventoryButtonService {
 
     public boolean isRebindActive() {
         return rebindApplied;
+    }
+
+    public boolean isMouseLocked() {
+        return mouseLocked;
     }
 }

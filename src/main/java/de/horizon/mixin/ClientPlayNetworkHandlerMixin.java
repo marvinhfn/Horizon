@@ -33,4 +33,5 @@ public abstract class ClientPlayNetworkHandlerMixin {
             client.getTpsTracker().onWorldTimePacket();
         }
     }
+
 }
