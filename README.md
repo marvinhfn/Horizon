@@ -67,8 +67,3 @@ cd backend
 ../gradlew run
 ```
 
-## Hinweise zum Repository
-
-- `CLAUDE.md` dient als projektinterne Referenz und ist bewusst nicht fuer das Public-Repository vorgesehen.
-- Lokale `.env`-, Key-, Zertifikats- und Laufzeitdateien sollten nicht versioniert werden.
-- Bereits veroeffentlichte sensible Dateien oder Inhalte muessen zusaetzlich aus der Git-Historie entfernt und gegebenenfalls rotiert werden; eine `.gitignore` verhindert nur neue Commits.
