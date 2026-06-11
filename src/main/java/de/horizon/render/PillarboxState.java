@@ -1,8 +1,8 @@
 package de.horizon.render;
 
 import de.horizon.HorizonClient;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.Window;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.platform.Window;
 
 public final class PillarboxState {
     /** True while GameRenderer.renderWorld is executing. */
@@ -17,13 +17,13 @@ public final class PillarboxState {
     public static int scaledBarWidth() {
         HorizonClient horizon = HorizonClient.getInstance();
         if (horizon == null || !horizon.getConfigManager().getConfig().isPillarboxEnabled()) return 0;
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc == null) return 0;
         Window window = mc.getWindow();
-        int fbW = window.getFramebufferWidth();
-        int fbH = window.getFramebufferHeight();
+        int fbW = window.getWidth();
+        int fbH = window.getHeight();
         if ((long) fbW * 9 <= (long) fbH * 16) return 0;
-        int scaledH = window.getScaledHeight();
+        int scaledH = window.getGuiScaledHeight();
         int sf = Math.max(1, Math.round((float) fbH / scaledH));
         int targetFbW = fbH * 16 / 9;
         int barFbW = (fbW - targetFbW) / 2;

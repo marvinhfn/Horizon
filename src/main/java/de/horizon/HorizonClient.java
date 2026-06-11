@@ -1,5 +1,6 @@
 package de.horizon;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import de.horizon.api.HorizonApiClient;
 import de.horizon.api.auth.HorizonApiAuthService;
@@ -13,6 +14,7 @@ import de.horizon.feature.dungeon.DungeonMapService;
 import de.horizon.feature.fishing.FishingAlertService;
 import de.horizon.feature.dungeon.DungeonStateService;
 import de.horizon.feature.dungeon.DungeonSolverOverlay;
+import de.horizon.feature.dungeon.TerminalDropService;
 import de.horizon.feature.dungeon.room.DungeonRoomDetector;
 import de.horizon.feature.misc.PingService;
 import de.horizon.feature.misc.SystemStatsService;
@@ -38,34 +40,33 @@ import de.horizon.spotify.SpotifyService;
 import de.horizon.youtube.YoutubeMusicInventoryOverlay;
 import de.horizon.youtube.YoutubeService;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
 
 import java.util.regex.Pattern;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.util.Identifier;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 public final class HorizonClient implements ClientModInitializer {
     private static HorizonClient instance;
     private static final Pattern FORMATTING_STRIP = Pattern.compile("(?i)\u00a7[0-9a-fk-or]");
-    private static final KeyBinding.Category HORIZON_CATEGORY = KeyBinding.Category.create(Identifier.of("horizon", "controls"));
+    private static final KeyMapping.Category HORIZON_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("horizon", "controls"));
 
     private final ConfigManager configManager = new ConfigManager();
     private final SpamHider spamHider = new SpamHider();
@@ -86,6 +87,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final SpotifyInventoryOverlay spotifyInventoryOverlay = new SpotifyInventoryOverlay(spotifyService);
     private final YoutubeService youtubeService = new YoutubeService(configManager);
     private final YoutubeMusicInventoryOverlay youtubeMusicInventoryOverlay = new YoutubeMusicInventoryOverlay(youtubeService);
+    private final TerminalDropService terminalDropService = new TerminalDropService();
     private final InventoryButtonService inventoryButtonService = new InventoryButtonService(configManager);
     private final InventoryButtonOverlay inventoryButtonOverlay = new InventoryButtonOverlay(configManager, inventoryButtonService);
     private final HypixelProfileService hypixelProfileService = new HypixelProfileService(configManager);
@@ -94,7 +96,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final HorizonProfileGateway horizonProfileGateway = new HorizonProfileGateway(horizonApiClient);
     private final PartyFinderOverlay partyFinderOverlay = new PartyFinderOverlay(hypixelProfileService);
     private final HypixelSidebarOverlay hypixelSidebarOverlay = new HypixelSidebarOverlay();
-    private KeyBinding openConfigKeyBinding;
+    private KeyMapping openConfigKeyBinding;
     private Screen pendingScreen;
 
     public static HorizonClient getInstance() {
@@ -114,15 +116,15 @@ public final class HorizonClient implements ClientModInitializer {
         hudRegistry.register(new PerformanceHudElement());
         hudRegistry.register(new SystemStatsHudElement());
         hudRegistry.register(new DungeonMapHudElement(dungeonMapService, dungeonStateService));
-        openConfigKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        openConfigKeyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.horizon.open_config",
-            InputUtil.Type.KEYSYM,
-            InputUtil.GLFW_KEY_H,
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_H,
             HORIZON_CATEGORY
         ));
 
-        HudRenderCallback.EVENT.register(this::renderHud);
-        WorldRenderEvents.AFTER_ENTITIES.register(context -> dungeonSolverOverlay.renderWorld(context));
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("horizon", "hud"), this::renderHud);
+        LevelRenderEvents.AFTER_SOLID_FEATURES.register(context -> dungeonSolverOverlay.renderWorld(context));
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
             String raw = message.getString();
@@ -145,19 +147,22 @@ public final class HorizonClient implements ClientModInitializer {
             return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon())
                     && !fishingAlertService.shouldHideMessage(raw, configManager.getConfig());
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> inventoryButtonService.onDisconnect());
-        ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, MinecraftClient.getInstance() == null ? null : MinecraftClient.getInstance().currentScreen));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            inventoryButtonService.onDisconnect();
+            terminalDropService.onDisconnect();
+        });
+        ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, Minecraft.getInstance() == null ? null : Minecraft.getInstance().screen));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-            dispatcher.register(ClientCommandManager.literal("horizon")
+            dispatcher.register(ClientCommands.literal("horizon")
                 .executes(context -> {
                     openConfigScreen(null);
                     return 1;
                 }))
         );
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-            dispatcher.register(ClientCommandManager.literal("hv")
+            dispatcher.register(ClientCommands.literal("hv")
                 .executes(context -> openProfileScreen(""))
-                .then(ClientCommandManager.argument("player", StringArgumentType.greedyString())
+                .then(ClientCommands.argument("player", StringArgumentType.greedyString())
                     .executes(context -> openProfileScreen(StringArgumentType.getString(context, "player")))))
         );
         registerScreenHooks();
@@ -188,7 +193,7 @@ public final class HorizonClient implements ClientModInitializer {
         return false;
     }
 
-    private void onClientTick(MinecraftClient client) {
+    private void onClientTick(Minecraft client) {
         if (pendingScreen != null) {
             Screen nextScreen = pendingScreen;
             pendingScreen = null;
@@ -204,15 +209,16 @@ public final class HorizonClient implements ClientModInitializer {
         pingService.tick(client);
         reviveTracker.tick();
         fishingAlertService.tick(client, configManager.getConfig());
+        terminalDropService.tick(client, configManager.getConfig());
         inventoryButtonService.tick(client);
-        while (openConfigKeyBinding != null && openConfigKeyBinding.wasPressed()) {
+        while (openConfigKeyBinding != null && openConfigKeyBinding.consumeClick()) {
             HorizonMod.LOGGER.info("Opening Horizon config through keybind");
-            openConfigScreen(client.currentScreen);
+            openConfigScreen(client.screen);
         }
     }
 
-    public void openConfigScreen(net.minecraft.client.gui.screen.Screen parent) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public void openConfigScreen(Screen parent) {
+        Minecraft client = Minecraft.getInstance();
         if (client == null) {
             return;
         }
@@ -283,6 +289,10 @@ public final class HorizonClient implements ClientModInitializer {
         return systemStatsService;
     }
 
+    public TerminalDropService getTerminalDropService() {
+        return terminalDropService;
+    }
+
     public InventoryButtonService getInventoryButtonService() {
         return inventoryButtonService;
     }
@@ -292,11 +302,11 @@ public final class HorizonClient implements ClientModInitializer {
     }
 
     private int openProfileScreen(String player) {
-        return openProfileScreen(player, MinecraftClient.getInstance() == null ? null : MinecraftClient.getInstance().currentScreen);
+        return openProfileScreen(player, Minecraft.getInstance() == null ? null : Minecraft.getInstance().screen);
     }
 
     private int openProfileScreen(String player, Screen parent) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) {
             return 0;
         }
@@ -311,26 +321,26 @@ public final class HorizonClient implements ClientModInitializer {
         if (!dungeonStateService.isInDungeon()) return;
         String plain = FORMATTING_STRIP.matcher(raw).replaceAll("").toLowerCase(java.util.Locale.ROOT);
         if (!plain.contains("i no longer wish to fight, but i know that will not stop you")) return;
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc == null || mc.inGameHud == null) return;
-        mc.inGameHud.setTitle(net.minecraft.text.Text.literal("Rag!").formatted(Formatting.GOLD));
-        mc.inGameHud.setTitleTicks(5, 40, 10);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.gui == null) return;
+        mc.gui.setTitle(net.minecraft.network.chat.Component.literal("Rag!").withStyle(ChatFormatting.GOLD));
+        mc.gui.setTimes(5, 40, 10);
     }
 
     private Screen normalizeCommandParent(Screen parent) {
         return parent instanceof ChatScreen ? null : parent;
     }
 
-    private void renderHud(DrawContext drawContext, net.minecraft.client.render.RenderTickCounter tickCounter) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.options.hudHidden || client.player == null) {
+    private void renderHud(GuiGraphicsExtractor drawContext, net.minecraft.client.DeltaTracker tickCounter) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.options.hideGui || client.player == null) {
             return;
         }
 
         int barScaled = PillarboxState.scaledBarWidth();
         if (barScaled > 0) {
-            drawContext.getMatrices().pushMatrix();
-            drawContext.getMatrices().translate(barScaled, 0.0f);
+            drawContext.pose().pushMatrix();
+            drawContext.pose().translate(barScaled, 0.0f);
         }
 
         for (HudElement element : hudRegistry.getElements()) {
@@ -345,18 +355,18 @@ public final class HorizonClient implements ClientModInitializer {
         }
 
         if (barScaled > 0) {
-            drawContext.getMatrices().popMatrix();
+            drawContext.pose().popMatrix();
         }
         renderPillarboxBars(drawContext, client);
     }
 
-    private void renderPillarboxBars(DrawContext drawContext, MinecraftClient client) {
+    private void renderPillarboxBars(GuiGraphicsExtractor drawContext, Minecraft client) {
         if (!configManager.getConfig().isPillarboxEnabled()) return;
-        int fbW = client.getWindow().getFramebufferWidth();
-        int fbH = client.getWindow().getFramebufferHeight();
+        int fbW = client.getWindow().getWidth();
+        int fbH = client.getWindow().getHeight();
         if ((long) fbW * 9 <= (long) fbH * 16) return;
-        int scaledW = client.getWindow().getScaledWidth();
-        int scaledH = client.getWindow().getScaledHeight();
+        int scaledW = client.getWindow().getGuiScaledWidth();
+        int scaledH = client.getWindow().getGuiScaledHeight();
         int targetFbW = fbH * 16 / 9;
         int barFbW = (fbW - targetFbW) / 2;
         int sf = Math.max(1, Math.round((float) fbH / scaledH));
@@ -367,11 +377,11 @@ public final class HorizonClient implements ClientModInitializer {
 
     private void registerScreenHooks() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            if (!(screen instanceof HandledScreen<?> handledScreen)) {
+            if (!(screen instanceof AbstractContainerScreen<?> handledScreen)) {
                 return;
             }
 
-            ScreenEvents.afterRender(screen).register((currentScreen, context, mouseX, mouseY, delta) ->
+            ScreenEvents.afterExtract(screen).register((currentScreen, context, mouseX, mouseY, delta) ->
             {
                 if ("YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())) {
                     youtubeMusicInventoryOverlay.render(handledScreen, context, mouseX, mouseY);

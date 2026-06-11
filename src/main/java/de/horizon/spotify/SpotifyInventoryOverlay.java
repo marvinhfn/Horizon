@@ -2,10 +2,10 @@ package de.horizon.spotify;
 
 import de.horizon.config.HorizonConfig;
 import de.horizon.hud.HudStyle;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,8 +47,8 @@ public final class SpotifyInventoryOverlay {
         this.spotifyService = spotifyService;
     }
 
-    public void render(HandledScreen<?> screen, DrawContext context, int mouseX, int mouseY) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor context, int mouseX, int mouseY) {
+        Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) {
             return;
         }
@@ -74,8 +74,8 @@ public final class SpotifyInventoryOverlay {
             int btnY = screen.height - 30;
             minimizeButton = new Rect(btnX, btnY, 22, 22);
             context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), SPOTIFY_CARD);
-            context.drawStrokedRectangle(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-            context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, SPOTIFY_TEXT);
+            context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
+            context.centeredText(client.font, Component.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, SPOTIFY_TEXT);
             buttons.clear();
             volumeSlider = new Rect(0, 0, 0, 0);
             deviceDropdown = new Rect(0, 0, 0, 0);
@@ -88,23 +88,23 @@ public final class SpotifyInventoryOverlay {
         }
         buttons.clear();
         context.fill(x, y, x + panelWidth, y + panelHeight, SPOTIFY_CARD);
-        context.drawStrokedRectangle(x, y, panelWidth, panelHeight, HudStyle.border());
+        context.outline(x, y, panelWidth, panelHeight, HudStyle.border());
         context.fill(x, y, x + panelWidth, y + HEADER_HEIGHT, SPOTIFY_CARD_ALT);
         context.fill(x + 16, y + 16, x + 108, y + 18, HudStyle.accent());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Spotify Control"), x + 16, y + 24, SPOTIFY_TEXT);
+        context.text(client.font, Component.literal("Spotify Control"), x + 16, y + 24, SPOTIFY_TEXT);
         minimizeButton = new Rect(x + panelWidth - 26, y + 10, 18, 18);
         context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), SPOTIFY_BUTTON);
-        context.drawStrokedRectangle(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-        context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, SPOTIFY_TEXT);
+        context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
+        context.centeredText(client.font, Component.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, SPOTIFY_TEXT);
 
         if (!state.connected()) {
-            context.drawTextWithShadow(client.textRenderer, Text.literal("Nicht verbunden"), x + 16, y + 54, HudStyle.accent());
+            context.text(client.font, Component.literal("Nicht verbunden"), x + 16, y + 54, HudStyle.accent());
             drawWrapped(context, state.statusMessage(), x + 16, y + 72, 268, SPOTIFY_MUTED);
             return;
         }
 
         context.fill(x + 16, y + TRACK_CARD_TOP, x + panelWidth - 16, y + TRACK_CARD_TOP + TRACK_CARD_HEIGHT, SPOTIFY_CARD_ALT);
-        context.drawStrokedRectangle(x + 16, y + TRACK_CARD_TOP, panelWidth - 32, TRACK_CARD_HEIGHT, HudStyle.border());
+        context.outline(x + 16, y + TRACK_CARD_TOP, panelWidth - 32, TRACK_CARD_HEIGHT, HudStyle.border());
         drawWrapped(context, state.trackName().isBlank() ? "Kein Track" : state.trackName(), x + 28, y + 60, 236, HudStyle.text());
         drawWrapped(context, state.artistName().isBlank() ? state.statusMessage() : state.artistName(), x + 28, y + 76, 236, SPOTIFY_MUTED);
 
@@ -112,7 +112,7 @@ public final class SpotifyInventoryOverlay {
         addButton(x + 16, buttonY, 34, 20, "<<", spotifyService::skipPrevious);
         addButton(x + 56, buttonY, 62, 20, state.playing() ? "Pause" : "Play", spotifyService::playPause);
         addButton(x + 124, buttonY, 34, 20, ">>", spotifyService::skipNext);
-        context.drawTextWithShadow(client.textRenderer, Text.literal(state.deviceName().isBlank() ? "Kein Geraet" : trim(client, state.deviceName(), 118)), x + 174, buttonY + 6, SPOTIFY_MUTED);
+        context.text(client.font, Component.literal(state.deviceName().isBlank() ? "Kein Geraet" : trim(client, state.deviceName(), 118)), x + 174, buttonY + 6, SPOTIFY_MUTED);
 
         int sliderX = x + 16;
         int sliderY = y + VOLUME_SLIDER_TOP;
@@ -122,54 +122,54 @@ public final class SpotifyInventoryOverlay {
         int knobX = volumeSlider.x + Math.round((volumeSlider.width * displayVolume) / 100.0F);
         context.fill(volumeSlider.x, volumeSlider.y, knobX, volumeSlider.bottom(), HudStyle.accent());
         context.fill(knobX - 4, volumeSlider.y - 4, knobX + 4, volumeSlider.y + 9, state.supportsVolume() ? SPOTIFY_TEXT : SPOTIFY_MUTED);
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, SPOTIFY_MUTED);
-        context.drawTextWithShadow(client.textRenderer, Text.literal(state.supportsVolume() ? displayVolume + "%" : "n/a"), x + 246, y + 136, SPOTIFY_MUTED);
+        context.text(client.font, Component.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, SPOTIFY_MUTED);
+        context.text(client.font, Component.literal(state.supportsVolume() ? displayVolume + "%" : "n/a"), x + 246, y + 136, SPOTIFY_MUTED);
 
         deviceDropdown = new Rect(x + 16, y + DEVICE_DROPDOWN_TOP, panelWidth - 32, DROPDOWN_HEADER_HEIGHT);
         context.fill(deviceDropdown.x, deviceDropdown.y, deviceDropdown.right(), deviceDropdown.bottom(), SPOTIFY_BUTTON);
-        context.drawStrokedRectangle(deviceDropdown.x, deviceDropdown.y, deviceDropdown.width, deviceDropdown.height, devicesOpen ? HudStyle.accent() : HudStyle.border());
-        context.drawTextWithShadow(client.textRenderer, Text.literal(trim(client, "Geraet: " + (state.deviceName().isBlank() ? "keins" : state.deviceName()), deviceDropdown.width - 24)), deviceDropdown.x + 10, deviceDropdown.y + 7, SPOTIFY_TEXT);
-        context.drawTextWithShadow(client.textRenderer, Text.literal(devicesOpen ? "^" : "v"), deviceDropdown.right() - 16, deviceDropdown.y + 7, SPOTIFY_MUTED);
+        context.outline(deviceDropdown.x, deviceDropdown.y, deviceDropdown.width, deviceDropdown.height, devicesOpen ? HudStyle.accent() : HudStyle.border());
+        context.text(client.font, Component.literal(trim(client, "Geraet: " + (state.deviceName().isBlank() ? "keins" : state.deviceName()), deviceDropdown.width - 24)), deviceDropdown.x + 10, deviceDropdown.y + 7, SPOTIFY_TEXT);
+        context.text(client.font, Component.literal(devicesOpen ? "^" : "v"), deviceDropdown.right() - 16, deviceDropdown.y + 7, SPOTIFY_MUTED);
         if (devicesOpen) {
             spotifyService.requestDevicesRefresh(false);
             List<SpotifyDevice> devices = spotifyService.getDevices();
             if (devices.isEmpty()) {
-                context.drawTextWithShadow(client.textRenderer, Text.literal("Keine Geraete gefunden"), x + 26, y + 190, SPOTIFY_MUTED);
+                context.text(client.font, Component.literal("Keine Geraete gefunden"), x + 26, y + 190, SPOTIFY_MUTED);
             }
             for (int index = 0; index < Math.min(visibleDeviceRows, devices.size()); index++) {
                 SpotifyDevice device = devices.get(index);
                 Rect row = deviceRowRect(x, y, panelWidth, index);
                 context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? SPOTIFY_BUTTON_HOVER : SPOTIFY_BUTTON);
                 String prefix = device.active() ? "* " : "";
-                context.drawTextWithShadow(client.textRenderer, Text.literal(trim(client, prefix + device.name(), row.width - 20)), row.x + 10, row.y + 6, device.restricted() ? SPOTIFY_MUTED : SPOTIFY_TEXT);
+                context.text(client.font, Component.literal(trim(client, prefix + device.name(), row.width - 20)), row.x + 10, row.y + 6, device.restricted() ? SPOTIFY_MUTED : SPOTIFY_TEXT);
             }
         }
 
         int playlistY = y + playlistHeaderY;
         playlistDropdown = new Rect(x + 16, playlistY, panelWidth - 32, DROPDOWN_HEADER_HEIGHT);
         context.fill(playlistDropdown.x, playlistDropdown.y, playlistDropdown.right(), playlistDropdown.bottom(), SPOTIFY_BUTTON);
-        context.drawStrokedRectangle(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? HudStyle.accent() : HudStyle.border());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Spotify Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, SPOTIFY_TEXT);
-        context.drawTextWithShadow(client.textRenderer, Text.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, SPOTIFY_MUTED);
+        context.outline(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? HudStyle.accent() : HudStyle.border());
+        context.text(client.font, Component.literal("Spotify Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, SPOTIFY_TEXT);
+        context.text(client.font, Component.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, SPOTIFY_MUTED);
 
         if (playlistsOpen) {
             spotifyService.requestRecentPlaylistsRefresh(false);
             List<SpotifyPlaylist> playlists = spotifyService.getRecentPlaylists();
             if (playlists.isEmpty()) {
-                context.drawTextWithShadow(client.textRenderer, Text.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, SPOTIFY_MUTED);
+                context.text(client.font, Component.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, SPOTIFY_MUTED);
             }
             for (int index = 0; index < Math.min(visiblePlaylistRows, playlists.size()); index++) {
                 SpotifyPlaylist playlist = playlists.get(index);
                 Rect row = playlistRowRect(x, playlistDropdown.bottom() + 6, panelWidth, index);
                 context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? SPOTIFY_BUTTON_HOVER : SPOTIFY_BUTTON);
-                context.drawTextWithShadow(client.textRenderer, Text.literal(trim(client, playlist.name(), row.width - 20)), row.x + 10, row.y + 6, SPOTIFY_TEXT);
+                context.text(client.font, Component.literal(trim(client, playlist.name(), row.width - 20)), row.x + 10, row.y + 6, SPOTIFY_TEXT);
             }
         }
 
         for (Button button : buttons) {
             context.fill(button.x, button.y, button.x + button.width, button.y + button.height, SPOTIFY_BUTTON);
-            context.drawStrokedRectangle(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? HudStyle.accent() : HudStyle.border());
-            context.drawCenteredTextWithShadow(client.textRenderer, Text.literal(button.label), button.x + (button.width / 2), button.y + 4, SPOTIFY_TEXT);
+            context.outline(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? HudStyle.accent() : HudStyle.border());
+            context.centeredText(client.font, Component.literal(button.label), button.x + (button.width / 2), button.y + 4, SPOTIFY_TEXT);
         }
     }
 
@@ -213,15 +213,15 @@ public final class SpotifyInventoryOverlay {
             return true;
         }
         if (devicesOpen) {
-            MinecraftClient client = MinecraftClient.getInstance();
+            Minecraft client = Minecraft.getInstance();
             if (client != null) {
                 int panelWidth = PANEL_WIDTH;
-                int visibleDeviceRows = visibleDeviceRows(client.getWindow().getScaledHeight());
+                int visibleDeviceRows = visibleDeviceRows(client.getWindow().getGuiScaledHeight());
                 int playlistHeaderY = playlistDropdownY(visibleDeviceRows);
-                int visiblePlaylistRows = visiblePlaylistRows(client.getWindow().getScaledHeight(), playlistHeaderY);
+                int visiblePlaylistRows = visiblePlaylistRows(client.getWindow().getGuiScaledHeight(), playlistHeaderY);
                 int expandedHeight = panelHeight(visibleDeviceRows, visiblePlaylistRows);
-                int x = panelX(client.getWindow().getScaledWidth(), panelWidth);
-                int y = panelY(client.getWindow().getScaledHeight(), expandedHeight);
+                int x = panelX(client.getWindow().getGuiScaledWidth(), panelWidth);
+                int y = panelY(client.getWindow().getGuiScaledHeight(), expandedHeight);
                 List<SpotifyDevice> devices = spotifyService.getDevices();
                 for (int index = 0; index < Math.min(visibleDeviceRows, devices.size()); index++) {
                     if (deviceRowRect(x, y, panelWidth, index).contains(mouseX, mouseY)) {
@@ -235,15 +235,15 @@ public final class SpotifyInventoryOverlay {
             }
         }
         if (playlistsOpen) {
-            MinecraftClient client = MinecraftClient.getInstance();
+            Minecraft client = Minecraft.getInstance();
             if (client != null) {
                 int panelWidth = PANEL_WIDTH;
-                int visibleDeviceRows = visibleDeviceRows(client.getWindow().getScaledHeight());
+                int visibleDeviceRows = visibleDeviceRows(client.getWindow().getGuiScaledHeight());
                 int playlistHeaderY = playlistDropdownY(visibleDeviceRows);
-                int visiblePlaylistRows = visiblePlaylistRows(client.getWindow().getScaledHeight(), playlistHeaderY);
+                int visiblePlaylistRows = visiblePlaylistRows(client.getWindow().getGuiScaledHeight(), playlistHeaderY);
                 int expandedHeight = panelHeight(visibleDeviceRows, visiblePlaylistRows);
-                int x = panelX(client.getWindow().getScaledWidth(), panelWidth);
-                int y = panelY(client.getWindow().getScaledHeight(), expandedHeight);
+                int x = panelX(client.getWindow().getGuiScaledWidth(), panelWidth);
+                int y = panelY(client.getWindow().getGuiScaledHeight(), expandedHeight);
                 int playlistBaseY = y + playlistHeaderY + DROPDOWN_HEADER_HEIGHT + 6;
                 List<SpotifyPlaylist> playlists = spotifyService.getRecentPlaylists();
                 for (int index = 0; index < Math.min(visiblePlaylistRows, playlists.size()); index++) {
@@ -367,37 +367,37 @@ public final class SpotifyInventoryOverlay {
         return Math.max(BASE_EXPANDED_HEIGHT, BASE_CONTENT_BOTTOM + deviceRowsHeight + playlistRowsHeight + 10);
     }
 
-    private String trim(MinecraftClient client, String text, int maxWidth) {
-        if (client.textRenderer.getWidth(text) <= maxWidth) {
+    private String trim(Minecraft client, String text, int maxWidth) {
+        if (client.font.width(text) <= maxWidth) {
             return text;
         }
         String result = text;
-        while (!result.isEmpty() && client.textRenderer.getWidth(result + "...") > maxWidth) {
+        while (!result.isEmpty() && client.font.width(result + "...") > maxWidth) {
             result = result.substring(0, result.length() - 1);
         }
         return result + "...";
     }
 
-    private void drawWrapped(DrawContext context, String text, int x, int y, int maxWidth, int color) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private void drawWrapped(GuiGraphicsExtractor context, String text, int x, int y, int maxWidth, int color) {
+        Minecraft client = Minecraft.getInstance();
         if (client == null) {
             return;
         }
 
         int lineY = y;
         for (String line : wrap(client, text, maxWidth)) {
-            context.drawTextWithShadow(client.textRenderer, Text.literal(line), x, lineY, color);
+            context.text(client.font, Component.literal(line), x, lineY, color);
             lineY += 12;
         }
     }
 
-    private List<String> wrap(MinecraftClient client, String text, int maxWidth) {
+    private List<String> wrap(Minecraft client, String text, int maxWidth) {
         List<String> lines = new ArrayList<>();
         String[] words = text.split(" ");
         StringBuilder current = new StringBuilder();
         for (String word : words) {
             String candidate = current.isEmpty() ? word : current + " " + word;
-            if (client.textRenderer.getWidth(candidate) > maxWidth && !current.isEmpty()) {
+            if (client.font.width(candidate) > maxWidth && !current.isEmpty()) {
                 lines.add(current.toString());
                 current = new StringBuilder(word);
             } else {

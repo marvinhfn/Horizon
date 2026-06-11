@@ -2,10 +2,10 @@ package de.horizon.youtube;
 
 import de.horizon.HorizonMod;
 import de.horizon.hud.HudStyle;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 import java.awt.Robot;
@@ -59,8 +59,8 @@ public final class YoutubeMusicInventoryOverlay {
         this.youtubeService = youtubeService;
     }
 
-    public void render(HandledScreen<?> screen, DrawContext context, int mouseX, int mouseY) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor context, int mouseX, int mouseY) {
+        Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) {
             return;
         }
@@ -75,8 +75,8 @@ public final class YoutubeMusicInventoryOverlay {
             int btnY = screen.height - 30;
             minimizeButton = new Rect(btnX, btnY, 22, 22);
             context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), CARD);
-            context.drawStrokedRectangle(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-            context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, TEXT_COLOR);
+            context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
+            context.centeredText(client.font, Component.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, TEXT_COLOR);
             buttons.clear();
             volumeSlider = new Rect(0, 0, 0, 0);
             playlistDropdown = new Rect(0, 0, 0, 0);
@@ -85,26 +85,26 @@ public final class YoutubeMusicInventoryOverlay {
 
         buttons.clear();
         context.fill(x, y, x + PANEL_WIDTH, y + panelHeight, CARD);
-        context.drawStrokedRectangle(x, y, PANEL_WIDTH, panelHeight, HudStyle.border());
+        context.outline(x, y, PANEL_WIDTH, panelHeight, HudStyle.border());
         context.fill(x, y, x + PANEL_WIDTH, y + HEADER_HEIGHT, CARD_ALT);
         context.fill(x + 16, y + 16, x + 172, y + 18, HudStyle.accent());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("YouTube Music Control"), x + 16, y + 24, TEXT_COLOR);
+        context.text(client.font, Component.literal("YouTube Music Control"), x + 16, y + 24, TEXT_COLOR);
         minimizeButton = new Rect(x + PANEL_WIDTH - 26, y + 10, 18, 18);
         context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), BUTTON);
-        context.drawStrokedRectangle(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-        context.drawCenteredTextWithShadow(client.textRenderer, Text.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, TEXT_COLOR);
+        context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
+        context.centeredText(client.font, Component.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, TEXT_COLOR);
 
         if (!youtubeService.auth().isLoggedIn()) {
-            context.drawTextWithShadow(client.textRenderer, Text.literal("Nicht verbunden"), x + 16, y + 54, HudStyle.accent());
+            context.text(client.font, Component.literal("Nicht verbunden"), x + 16, y + 54, HudStyle.accent());
             drawWrapped(context, youtubeService.auth().getStatusMessage(), x + 16, y + 72, 268, MUTED);
             return;
         }
 
         // Track card — no API for current track; show service label
         context.fill(x + 16, y + TRACK_CARD_TOP, x + PANEL_WIDTH - 16, y + TRACK_CARD_TOP + TRACK_CARD_HEIGHT, CARD_ALT);
-        context.drawStrokedRectangle(x + 16, y + TRACK_CARD_TOP, PANEL_WIDTH - 32, TRACK_CARD_HEIGHT, HudStyle.border());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("YouTube Music"), x + 28, y + 60, HudStyle.text());
-        context.drawTextWithShadow(client.textRenderer, Text.literal(youtubeService.auth().getStatusMessage()), x + 28, y + 76, MUTED);
+        context.outline(x + 16, y + TRACK_CARD_TOP, PANEL_WIDTH - 32, TRACK_CARD_HEIGHT, HudStyle.border());
+        context.text(client.font, Component.literal("YouTube Music"), x + 28, y + 60, HudStyle.text());
+        context.text(client.font, Component.literal(youtubeService.auth().getStatusMessage()), x + 28, y + 76, MUTED);
 
         // Playback controls (media keys)
         int btnY = y + CONTROLS_TOP;
@@ -120,35 +120,35 @@ public final class YoutubeMusicInventoryOverlay {
         int knobX = volumeSlider.x + Math.round((volumeSlider.width * localVolume) / 100.0F);
         context.fill(volumeSlider.x, volumeSlider.y, knobX, volumeSlider.bottom(), HudStyle.accent());
         context.fill(knobX - 4, volumeSlider.y - 4, knobX + 4, volumeSlider.y + 9, TEXT_COLOR);
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, MUTED);
-        context.drawTextWithShadow(client.textRenderer, Text.literal(localVolume + "%"), x + 246, y + 136, MUTED);
+        context.text(client.font, Component.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, MUTED);
+        context.text(client.font, Component.literal(localVolume + "%"), x + 246, y + 136, MUTED);
 
         // Playlist dropdown (at same position as Spotify's device dropdown)
         int playlistY = y + PLAYLIST_DROPDOWN_TOP;
         playlistDropdown = new Rect(x + 16, playlistY, PANEL_WIDTH - 32, DROPDOWN_HEADER_HEIGHT);
         context.fill(playlistDropdown.x, playlistDropdown.y, playlistDropdown.right(), playlistDropdown.bottom(), BUTTON);
-        context.drawStrokedRectangle(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? HudStyle.accent() : HudStyle.border());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("YouTube Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, TEXT_COLOR);
-        context.drawTextWithShadow(client.textRenderer, Text.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, MUTED);
+        context.outline(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? HudStyle.accent() : HudStyle.border());
+        context.text(client.font, Component.literal("YouTube Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, TEXT_COLOR);
+        context.text(client.font, Component.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, MUTED);
 
         if (playlistsOpen) {
             youtubeService.requestPlaylistsRefresh(false);
             List<YoutubePlaylist> playlists = youtubeService.getPlaylists();
             if (playlists.isEmpty()) {
-                context.drawTextWithShadow(client.textRenderer, Text.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, MUTED);
+                context.text(client.font, Component.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, MUTED);
             }
             for (int i = 0; i < Math.min(visiblePlaylistRows, playlists.size()); i++) {
                 YoutubePlaylist playlist = playlists.get(i);
                 Rect row = playlistRowRect(x, playlistDropdown.bottom() + 6, i);
                 context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? BUTTON_HOVER : BUTTON);
-                context.drawTextWithShadow(client.textRenderer, Text.literal(trim(client, playlist.title(), row.width - 20)), row.x + 10, row.y + 6, TEXT_COLOR);
+                context.text(client.font, Component.literal(trim(client, playlist.title(), row.width - 20)), row.x + 10, row.y + 6, TEXT_COLOR);
             }
         }
 
         for (Button button : buttons) {
             context.fill(button.x, button.y, button.x + button.width, button.y + button.height, BUTTON);
-            context.drawStrokedRectangle(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? HudStyle.accent() : HudStyle.border());
-            context.drawCenteredTextWithShadow(client.textRenderer, Text.literal(button.label), button.x + (button.width / 2), button.y + 4, TEXT_COLOR);
+            context.outline(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? HudStyle.accent() : HudStyle.border());
+            context.centeredText(client.font, Component.literal(button.label), button.x + (button.width / 2), button.y + 4, TEXT_COLOR);
         }
     }
 
@@ -181,17 +181,17 @@ public final class YoutubeMusicInventoryOverlay {
             return true;
         }
         if (playlistsOpen) {
-            MinecraftClient client = MinecraftClient.getInstance();
+            Minecraft client = Minecraft.getInstance();
             if (client != null) {
-                int visiblePlaylistRows = visiblePlaylistRows(client.getWindow().getScaledHeight());
+                int visiblePlaylistRows = visiblePlaylistRows(client.getWindow().getGuiScaledHeight());
                 int panelHeight = panelHeight(visiblePlaylistRows);
-                int x = panelX(client.getWindow().getScaledWidth());
-                int y = panelY(client.getWindow().getScaledHeight(), panelHeight);
+                int x = panelX(client.getWindow().getGuiScaledWidth());
+                int y = panelY(client.getWindow().getGuiScaledHeight(), panelHeight);
                 int playlistBaseY = y + PLAYLIST_DROPDOWN_TOP + DROPDOWN_HEADER_HEIGHT + 6;
                 List<YoutubePlaylist> playlists = youtubeService.getPlaylists();
                 for (int i = 0; i < Math.min(visiblePlaylistRows, playlists.size()); i++) {
                     if (playlistRowRect(x, playlistBaseY, i).contains(mouseX, mouseY)) {
-                        Util.getOperatingSystem().open(URI.create(playlists.get(i).musicUrl()));
+                        Util.getPlatform().openUri(URI.create(playlists.get(i).musicUrl()));
                         playlistsOpen = false;
                         return true;
                     }
@@ -321,36 +321,36 @@ public final class YoutubeMusicInventoryOverlay {
         return Math.max(BASE_EXPANDED_HEIGHT, BASE_CONTENT_BOTTOM + playlistRowsHeight + 10);
     }
 
-    private String trim(MinecraftClient client, String text, int maxWidth) {
-        if (client.textRenderer.getWidth(text) <= maxWidth) {
+    private String trim(Minecraft client, String text, int maxWidth) {
+        if (client.font.width(text) <= maxWidth) {
             return text;
         }
         String result = text;
-        while (!result.isEmpty() && client.textRenderer.getWidth(result + "...") > maxWidth) {
+        while (!result.isEmpty() && client.font.width(result + "...") > maxWidth) {
             result = result.substring(0, result.length() - 1);
         }
         return result + "...";
     }
 
-    private void drawWrapped(DrawContext context, String text, int x, int y, int maxWidth, int color) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private void drawWrapped(GuiGraphicsExtractor context, String text, int x, int y, int maxWidth, int color) {
+        Minecraft client = Minecraft.getInstance();
         if (client == null) {
             return;
         }
         int lineY = y;
         for (String line : wrap(client, text, maxWidth)) {
-            context.drawTextWithShadow(client.textRenderer, Text.literal(line), x, lineY, color);
+            context.text(client.font, Component.literal(line), x, lineY, color);
             lineY += 12;
         }
     }
 
-    private List<String> wrap(MinecraftClient client, String text, int maxWidth) {
+    private List<String> wrap(Minecraft client, String text, int maxWidth) {
         List<String> lines = new ArrayList<>();
         String[] words = text.split(" ");
         StringBuilder current = new StringBuilder();
         for (String word : words) {
             String candidate = current.isEmpty() ? word : current + " " + word;
-            if (client.textRenderer.getWidth(candidate) > maxWidth && !current.isEmpty()) {
+            if (client.font.width(candidate) > maxWidth && !current.isEmpty()) {
                 lines.add(current.toString());
                 current = new StringBuilder(word);
             } else {

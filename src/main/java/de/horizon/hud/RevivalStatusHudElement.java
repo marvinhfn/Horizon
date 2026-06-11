@@ -6,10 +6,10 @@ import de.horizon.config.HudPosition;
 import de.horizon.feature.dungeon.DungeonStateService;
 import de.horizon.feature.revive.ReviveSource;
 import de.horizon.feature.revive.ReviveTracker;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import org.joml.Matrix3x2fStack;
 
 import java.util.ArrayList;
@@ -71,17 +71,17 @@ public final class RevivalStatusHudElement implements HudElement {
     }
 
     @Override
-    public int width(MinecraftClient client, HudPosition position) {
+    public int width(Minecraft client, HudPosition position) {
         return Math.max(1, (int) Math.ceil(baseWidth(client, configManager.getConfig()) * position.getScale()));
     }
 
     @Override
-    public int height(MinecraftClient client, HudPosition position) {
+    public int height(Minecraft client, HudPosition position) {
         return Math.max(1, (int) Math.ceil(baseHeight(configManager.getConfig()) * position.getScale()));
     }
 
     @Override
-    public void render(DrawContext drawContext, MinecraftClient client, HudPosition position, boolean editorMode) {
+    public void render(GuiGraphicsExtractor drawContext, Minecraft client, HudPosition position, boolean editorMode) {
         HorizonConfig config = configManager.getConfig();
         List<ReviveSource> sources = activeSources(config);
         if (sources.isEmpty()) {
@@ -90,8 +90,8 @@ public final class RevivalStatusHudElement implements HudElement {
 
         int width = baseWidth(client, config);
         float scale = (float) position.getScale();
-        Matrix3x2fStack matrices = drawContext.getMatrices();
-        TextRenderer renderer = client.textRenderer;
+        Matrix3x2fStack matrices = drawContext.pose();
+        Font renderer = client.font;
 
         matrices.pushMatrix();
         matrices.translate(position.getX(), position.getY());
@@ -123,19 +123,19 @@ public final class RevivalStatusHudElement implements HudElement {
             }
 
             boolean ready = (!editorMode && tracker.isReady(source)) || (editorMode && !valueText.contains(":"));
-            int badgeWidth = ready ? 24 : Math.max(40, renderer.getWidth(valueText) + 14);
+            int badgeWidth = ready ? 24 : Math.max(40, renderer.width(valueText) + 14);
             int badgeX = 24;
             int badgeY = lineY + ((ROW_HEIGHT - BADGE_HEIGHT) / 2);
             if (!ready) {
                 drawContext.fill(badgeX, badgeY, badgeX + badgeWidth, badgeY + BADGE_HEIGHT, badgeColor);
             }
             if (ready) {
-                drawContext.drawTextWithShadow(renderer, Text.literal(valueText), badgeX + 3, badgeY - 1, textColor);
-                drawContext.drawTextWithShadow(renderer, Text.literal(valueText), badgeX + 4, badgeY - 1, textColor);
-                drawContext.drawTextWithShadow(renderer, Text.literal(valueText), badgeX + 3, badgeY, textColor);
-                drawContext.drawTextWithShadow(renderer, Text.literal(valueText), badgeX + 4, badgeY, textColor);
+                drawContext.text(renderer, Component.literal(valueText), badgeX + 3, badgeY - 1, textColor);
+                drawContext.text(renderer, Component.literal(valueText), badgeX + 4, badgeY - 1, textColor);
+                drawContext.text(renderer, Component.literal(valueText), badgeX + 3, badgeY, textColor);
+                drawContext.text(renderer, Component.literal(valueText), badgeX + 4, badgeY, textColor);
             } else {
-                drawContext.drawCenteredTextWithShadow(renderer, valueText, badgeX + (badgeWidth / 2), badgeY + 2, textColor);
+                drawContext.centeredText(renderer, valueText, badgeX + (badgeWidth / 2), badgeY + 2, textColor);
             }
             lineY += ROW_HEIGHT + ROW_GAP;
         }
@@ -143,11 +143,11 @@ public final class RevivalStatusHudElement implements HudElement {
         matrices.popMatrix();
     }
 
-    private int baseWidth(MinecraftClient client, HorizonConfig config) {
-        TextRenderer renderer = client.textRenderer;
+    private int baseWidth(Minecraft client, HorizonConfig config) {
+        Font renderer = client.font;
         int max = 0;
         for (ReviveSource source : activeSources(config)) {
-            int badgeWidth = Math.max(40, renderer.getWidth("00:00") + 14);
+            int badgeWidth = Math.max(40, renderer.width("00:00") + 14);
             max = Math.max(max, 16 + 8 + badgeWidth);
         }
         return max;

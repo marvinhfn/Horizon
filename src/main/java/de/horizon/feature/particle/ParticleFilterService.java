@@ -2,9 +2,9 @@ package de.horizon.feature.particle;
 
 import de.horizon.config.ConfigManager;
 import de.horizon.config.HorizonConfig;
-import net.minecraft.particle.ParticleEffect;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -18,8 +18,8 @@ public final class ParticleFilterService {
         this.configManager = configManager;
     }
 
-    public boolean isAllowed(ParticleEffect effect) {
-        Identifier id = Registries.PARTICLE_TYPE.getId(effect.getType());
+    public boolean isAllowed(ParticleOptions effect) {
+        Identifier id = BuiltInRegistries.PARTICLE_TYPE.getKey(effect.getType());
         if (id == null) {
             return true;
         }
@@ -28,7 +28,7 @@ public final class ParticleFilterService {
 
     public List<String> particleIds() {
         List<String> ids = new ArrayList<>();
-        for (Identifier id : Registries.PARTICLE_TYPE.getIds()) {
+        for (Identifier id : BuiltInRegistries.PARTICLE_TYPE.keySet()) {
             ids.add(id.toString());
         }
         ids.sort(Comparator.naturalOrder());

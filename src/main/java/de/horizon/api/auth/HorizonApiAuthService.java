@@ -5,7 +5,7 @@ import com.google.gson.JsonParser;
 import de.horizon.HorizonMod;
 import de.horizon.config.ConfigManager;
 import de.horizon.config.HorizonConfig;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -116,13 +116,13 @@ public final class HorizonApiAuthService {
     }
 
     private JsonObject buildTokenRequestPayload() throws IOException {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.getSession() == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.getUser() == null) {
             throw new IOException("Minecraft session unavailable");
         }
         JsonObject payload = new JsonObject();
-        payload.addProperty("minecraftUuid", client.getSession().getUuidOrNull() == null ? "" : client.getSession().getUuidOrNull().toString());
-        payload.addProperty("minecraftUsername", client.getSession().getUsername());
+        payload.addProperty("minecraftUuid", client.getUser().getProfileId() == null ? "" : client.getUser().getProfileId().toString());
+        payload.addProperty("minecraftUsername", client.getUser().getName());
         payload.addProperty("audience", configManager.getConfig().getHorizonBackendAudience());
         payload.addProperty("clientVersion", HorizonMod.VERSION);
         payload.addProperty("minecraftVersion", FabricLoader.getInstance()
@@ -132,7 +132,7 @@ public final class HorizonApiAuthService {
 
         // TODO: replace with signed profile-key challenge once the backend endpoint exists.
         payload.addProperty("proofType", "session-placeholder");
-        payload.addProperty("proofValue", client.getSession().getUsername() + ":" + payload.get("minecraftUuid").getAsString());
+        payload.addProperty("proofValue", client.getUser().getName() + ":" + payload.get("minecraftUuid").getAsString());
         return payload;
     }
 

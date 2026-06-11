@@ -2,9 +2,9 @@ package de.horizon.mixin;
 
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.util.math.Rect2i;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.renderer.Rect2i;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,14 +15,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * and accounts for the Hypixel sidebar raising the chat input.
  * Uses targets = "..." to avoid compile-time access to the private inner class.
  */
-@Mixin(targets = "net.minecraft.client.gui.screen.ChatInputSuggestor$SuggestionWindow")
+@Mixin(targets = "net.minecraft.client.gui.components.CommandSuggestions$SuggestionsList")
 public abstract class SuggestionWindowMixin {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void horizon$liftOnCreate(CallbackInfo ci) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         // Only adjust for the ChatScreen — command blocks use a fixed y=72 and need no lift.
-        if (client == null || !(client.currentScreen instanceof ChatScreen)) {
+        if (client == null || !(client.screen instanceof ChatScreen)) {
             return;
         }
         // TAB_BAR_LIFT: clear the chat-filter tab buttons above the input.

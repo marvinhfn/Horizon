@@ -1,9 +1,9 @@
 package de.horizon.feature.chat;
 
 import de.horizon.config.HorizonConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +21,7 @@ public final class ChatTabManager {
     private boolean repopulating = false;
     private final List<StoredMessage> history = new ArrayList<>();
 
-    public record StoredMessage(Text text, ChatTab category) {}
+    public record StoredMessage(Component text, ChatTab category) {}
 
     public ChatTab getActiveTab() {
         return activeTab;
@@ -49,10 +49,10 @@ public final class ChatTabManager {
     }
 
     /**
-     * Called from ChatHudMixin when a new message arrives.
+     * Called from ChatComponentMixin when a new message arrives.
      * Classifies and stores the message, then returns whether it should be shown.
      */
-    public boolean onMessageAdded(Text message, HorizonConfig config) {
+    public boolean onMessageAdded(Component message, HorizonConfig config) {
         String raw = plain(message.getString());
         ChatTab category = classify(raw);
 
@@ -65,16 +65,16 @@ public final class ChatTabManager {
     }
 
     private void repopulate(HorizonConfig config) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc == null || mc.inGameHud == null) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.gui == null) {
             return;
         }
-        ChatHud chatHud = mc.inGameHud.getChatHud();
+        ChatComponent chatHud = mc.gui.getChat();
         repopulating = true;
-        chatHud.clear(false);
+        chatHud.clearMessages(false);
         for (StoredMessage msg : history) {
             if (shouldShow(plain(msg.text().getString()), msg.category(), config)) {
-                chatHud.addMessage(msg.text());
+                chatHud.addClientSystemMessage(msg.text());
             }
         }
         repopulating = false;

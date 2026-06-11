@@ -3,10 +3,10 @@ package de.horizon.feature.dungeon;
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.dungeon.room.DetectedDungeonRoom;
 import de.horizon.feature.dungeon.room.DungeonRoomDetector;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -17,8 +17,8 @@ public final class DungeonAlertService {
 
     private final Set<String> alertedRooms = new HashSet<>();
 
-    public void tick(MinecraftClient client, HorizonConfig config, DungeonStateService dungeonState, DungeonRoomDetector roomDetector) {
-        if (client == null || client.player == null || client.world == null || config == null || dungeonState == null || roomDetector == null) {
+    public void tick(Minecraft client, HorizonConfig config, DungeonStateService dungeonState, DungeonRoomDetector roomDetector) {
+        if (client == null || client.player == null || client.level == null || config == null || dungeonState == null || roomDetector == null) {
             alertedRooms.clear();
             return;
         }
@@ -40,9 +40,9 @@ public final class DungeonAlertService {
             return;
         }
 
-        Text alert = Text.literal("Rare Room entdeckt: " + room.name()).formatted(Formatting.LIGHT_PURPLE);
-        client.inGameHud.setOverlayMessage(alert, false);
-        client.player.sendMessage(alert, false);
+        Component alert = Component.literal("Rare Room entdeckt: " + room.name()).withStyle(ChatFormatting.LIGHT_PURPLE);
+        client.gui.setOverlayMessage(alert, false);
+        client.player.sendSystemMessage(alert);
         client.player.playSound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.85F, 1.15F);
     }
 

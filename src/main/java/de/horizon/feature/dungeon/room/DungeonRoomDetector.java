@@ -5,13 +5,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import de.horizon.feature.dungeon.DungeonStateService;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,7 +49,7 @@ public final class DungeonRoomDetector {
     private int recentWeirdosHintTicks;
     private RoomCenter lastRoomCenter;
 
-    public void tick(MinecraftClient client, DungeonStateService dungeonState) {
+    public void tick(Minecraft client, DungeonStateService dungeonState) {
         ticks++;
         if (recentQuizHintTicks > 0) {
             recentQuizHintTicks--;
@@ -57,7 +57,7 @@ public final class DungeonRoomDetector {
         if (recentWeirdosHintTicks > 0) {
             recentWeirdosHintTicks--;
         }
-        if (client == null || client.world == null || client.player == null || dungeonState == null || !dungeonState.isInDungeon() || dungeonState.isInBoss()) {
+        if (client == null || client.level == null || client.player == null || dungeonState == null || !dungeonState.isInDungeon() || dungeonState.isInBoss()) {
             currentRoom = Optional.empty();
             lastRoomCenter = null;
             return;
@@ -109,7 +109,7 @@ public final class DungeonRoomDetector {
             case SOUTH -> relative;
             default -> relative;
         };
-        return rotated.add(room.origin().getX(), 0, room.origin().getZ());
+        return rotated.offset(room.origin().getX(), 0, room.origin().getZ());
     }
 
     public BlockPos worldToRelative(BlockPos world) {
@@ -127,10 +127,10 @@ public final class DungeonRoomDetector {
         };
     }
 
-    private Optional<DetectedDungeonRoom> scan(MinecraftClient client) {
-        RoomCenter roomCenter = roomCenter(client.player.getBlockPos().getX(), client.player.getBlockPos().getZ());
+    private Optional<DetectedDungeonRoom> scan(Minecraft client) {
+        RoomCenter roomCenter = roomCenter(client.player.blockPosition().getX(), client.player.blockPosition().getZ());
         lastRoomCenter = roomCenter;
-        WorldChunk chunk = client.world.getChunk(roomCenter.x() >> 4, roomCenter.z() >> 4);
+        LevelChunk chunk = client.level.getChunk(roomCenter.x() >> 4, roomCenter.z() >> 4);
         int roomHeight = topLayerOfRoom(roomCenter, chunk);
         int core = coreAtHeight(roomCenter, roomHeight, chunk);
         RoomTemplate template = CORE_TO_ROOM.get(core);
@@ -152,7 +152,7 @@ public final class DungeonRoomDetector {
         return Optional.empty();
     }
 
-    private List<RoomCenter> findRoomComponents(MinecraftClient client, RoomCenter start, int roomHeight, Set<Integer> cores) {
+    private List<RoomCenter> findRoomComponents(Minecraft client, RoomCenter start, int roomHeight, Set<Integer> cores) {
         List<RoomCenter> components = new ArrayList<>();
         List<RoomCenter> queue = new ArrayList<>();
         Set<RoomCenter> visited = new java.util.HashSet<>();
@@ -162,7 +162,7 @@ public final class DungeonRoomDetector {
             if (!visited.add(current)) {
                 continue;
             }
-            WorldChunk chunk = client.world.getChunk(current.x() >> 4, current.z() >> 4);
+            LevelChunk chunk = client.level.getChunk(current.x() >> 4, current.z() >> 4);
             if (!cores.contains(coreAtHeight(current, roomHeight, chunk))) {
                 continue;
             }
@@ -176,7 +176,7 @@ public final class DungeonRoomDetector {
         return components;
     }
 
-    private RoomScan resolveRotation(MinecraftClient client, RoomTemplate template, List<RoomCenter> components, int roomHeight) {
+    private RoomScan resolveRotation(Minecraft client, RoomTemplate template, List<RoomCenter> components, int roomHeight) {
         if (template.name().equalsIgnoreCase("Fairy") && !components.isEmpty()) {
             RoomCenter component = components.get(0);
             return new RoomScan(template.name(), template.type(), new BlockPos(component.x() - 15, roomHeight, component.z() - 15), Direction.SOUTH);
@@ -185,8 +185,8 @@ public final class DungeonRoomDetector {
         for (RotationMarker marker : ROTATION_MARKERS) {
             for (RoomCenter component : components) {
                 BlockPos clayPos = new BlockPos(component.x() + marker.offsetX(), roomHeight, component.z() + marker.offsetZ());
-                BlockState state = client.world.getBlockState(clayPos);
-                if (state.isOf(Blocks.BLUE_TERRACOTTA) && clayMarkerLooksValid(client, clayPos)) {
+                BlockState state = client.level.getBlockState(clayPos);
+                if (state.is(Blocks.BLUE_TERRACOTTA) && clayMarkerLooksValid(client, clayPos)) {
                     return new RoomScan(template.name(), template.type(), clayPos, marker.rotation());
                 }
             }
@@ -194,9 +194,9 @@ public final class DungeonRoomDetector {
         return null;
     }
 
-    private boolean clayMarkerLooksValid(MinecraftClient client, BlockPos clayPos) {
+    private boolean clayMarkerLooksValid(Minecraft client, BlockPos clayPos) {
         for (Direction direction : List.of(Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST)) {
-            Block block = client.world.getBlockState(clayPos.offset(direction)).getBlock();
+            Block block = client.level.getBlockState(clayPos.relative(direction)).getBlock();
             if (block != Blocks.AIR && block != Blocks.BLUE_TERRACOTTA) {
                 return false;
             }
@@ -210,24 +210,24 @@ public final class DungeonRoomDetector {
         return new RoomCenter((roomX << ROOM_SIZE_SHIFT) + START, (roomZ << ROOM_SIZE_SHIFT) + START);
     }
 
-    private int topLayerOfRoom(RoomCenter roomCenter, WorldChunk chunk) {
-        BlockPos.Mutable mutable = new BlockPos.Mutable();
+    private int topLayerOfRoom(RoomCenter roomCenter, LevelChunk chunk) {
+        BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
         for (int y = 160; y >= 12; y--) {
             mutable.set(roomCenter.x(), y, roomCenter.z());
             BlockState state = chunk.getBlockState(mutable);
             if (!state.isAir()) {
-                return state.isOf(Blocks.GOLD_BLOCK) ? y - 1 : y;
+                return state.is(Blocks.GOLD_BLOCK) ? y - 1 : y;
             }
         }
         return 0;
     }
 
-    private int coreAtHeight(RoomCenter roomCenter, int roomHeight, WorldChunk chunk) {
+    private int coreAtHeight(RoomCenter roomCenter, int roomHeight, LevelChunk chunk) {
         StringBuilder builder = new StringBuilder(150);
         int clampedHeight = Math.max(11, Math.min(140, roomHeight));
         builder.append("0".repeat(Math.max(0, 140 - clampedHeight)));
         int bedrock = 0;
-        BlockPos.Mutable mutable = new BlockPos.Mutable();
+        BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
         for (int y = clampedHeight; y >= 12; y--) {
             mutable.set(roomCenter.x(), y, roomCenter.z());
             Block block = chunk.getBlockState(mutable).getBlock();

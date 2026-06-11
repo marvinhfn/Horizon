@@ -3,13 +3,13 @@ package de.horizon.feature.inventory;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import de.horizon.HorizonMod;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ProfileComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ResolvableProfile;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 
 import java.util.UUID;
 
@@ -41,7 +41,8 @@ public final class InventoryButtonItems {
         try {
             Identifier id = Identifier.tryParse(trimmed);
             if (id == null) return FALLBACK.copy();
-            Item item = Registries.ITEM.get(id);
+            Item item = BuiltInRegistries.ITEM.get(id)
+                    .map(ref -> ref.value()).orElse(Items.AIR);
             if (item == Items.AIR) return FALLBACK.copy();
             return new ItemStack(item);
         } catch (Exception e) {
@@ -72,7 +73,7 @@ public final class InventoryButtonItems {
             profile.properties().put("textures",
                     new Property("textures", base64TextureValue, ""));
             ItemStack skull = new ItemStack(Items.PLAYER_HEAD);
-            skull.set(DataComponentTypes.PROFILE, ProfileComponent.ofStatic(profile));
+            skull.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
             return skull;
         } catch (Exception e) {
             HorizonMod.LOGGER.warn("InventoryButtonItems: skull creation failed: {}", e.getMessage());

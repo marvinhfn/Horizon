@@ -2,14 +2,16 @@ package de.horizon.feature.fishing;
 
 import de.horizon.HorizonSounds;
 import de.horizon.config.HorizonConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.entity.Entity;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.util.RandomSource;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -139,25 +141,25 @@ public final class FishingAlertService {
 
     // ── Entity scan (catches creatures spawned by others) ─────────────────────
 
-    public void tick(MinecraftClient mc, HorizonConfig config) {
+    public void tick(Minecraft mc, HorizonConfig config) {
         if (!config.isFishingRareAlertEnabled()) return;
-        if (mc == null || mc.player == null || mc.world == null) return;
+        if (mc == null || mc.player == null || mc.level == null) return;
         if (++tickCount % SCAN_INTERVAL_TICKS != 0) return;
 
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
-        for (Entity entity : mc.world.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity == mc.player) continue;
             if (Math.abs(entity.getX() - px) > SCAN_RADIUS
                     || Math.abs(entity.getY() - py) > SCAN_RADIUS
                     || Math.abs(entity.getZ() - pz) > SCAN_RADIUS) continue;
-            if (alertedEntities.contains(entity.getUuid())) continue;
-            Text nameText = entity.getCustomName();
+            if (alertedEntities.contains(entity.getUUID())) continue;
+            Component nameText = entity.getCustomName();
             if (nameText == null) continue;
             String name = FORMATTING_STRIP.matcher(nameText.getString()).replaceAll("").toLowerCase(Locale.ROOT);
             for (ElusiveSeaCreature creature : ElusiveSeaCreature.values()) {
                 if (!config.isFishingCreatureEnabled(creature.id())) continue;
                 if (name.contains(creature.displayName().toLowerCase(Locale.ROOT))) {
-                    alertedEntities.add(entity.getUuid());
+                    alertedEntities.add(entity.getUUID());
                     announce(creature, config);
                     break;
                 }
@@ -191,20 +193,20 @@ public final class FishingAlertService {
     // ── Internal ──────────────────────────────────────────────────────────────
 
     private void markNearbyEntitiesAsAlerted(ElusiveSeaCreature creature) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc == null || mc.player == null || mc.world == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null || mc.level == null) return;
         String target = creature.displayName().toLowerCase(Locale.ROOT);
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
-        for (Entity entity : mc.world.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity == mc.player) continue;
             if (Math.abs(entity.getX() - px) > SCAN_RADIUS
                     || Math.abs(entity.getY() - py) > SCAN_RADIUS
                     || Math.abs(entity.getZ() - pz) > SCAN_RADIUS) continue;
-            Text nameText = entity.getCustomName();
+            Component nameText = entity.getCustomName();
             if (nameText == null) continue;
             String name = FORMATTING_STRIP.matcher(nameText.getString()).replaceAll("").toLowerCase(Locale.ROOT);
             if (name.contains(target)) {
-                alertedEntities.add(entity.getUuid());
+                alertedEntities.add(entity.getUUID());
             }
         }
     }
@@ -215,22 +217,22 @@ public final class FishingAlertService {
         if (last != null && now - last < CHAT_DEDUP_MS) return;
         lastAnnounced.put(creature.id(), now);
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc == null || mc.inGameHud == null || mc.player == null) return;
-        mc.inGameHud.setTitle(Text.literal(creature.displayName()).formatted(Formatting.AQUA));
-        mc.inGameHud.setSubtitle(Text.literal("\u2736 Elusive Sea Creature \u2736").formatted(Formatting.DARK_AQUA));
-        mc.inGameHud.setTitleTicks(10, 60, 20);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.gui == null || mc.player == null) return;
+        mc.gui.setTitle(Component.literal(creature.displayName()).withStyle(ChatFormatting.AQUA));
+        mc.gui.setSubtitle(Component.literal("\u2736 Elusive Sea Creature \u2736").withStyle(ChatFormatting.DARK_AQUA));
+        mc.gui.setTimes(10, 60, 20);
         double x = mc.player.getX(), y = mc.player.getY(), z = mc.player.getZ();
-        Random rng = Random.create();
+        RandomSource rng = RandomSource.create();
         switch (config.getFishingAlertSound()) {
-            case MEOW -> mc.getSoundManager().play(new PositionedSoundInstance(
-                    SoundEvents.ENTITY_CAT_AMBIENT, SoundCategory.BLOCKS, 1.0f, 1.0f, rng, x, y, z));
-            case CUSTOM -> mc.getSoundManager().play(new PositionedSoundInstance(
-                    HorizonSounds.FISHING_ALERT_CUSTOM, SoundCategory.BLOCKS, 8.0f, 1.0f, rng, x, y, z));
-            case MR -> mc.getSoundManager().play(new PositionedSoundInstance(
-                    HorizonSounds.FISHING_ALERT_MR, SoundCategory.BLOCKS, 8.0f, 1.0f, rng, x, y, z));
-            default -> mc.getSoundManager().play(new PositionedSoundInstance(
-                    SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.BLOCKS, 0.8f, 1.0f, rng, x, y, z));
+            case MEOW -> mc.getSoundManager().play(new SimpleSoundInstance(
+                    SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("minecraft", "entity.cat.ambient")), SoundSource.BLOCKS, 1.0f, 1.0f, rng, x, y, z));
+            case CUSTOM -> mc.getSoundManager().play(new SimpleSoundInstance(
+                    HorizonSounds.FISHING_ALERT_CUSTOM, SoundSource.BLOCKS, 8.0f, 1.0f, rng, x, y, z));
+            case MR -> mc.getSoundManager().play(new SimpleSoundInstance(
+                    HorizonSounds.FISHING_ALERT_MR, SoundSource.BLOCKS, 8.0f, 1.0f, rng, x, y, z));
+            default -> mc.getSoundManager().play(new SimpleSoundInstance(
+                    SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.BLOCKS, 0.8f, 1.0f, rng, x, y, z));
         }
     }
 }

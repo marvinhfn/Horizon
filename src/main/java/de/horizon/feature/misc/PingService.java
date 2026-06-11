@@ -1,21 +1,21 @@
 package de.horizon.feature.misc;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.profiler.MultiValueDebugSampleLogImpl;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.debugchart.LocalSampleLogger;
 
 public final class PingService {
     private volatile int currentPing = -1;
     private volatile int averagePing = -1;
 
-    public void tick(MinecraftClient client) {
-        if (client == null || client.getNetworkHandler() == null || client.player == null) {
+    public void tick(Minecraft client) {
+        if (client == null || client.getConnection() == null || client.player == null) {
             currentPing = -1;
             averagePing = -1;
             return;
         }
 
-        MultiValueDebugSampleLogImpl pingLog = client.getDebugHud().getPingLog();
-        int sampleSize = Math.min(pingLog.getLength(), 20);
+        LocalSampleLogger pingLog = client.getDebugOverlay().getPingLogger();
+        int sampleSize = Math.min(pingLog.size(), 20);
         if (sampleSize <= 0) {
             currentPing = -1;
             averagePing = -1;
@@ -31,7 +31,7 @@ public final class PingService {
         averagePing = (int) Math.max(0L, total / sampleSize);
     }
 
-    public int getPing(MinecraftClient client) {
+    public int getPing(Minecraft client) {
         return averagePing >= 0 ? averagePing : currentPing;
     }
 }

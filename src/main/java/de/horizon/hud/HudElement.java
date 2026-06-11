@@ -2,8 +2,8 @@ package de.horizon.hud;
 
 import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public interface HudElement {
     String id();
@@ -16,9 +16,9 @@ public interface HudElement {
 
     int defaultY();
 
-    int width(MinecraftClient client, HudPosition position);
+    int width(Minecraft client, HudPosition position);
 
-    int height(MinecraftClient client, HudPosition position);
+    int height(Minecraft client, HudPosition position);
 
-    void render(DrawContext drawContext, MinecraftClient client, HudPosition position, boolean editorMode);
+    void render(GuiGraphicsExtractor drawContext, Minecraft client, HudPosition position, boolean editorMode);
 }

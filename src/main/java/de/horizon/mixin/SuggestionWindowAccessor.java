@@ -1,6 +1,6 @@
 package de.horizon.mixin;
 
-import net.minecraft.client.util.math.Rect2i;
+import net.minecraft.client.renderer.Rect2i;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  * {@code ChatInputSuggestor$SuggestionWindow} so we can reposition
  * the window after it is created.
  */
-@Mixin(targets = "net.minecraft.client.gui.screen.ChatInputSuggestor$SuggestionWindow")
+@Mixin(targets = "net.minecraft.client.gui.components.CommandSuggestions$SuggestionsList")
 public interface SuggestionWindowAccessor {
 
     @Accessor("area")

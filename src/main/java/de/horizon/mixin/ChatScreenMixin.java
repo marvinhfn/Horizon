@@ -8,13 +8,13 @@ import de.horizon.feature.chat.ChatTab;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;
 import de.horizon.render.PillarboxState;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -28,26 +28,26 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ChatScreen.class)
 public abstract class ChatScreenMixin extends Screen {
     @Shadow
-    protected TextFieldWidget chatField;
+    protected EditBox input;
 
-    protected ChatScreenMixin(Text title) {
+    protected ChatScreenMixin(Component title) {
         super(title);
     }
 
     @Inject(method = "init", at = @At("TAIL"))
     private void horizon$moveChatFieldUp(CallbackInfo ci) {
-        if (chatField == null) {
+        if (input == null) {
             return;
         }
-        chatField.setY(adjustedScreenHeight(height) - 12);
+        input.setY(adjustedScreenHeight(height) - 12);
         int barOffset = PillarboxState.scaledBarWidth();
         if (barOffset > 0) {
-            chatField.setX(chatField.getX() + barOffset);
-            chatField.setWidth(chatField.getWidth() - 2 * barOffset);
+            input.setX(input.getX() + barOffset);
+            input.setWidth(input.getWidth() - 2 * barOffset);
         }
     }
 
-    @Inject(method = "sendMessage(Ljava/lang/String;Z)V", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "handleChatInput(Ljava/lang/String;Z)V", at = @At("HEAD"), cancellable = true)
     private void horizon$handleLocalCommands(String chatText, boolean addToHistory, CallbackInfo ci) {
         HorizonClient client = HorizonClient.getInstance();
         if (client == null || chatText == null || !chatText.startsWith("/")) {
@@ -56,25 +56,25 @@ public abstract class ChatScreenMixin extends Screen {
         if (!client.executeLocalCommand(chatText, this)) {
             return;
         }
-        if (chatField != null) {
-            chatField.setText("");
+        if (input != null) {
+            input.setValue("");
         }
-        if (this.client != null) {
-            this.client.setScreen(null);
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(null);
         }
         ci.cancel();
     }
 
-    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;fill(IIIII)V"))
-    private void horizon$raiseChatInputBackground(DrawContext context, int x1, int y1, int x2, int y2, int color) {
-        int offset = HypixelSidebarOverlay.lowerHudOffset(client);
+    @Redirect(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V"))
+    private void horizon$raiseChatInputBackground(GuiGraphicsExtractor context, int x1, int y1, int x2, int y2, int color) {
+        int offset = HypixelSidebarOverlay.lowerHudOffset(minecraft);
         int barOffset = PillarboxState.scaledBarWidth();
         context.fill(x1 + barOffset, y1 - offset, x2 - barOffset, y2 - offset, color);
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void horizon$renderChatTabs(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (chatField == null) {
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
+    private void horizon$renderChatTabs(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (input == null) {
             return;
         }
         HorizonClient horizonClient = HorizonClient.getInstance();
@@ -84,7 +84,7 @@ public abstract class ChatScreenMixin extends Screen {
         ChatTabManager tabManager = horizonClient.getChatTabManager();
         HorizonConfig config = horizonClient.getConfigManager().getConfig();
 
-        int tabY = chatField.getY() - 14;
+        int tabY = input.getY() - 14;
         int x = 2 + PillarboxState.scaledBarWidth();
 
         for (ChatTab tab : ChatTab.values()) {
@@ -92,7 +92,7 @@ public abstract class ChatScreenMixin extends Screen {
             int bgColor = active ? 0xCC75E7CA : 0x80333333;
             int textColor = active ? 0xFF1E2A37 : 0xFFCCCCCC;
             context.fill(x, tabY, x + 12, tabY + 10, bgColor);
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal(tab.key()), x + 6, tabY + 1, textColor);
+            context.centeredText(font, Component.literal(tab.key()), x + 6, tabY + 1, textColor);
             x += 14;
         }
 
@@ -102,7 +102,7 @@ public abstract class ChatScreenMixin extends Screen {
         int bridgeBg = bridgeHidden ? 0x80333333 : 0xCC75E7CA;
         int bridgeText = bridgeHidden ? 0xFFCCCCCC : 0xFF1E2A37;
         context.fill(x, tabY, x + 12, tabY + 10, bridgeBg);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("B"), x + 6, tabY + 1, bridgeText);
+        context.centeredText(font, Component.literal("B"), x + 6, tabY + 1, bridgeText);
 
         // Guild Chat toggle — highlighted when guild chat IS visible (not hidden)
         x += 14;
@@ -110,21 +110,21 @@ public abstract class ChatScreenMixin extends Screen {
         int guildBg = guildHidden ? 0x80333333 : 0xCC75E7CA;
         int guildTextColor = guildHidden ? 0xFFCCCCCC : 0xFF1E2A37;
         context.fill(x, tabY, x + 12, tabY + 10, guildBg);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("G"), x + 6, tabY + 1, guildTextColor);
+        context.centeredText(font, Component.literal("G"), x + 6, tabY + 1, guildTextColor);
     }
 
 
     // ── 1.21.10: click detection calls ChatHud.mouseClicked(x, y) directly.
     @ModifyArg(method = "mouseClicked", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/hud/ChatHud;mouseClicked(DD)Z"),
+            target = "Lnet/minecraft/client/gui/components/ChatComponent;mouseClicked(DD)Z"),
             index = 1, require = 0)
     private double horizon$adjustChatHudClickY(double y) {
         return y + ChatTabManager.TAB_BAR_LIFT;
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void horizon$handleChatCopy(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-        if (this.client == null || chatField == null) {
+    private void horizon$handleChatCopy(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        if (this.minecraft == null || input == null) {
             return;
         }
         HorizonClient horizonClient = HorizonClient.getInstance();
@@ -137,7 +137,7 @@ public abstract class ChatScreenMixin extends Screen {
         }
         boolean isLeft = click.button() == 0;
         boolean isRight = click.button() == 1;
-        long handle = this.client.getWindow().getHandle();
+        long handle = this.minecraft.getWindow().handle();
         boolean ctrlHeld = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
             || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
         boolean triggered = switch (mode) {
@@ -150,17 +150,17 @@ public abstract class ChatScreenMixin extends Screen {
             return;
         }
         boolean fullEntry = horizonClient.getConfigManager().getConfig().isChatCopyFullMessage();
-        String text = ((ChatHudAccess) this.client.inGameHud.getChatHud()).horizon$getMessageTextAt(click.x(), click.y(), fullEntry);
+        String text = ((ChatHudAccess) this.minecraft.gui.getChat()).horizon$getMessageTextAt(click.x(), click.y(), fullEntry);
         if (text == null || text.isBlank()) {
             return;
         }
-        this.client.keyboard.setClipboard(text);
+        this.minecraft.keyboardHandler.setClipboard(text);
         cir.setReturnValue(true);
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void horizon$handleTabClick(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-        if (click.button() != 0 || chatField == null) {
+    private void horizon$handleTabClick(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        if (click.button() != 0 || input == null) {
             return;
         }
         HorizonClient horizonClient = HorizonClient.getInstance();
@@ -168,7 +168,7 @@ public abstract class ChatScreenMixin extends Screen {
             return;
         }
 
-        int tabY = chatField.getY() - 14;
+        int tabY = input.getY() - 14;
         double mx = click.x();
         double my = click.y();
 
@@ -209,7 +209,7 @@ public abstract class ChatScreenMixin extends Screen {
     }
 
     private int adjustedScreenHeight(int originalHeight) {
-        int offset = HypixelSidebarOverlay.lowerHudOffset(client);
+        int offset = HypixelSidebarOverlay.lowerHudOffset(minecraft);
         return Math.max(originalHeight - offset, HypixelSidebarOverlay.BAR_HEIGHT);
     }
 }

@@ -2,10 +2,10 @@ package de.horizon.hypixel;
 
 import de.horizon.HorizonClient;
 import de.horizon.hud.HudStyle;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -23,7 +23,7 @@ public final class PartyFinderOverlay {
         this.profileService = profileService;
     }
 
-    public void render(HandledScreen<?> screen, DrawContext context) {
+    public void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor context) {
         HorizonClient horizon = HorizonClient.getInstance();
         if (horizon == null || !horizon.getConfigManager().getConfig().isDungeonPartyFinderOverlayEnabled()) {
             return;
@@ -32,7 +32,7 @@ public final class PartyFinderOverlay {
             return;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) {
             return;
         }
@@ -44,12 +44,12 @@ public final class PartyFinderOverlay {
         int width = 148;
         int height = 186;
         context.fill(x, y, x + width, y + height, HudStyle.panel());
-        context.drawStrokedRectangle(x, y, width, height, HudStyle.border());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Party Finder"), x + 12, y + 12, HudStyle.accent());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Best S+ Zeiten"), x + 12, y + 26, HudStyle.muted());
+        context.outline(x, y, width, height, HudStyle.border());
+        context.text(client.font, Component.literal("Party Finder"), x + 12, y + 12, HudStyle.accent());
+        context.text(client.font, Component.literal("Best S+ Zeiten"), x + 12, y + 26, HudStyle.muted());
 
         if (loading && cachedStats == null) {
-            context.drawTextWithShadow(client.textRenderer, Text.literal("Lade..."), x + 12, y + 48, HudStyle.text());
+            context.text(client.font, Component.literal("Lade..."), x + 12, y + 48, HudStyle.text());
             return;
         }
 
@@ -62,13 +62,13 @@ public final class PartyFinderOverlay {
             return;
         }
 
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Profil: " + cachedStats.selectedProfile()), x + 12, y + 46, HudStyle.text());
+        context.text(client.font, Component.literal("Profil: " + cachedStats.selectedProfile()), x + 12, y + 46, HudStyle.text());
         int lineY = y + 64;
         for (int index = 0; index < FLOOR_KEYS.length; index++) {
             String label = FLOOR_LABELS[index];
             String time = formatTime(cachedStats.fastestSPlus(FLOOR_KEYS[index]));
-            context.drawTextWithShadow(client.textRenderer, Text.literal(label), x + 12, lineY, HudStyle.text());
-            context.drawTextWithShadow(client.textRenderer, Text.literal(time), x + 54, lineY, HudStyle.accent());
+            context.text(client.font, Component.literal(label), x + 12, lineY, HudStyle.text());
+            context.text(client.font, Component.literal(time), x + 54, lineY, HudStyle.accent());
             lineY += 14;
         }
     }
@@ -93,22 +93,22 @@ public final class PartyFinderOverlay {
         });
     }
 
-    private boolean isPartyFinder(HandledScreen<?> screen) {
+    private boolean isPartyFinder(AbstractContainerScreen<?> screen) {
         String title = screen.getTitle().getString().toLowerCase();
         return title.contains("party finder") || title.contains("group finder");
     }
 
-    private void drawMessage(DrawContext context, HandledScreen<?> screen, String message) {
+    private void drawMessage(GuiGraphicsExtractor context, AbstractContainerScreen<?> screen, String message) {
         int x = 12;
         int y = 18;
         context.fill(x, y, x + 148, y + 64, HudStyle.panel());
-        context.drawStrokedRectangle(x, y, 148, 64, HudStyle.border());
-        context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, Text.literal("Party Finder"), x + 12, y + 12, HudStyle.accent());
+        context.outline(x, y, 148, 64, HudStyle.border());
+        context.text(Minecraft.getInstance().font, Component.literal("Party Finder"), x + 12, y + 12, HudStyle.accent());
         drawLines(context, x + 12, y + 32, message, 124, 0xFFFF9696);
     }
 
-    private void drawLines(DrawContext context, int x, int y, String text, int maxWidth, int color) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private void drawLines(GuiGraphicsExtractor context, int x, int y, String text, int maxWidth, int color) {
+        Minecraft client = Minecraft.getInstance();
         if (client == null) {
             return;
         }
@@ -118,8 +118,8 @@ public final class PartyFinderOverlay {
         int lineY = y;
         for (String word : words) {
             String candidate = current.isEmpty() ? word : current + " " + word;
-            if (client.textRenderer.getWidth(candidate) > maxWidth && !current.isEmpty()) {
-                context.drawTextWithShadow(client.textRenderer, Text.literal(current.toString()), x, lineY, color);
+            if (client.font.width(candidate) > maxWidth && !current.isEmpty()) {
+                context.text(client.font, Component.literal(current.toString()), x, lineY, color);
                 current = new StringBuilder(word);
                 lineY += 12;
             } else {
@@ -127,7 +127,7 @@ public final class PartyFinderOverlay {
             }
         }
         if (!current.isEmpty()) {
-            context.drawTextWithShadow(client.textRenderer, Text.literal(current.toString()), x, lineY, color);
+            context.text(client.font, Component.literal(current.toString()), x, lineY, color);
         }
     }
 

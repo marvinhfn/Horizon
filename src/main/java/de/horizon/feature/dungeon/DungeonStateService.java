@@ -1,12 +1,12 @@
 package de.horizon.feature.dungeon;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardEntry;
-import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.network.chat.Component;
 
 import java.util.Collection;
 import java.util.Locale;
@@ -19,8 +19,8 @@ public final class DungeonStateService {
     private int ticksSinceDungeonSeen = Integer.MAX_VALUE;
     private int ticksSinceBossSeen = Integer.MAX_VALUE;
 
-    public void tick(MinecraftClient client) {
-        if (client == null || client.world == null || client.player == null) {
+    public void tick(Minecraft client) {
+        if (client == null || client.level == null || client.player == null) {
             reset();
             return;
         }
@@ -113,23 +113,23 @@ public final class DungeonStateService {
         return inBoss;
     }
 
-    private String sidebarText(MinecraftClient client) {
-        Scoreboard scoreboard = client.world.getScoreboard();
-        ScoreboardObjective objective = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+    private String sidebarText(Minecraft client) {
+        Scoreboard scoreboard = client.level.getScoreboard();
+        Objective objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
         if (objective == null) {
             return "";
         }
 
         StringBuilder builder = new StringBuilder(clean(objective.getDisplayName()));
-        Collection<ScoreboardEntry> entries = scoreboard.getScoreboardEntries(objective);
-        for (ScoreboardEntry entry : entries) {
-            if (!entry.hidden()) {
-                builder.append('\n').append(clean(entry.name()));
-                Team team = scoreboard.getScoreHolderTeam(entry.owner());
+        Collection<PlayerScoreEntry> entries = scoreboard.listPlayerScores(objective);
+        for (PlayerScoreEntry entry : entries) {
+            if (!entry.isHidden()) {
+                builder.append('\n').append(clean(entry.ownerName()));
+                PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
                 if (team != null) {
-                    builder.append(' ').append(clean(team.getPrefix()));
-                    builder.append(' ').append(clean(team.getSuffix()));
-                    builder.append(' ').append(clean(team.decorateName(Text.literal(entry.owner()))));
+                    builder.append(' ').append(clean(team.getPlayerPrefix()));
+                    builder.append(' ').append(clean(team.getPlayerSuffix()));
+                    builder.append(' ').append(clean(team.getFormattedName(Component.literal(entry.owner()))));
                 }
                 if (entry.display() != null) {
                     builder.append(' ').append(clean(entry.display()));
@@ -140,7 +140,7 @@ public final class DungeonStateService {
         return builder.toString();
     }
 
-    private String clean(Text text) {
+    private String clean(Component text) {
         return text == null ? "" : text.getString();
     }
 

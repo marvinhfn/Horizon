@@ -3,18 +3,18 @@ package de.horizon.screen;
 import de.horizon.feature.inventory.InventoryButtonItems;
 import de.horizon.feature.inventory.SkyBlockHeadCache;
 import de.horizon.hud.HudStyle;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -57,7 +57,7 @@ public final class ItemPickerScreen extends Screen {
     private static List<String> allItemIds = null;
 
     public ItemPickerScreen(Screen parent, Consumer<String> callback) {
-        super(Text.literal("Item waehlen"));
+        super(Component.literal("Item waehlen"));
         this.parent   = parent;
         this.callback = callback;
     }
@@ -70,7 +70,7 @@ public final class ItemPickerScreen extends Screen {
     // ── Input ─────────────────────────────────────────────────────────────────
 
     @Override
-    public boolean charTyped(CharInput input) {
+    public boolean charTyped(CharacterEvent input) {
         if (!Character.isISOControl(input.codepoint()) && searchInput.length() < 64) {
             searchInput += Character.toString(input.codepoint());
             scrollOffset = 0;
@@ -80,7 +80,7 @@ public final class ItemPickerScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(KeyInput input) {
+    public boolean keyPressed(KeyEvent input) {
         if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
             if (!searchInput.isEmpty()) {
                 searchInput = searchInput.substring(0, searchInput.length() - 1);
@@ -90,13 +90,13 @@ public final class ItemPickerScreen extends Screen {
             return true;
         }
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-            close();
+            onClose();
             return true;
         }
         // Paste
         if ((input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0 && input.key() == GLFW.GLFW_KEY_V) {
-            if (client != null) {
-                String clip = client.keyboard.getClipboard();
+            if (minecraft != null) {
+                String clip = minecraft.keyboardHandler.getClipboard();
                 for (int i = 0; i < clip.length() && searchInput.length() < 64; i++) {
                     char c = clip.charAt(i);
                     if (!Character.isISOControl(c)) searchInput += c;
@@ -118,7 +118,7 @@ public final class ItemPickerScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != 0) return super.mouseClicked(click, doubled);
         // Check grid cells
         int cols  = gridCols();
@@ -140,15 +140,15 @@ public final class ItemPickerScreen extends Screen {
         // Close button area
         if (click.x() >= width - 20 && click.x() < width
          && click.y() >= 0          && click.y() < 20) {
-            close();
+            onClose();
             return true;
         }
         return super.mouseClicked(click, doubled);
     }
 
     @Override
-    public void close() {
-        if (client != null) client.setScreen(parent);
+    public void onClose() {
+        if (minecraft != null) minecraft.setScreen(parent);
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ public final class ItemPickerScreen extends Screen {
     private boolean wasCacheLoaded = false;
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         // Auto-refresh grid once the SkyBlock head cache finishes loading
         if (searchInput.toLowerCase(Locale.ROOT).startsWith("head:")) {
             boolean nowLoaded = SkyBlockHeadCache.isLoaded();
@@ -171,8 +171,8 @@ public final class ItemPickerScreen extends Screen {
 
         // Title
         int accent = HudStyle.accent();
-        context.drawTextWithShadow(textRenderer,
-                Text.literal("Item waehlen"), PAD, 10, accent);
+        context.text(font,
+                Component.literal("Item waehlen"), PAD, 10, accent);
 
         // Search field
         String cursor = ((System.currentTimeMillis() / 400L) % 2L == 0L) ? "_" : "";
@@ -180,8 +180,8 @@ public final class ItemPickerScreen extends Screen {
                 ? "Suche... (HEAD:ITEM_ID fuer SkyBlock Skulls)"
                 : searchInput + cursor;
         int fieldColor = searchInput.isEmpty() ? MUTED : TEXT_COLOR;
-        context.drawTextWithShadow(textRenderer,
-                Text.literal("Suche: " + display), PAD, 28, fieldColor);
+        context.text(font,
+                Component.literal("Suche: " + display), PAD, 28, fieldColor);
         // underline
         context.fill(PAD, 40, width - PAD, 41, BORDER);
 
@@ -191,7 +191,7 @@ public final class ItemPickerScreen extends Screen {
                     : SkyBlockHeadCache.hasFailed()  ? "Fehler beim Laden der SkyBlock Items."
                     : "";
             if (!status.isEmpty()) {
-                context.drawTextWithShadow(textRenderer, Text.literal(status), PAD, 44, MUTED);
+                context.text(font, Component.literal(status), PAD, 44, MUTED);
             }
         }
 
@@ -211,7 +211,7 @@ public final class ItemPickerScreen extends Screen {
                        && mouseY >= cy && mouseY < cy + CELL_SIZE;
             context.fill(cx, cy, cx + CELL_SIZE, cy + CELL_SIZE,
                     hov ? CELL_HOVER : CELL_BG);
-            context.drawItem(e.stack, cx + 2, cy + 2);
+            context.item(e.stack, cx + 2, cy + 2);
         }
         context.disableScissor();
 
@@ -224,16 +224,16 @@ public final class ItemPickerScreen extends Screen {
             int cy    = HEADER + row * CELL_SIZE - scrollOffset;
             if (mouseX >= cx && mouseX < cx + CELL_SIZE
              && mouseY >= cy && mouseY < cy + CELL_SIZE) {
-                context.drawTooltip(textRenderer, Text.literal(e.id), mouseX, mouseY);
+                context.setTooltipForNextFrame(font, Component.literal(e.id), mouseX, mouseY);
                 break;
             }
         }
 
         // Close hint
-        context.drawTextWithShadow(textRenderer, Text.literal("[X]"),
+        context.text(font, Component.literal("[X]"),
                 width - 20, 6, 0xFFFF7777);
 
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     // ── Data ─────────────────────────────────────────────────────────────────
@@ -264,7 +264,8 @@ public final class ItemPickerScreen extends Screen {
         // Plain Minecraft items
         for (String id : getAllItemIds()) {
             if (id.contains(query)) {
-                Item item = Registries.ITEM.get(Identifier.tryParse(id));
+                Item item = BuiltInRegistries.ITEM.get(Identifier.tryParse(id))
+                        .map(ref -> ref.value()).orElse(Items.AIR);
                 if (item != Items.AIR) {
                     entries.add(new Entry(id, new ItemStack(item)));
                 }
@@ -276,7 +277,7 @@ public final class ItemPickerScreen extends Screen {
     private static List<String> getAllItemIds() {
         if (allItemIds == null) {
             allItemIds = new ArrayList<>();
-            for (Identifier id : Registries.ITEM.getIds()) {
+            for (Identifier id : BuiltInRegistries.ITEM.keySet()) {
                 allItemIds.add(id.toString());
             }
             allItemIds.sort(String::compareTo);
@@ -311,7 +312,7 @@ public final class ItemPickerScreen extends Screen {
 
     private void select(String id) {
         callback.accept(id);
-        if (client != null) client.setScreen(parent);
+        if (minecraft != null) minecraft.setScreen(parent);
     }
 
     // ── Inner types ───────────────────────────────────────────────────────────

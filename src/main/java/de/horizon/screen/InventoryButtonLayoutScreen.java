@@ -5,13 +5,13 @@ import de.horizon.feature.inventory.InventoryButton;
 import de.horizon.feature.inventory.InventoryButtonFunction;
 import de.horizon.feature.inventory.InventoryButtonItems;
 import de.horizon.hud.HudStyle;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -82,7 +82,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
     // ── Constructor ───────────────────────────────────────────────────────────
 
     public InventoryButtonLayoutScreen(Screen parent, HorizonClient horizonClient) {
-        super(Text.literal("Inventory Buttons - Layout"));
+        super(Component.literal("Inventory Buttons - Layout"));
         this.parent        = parent;
         this.horizonClient = horizonClient;
     }
@@ -118,7 +118,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
     // ── Input ─────────────────────────────────────────────────────────────────
 
     @Override
-    public boolean charTyped(CharInput input) {
+    public boolean charTyped(CharacterEvent input) {
         if (!popupOpen) return super.charTyped(input);
         char c = (char) input.codepoint();
         if (Character.isISOControl(c)) return true;
@@ -133,10 +133,10 @@ public final class InventoryButtonLayoutScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(KeyInput input) {
+    public boolean keyPressed(KeyEvent input) {
         if (!popupOpen) {
             if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                close();
+                onClose();
                 return true;
             }
             return super.keyPressed(input);
@@ -158,8 +158,8 @@ public final class InventoryButtonLayoutScreen extends Screen {
         }
         // Ctrl+V paste
         if ((input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0
-                && input.key() == GLFW.GLFW_KEY_V && client != null) {
-            String clip = client.keyboard.getClipboard();
+                && input.key() == GLFW.GLFW_KEY_V && minecraft != null) {
+            String clip = minecraft.keyboardHandler.getClipboard();
             if (popupFocus == PopupFocus.LABEL) {
                 for (int i = 0; i < clip.length() && editLabel.length() < 32; i++) {
                     if (!Character.isISOControl(clip.charAt(i))) editLabel += clip.charAt(i);
@@ -179,7 +179,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != 0) return super.mouseClicked(click, doubled);
 
         if (popupOpen) {
@@ -197,7 +197,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
 
         // Done button
         if (doneRect().contains(click.x(), click.y())) {
-            close();
+            onClose();
             return true;
         }
 
@@ -205,14 +205,14 @@ public final class InventoryButtonLayoutScreen extends Screen {
     }
 
     @Override
-    public void close() {
-        if (client != null) client.setScreen(parent);
+    public void onClose() {
+        if (minecraft != null) minecraft.setScreen(parent);
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, width, height, BG);
 
         int cx = width  / 2;
@@ -225,26 +225,26 @@ public final class InventoryButtonLayoutScreen extends Screen {
 
         // Title
         int accent = HudStyle.accent();
-        context.drawCenteredTextWithShadow(textRenderer,
-                Text.literal("Inventory Buttons – Layout"), cx, invY - 36, accent);
-        context.drawCenteredTextWithShadow(textRenderer,
-                Text.literal("Klicke auf einen Slot um einen Button zu konfigurieren."),
+        context.centeredText(font,
+                Component.literal("Inventory Buttons – Layout"), cx, invY - 36, accent);
+        context.centeredText(font,
+                Component.literal("Klicke auf einen Slot um einen Button zu konfigurieren."),
                 cx, invY - 24, MUTED);
 
         // Done button
         Rect done = doneRect();
         context.fill(done.x, done.y, done.x + done.w, done.y + done.h, BUTTON_ACTIVE);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Fertig"),
+        context.centeredText(font, Component.literal("Fertig"),
                 done.x + done.w / 2, done.y + 5, TEXT_COLOR);
 
         if (popupOpen) {
             drawPopup(context, mouseX, mouseY);
         }
 
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
-    private void drawInventory(DrawContext context, int invX, int invY) {
+    private void drawInventory(GuiGraphicsExtractor context, int invX, int invY) {
         // Background
         context.fill(invX, invY, invX + INV_W, invY + INV_H, INV_BG);
         drawBorder(context, invX, invY, INV_W, INV_H, 0xFF556070);
@@ -267,16 +267,16 @@ public final class InventoryButtonLayoutScreen extends Screen {
         }
 
         // Label
-        context.drawCenteredTextWithShadow(textRenderer,
-                Text.literal("Inventar"), invX + INV_W / 2, invY + 4, MUTED);
+        context.centeredText(font,
+                Component.literal("Inventar"), invX + INV_W / 2, invY + 4, MUTED);
     }
 
-    private void drawInvSlot(DrawContext context, int x, int y) {
+    private void drawInvSlot(GuiGraphicsExtractor context, int x, int y) {
         context.fill(x, y, x + 16, y + 16, INV_SLOT);
         drawBorder(context, x, y, 16, 16, 0xFF444C5C);
     }
 
-    private void drawSlots(DrawContext context, int mouseX, int mouseY) {
+    private void drawSlots(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         List<InventoryButton> buttons = horizonClient.getConfigManager()
                 .getConfig().getInventoryButtons();
         for (SlotDef slot : slots) {
@@ -293,7 +293,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
                             slot.x + BTN_SIZE, slot.y + BTN_SIZE, 0x33FFFFFF);
                 }
                 drawBorder(context, slot.x, slot.y, BTN_SIZE, BTN_SIZE, BTN_BORDER);
-                context.drawCenteredTextWithShadow(textRenderer, Text.literal("+"),
+                context.centeredText(font, Component.literal("+"),
                         slot.x + BTN_SIZE / 2, slot.y + 5, hovered ? 0xFFFFFFFF : MUTED);
             } else {
                 // Configured button: show item
@@ -307,16 +307,16 @@ public final class InventoryButtonLayoutScreen extends Screen {
                         HudStyle.accent());
                 String itemId = btn.itemIdActive;
                 ItemStack stack = InventoryButtonItems.resolve(itemId);
-                context.drawItem(stack, slot.x + 1, slot.y + 1);
+                context.item(stack, slot.x + 1, slot.y + 1);
                 if (hovered && !btn.label.isBlank()) {
-                    context.drawTooltip(textRenderer,
-                            Text.literal(btn.label), mouseX, mouseY);
+                    context.setTooltipForNextFrame(font,
+                            Component.literal(btn.label), mouseX, mouseY);
                 }
             }
         }
     }
 
-    private void drawPopup(DrawContext context, int mouseX, int mouseY) {
+    private void drawPopup(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         int pw = 320, ph = popupHeight();
         int px = (width  - pw) / 2;
         int py = (height - ph) / 2;
@@ -331,11 +331,11 @@ public final class InventoryButtonLayoutScreen extends Screen {
         String title = existingButton
                 ? "Button bearbeiten – " + editingSlotId
                 : "Neuer Button – " + editingSlotId;
-        context.drawTextWithShadow(textRenderer, Text.literal(title), px + 12, y, accent);
+        context.text(font, Component.literal(title), px + 12, y, accent);
         y += 18;
 
         // Label field
-        context.drawTextWithShadow(textRenderer, Text.literal("Label:"), px + 12, y, TEXT_COLOR);
+        context.text(font, Component.literal("Label:"), px + 12, y, TEXT_COLOR);
         y += 12;
         boolean labelFocused = popupFocus == PopupFocus.LABEL;
         context.fill(px + 12, y, px + pw - 12, y + 14,
@@ -344,24 +344,24 @@ public final class InventoryButtonLayoutScreen extends Screen {
                 labelFocused ? accent : POPUP_BORDER);
         String labelDisplay = editLabel.isEmpty() ? "<leer>" : editLabel;
         if (labelFocused) labelDisplay += ((System.currentTimeMillis() / 400L) % 2 == 0 ? "_" : "");
-        context.drawTextWithShadow(textRenderer, Text.literal(labelDisplay),
+        context.text(font, Component.literal(labelDisplay),
                 px + 14, y + 3, labelFocused ? TEXT_COLOR : MUTED);
         y += 20;
 
         // Function cycle
-        context.drawTextWithShadow(textRenderer,
-                Text.literal("Funktion: " + editFunction.title()), px + 12, y, TEXT_COLOR);
+        context.text(font,
+                Component.literal("Funktion: " + editFunction.title()), px + 12, y, TEXT_COLOR);
         Rect funcBtn = new Rect(px + 12, y + 12, 120, 16);
         context.fill(funcBtn.x, funcBtn.y, funcBtn.x + funcBtn.w, funcBtn.y + funcBtn.h, BUTTON_FILL);
         drawBorder(context, funcBtn.x, funcBtn.y, funcBtn.w, funcBtn.h, POPUP_BORDER);
-        context.drawCenteredTextWithShadow(textRenderer,
-                Text.literal("Wechseln"), funcBtn.x + funcBtn.w / 2, funcBtn.y + 4, MUTED);
+        context.centeredText(font,
+                Component.literal("Wechseln"), funcBtn.x + funcBtn.w / 2, funcBtn.y + 4, MUTED);
         y += 32;
 
         // Command field (only if COMMAND)
         if (editFunction == InventoryButtonFunction.COMMAND) {
-            context.drawTextWithShadow(textRenderer,
-                    Text.literal("Command (ohne /):"), px + 12, y, TEXT_COLOR);
+            context.text(font,
+                    Component.literal("Command (ohne /):"), px + 12, y, TEXT_COLOR);
             y += 12;
             boolean cmdFocused = popupFocus == PopupFocus.COMMAND;
             context.fill(px + 12, y, px + pw - 12, y + 14,
@@ -370,13 +370,13 @@ public final class InventoryButtonLayoutScreen extends Screen {
                     cmdFocused ? accent : POPUP_BORDER);
             String cmdDisplay = editCommand.isEmpty() ? "<leer>" : editCommand;
             if (cmdFocused) cmdDisplay += ((System.currentTimeMillis() / 400L) % 2 == 0 ? "_" : "");
-            context.drawTextWithShadow(textRenderer, Text.literal(cmdDisplay),
+            context.text(font, Component.literal(cmdDisplay),
                     px + 14, y + 3, cmdFocused ? TEXT_COLOR : MUTED);
             y += 20;
         } else {
             // Description of function
-            context.drawTextWithShadow(textRenderer,
-                    Text.literal(editFunction.description()), px + 12, y, MUTED);
+            context.text(font,
+                    Component.literal(editFunction.description()), px + 12, y, MUTED);
             y += 14;
         }
 
@@ -387,34 +387,34 @@ public final class InventoryButtonLayoutScreen extends Screen {
                 toggleBtn.x + toggleBtn.w, toggleBtn.y + toggleBtn.h,
                 editToggle ? BUTTON_ACTIVE : BUTTON_FILL);
         drawBorder(context, toggleBtn.x, toggleBtn.y, toggleBtn.w, toggleBtn.h, POPUP_BORDER);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(toggleLabel),
+        context.centeredText(font, Component.literal(toggleLabel),
                 toggleBtn.x + toggleBtn.w / 2, toggleBtn.y + 4, TEXT_COLOR);
         y += 22;
 
         // Item selectors
-        context.drawTextWithShadow(textRenderer,
-                Text.literal(editToggle ? "Icon (aktiv):" : "Icon:"), px + 12, y, TEXT_COLOR);
+        context.text(font,
+                Component.literal(editToggle ? "Icon (aktiv):" : "Icon:"), px + 12, y, TEXT_COLOR);
         ItemStack activeStack = InventoryButtonItems.resolve(editItemActive);
-        context.drawItem(activeStack, px + 12, y + 10);
+        context.item(activeStack, px + 12, y + 10);
         Rect itemActiveBtn = new Rect(px + 32, y + 10, 80, 14);
         context.fill(itemActiveBtn.x, itemActiveBtn.y,
                 itemActiveBtn.x + itemActiveBtn.w, itemActiveBtn.y + itemActiveBtn.h, BUTTON_FILL);
         drawBorder(context, itemActiveBtn.x, itemActiveBtn.y, itemActiveBtn.w, itemActiveBtn.h, POPUP_BORDER);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Waehlen"),
+        context.centeredText(font, Component.literal("Waehlen"),
                 itemActiveBtn.x + itemActiveBtn.w / 2, itemActiveBtn.y + 3, MUTED);
         y += 28;
 
         if (editToggle) {
-            context.drawTextWithShadow(textRenderer,
-                    Text.literal("Icon (inaktiv):"), px + 12, y, TEXT_COLOR);
+            context.text(font,
+                    Component.literal("Icon (inaktiv):"), px + 12, y, TEXT_COLOR);
             ItemStack inactiveStack = InventoryButtonItems.resolve(editItemInactive);
-            context.drawItem(inactiveStack, px + 12, y + 10);
+            context.item(inactiveStack, px + 12, y + 10);
             Rect itemInactiveBtn = new Rect(px + 32, y + 10, 80, 14);
             context.fill(itemInactiveBtn.x, itemInactiveBtn.y,
                     itemInactiveBtn.x + itemInactiveBtn.w, itemInactiveBtn.y + itemInactiveBtn.h, BUTTON_FILL);
             drawBorder(context, itemInactiveBtn.x, itemInactiveBtn.y,
                     itemInactiveBtn.w, itemInactiveBtn.h, POPUP_BORDER);
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal("Waehlen"),
+            context.centeredText(font, Component.literal("Waehlen"),
                     itemInactiveBtn.x + itemInactiveBtn.w / 2, itemInactiveBtn.y + 3, MUTED);
             y += 28;
         }
@@ -426,7 +426,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
                 islandToggleBtn.x + islandToggleBtn.w, islandToggleBtn.y + islandToggleBtn.h,
                 editIslandFilterEnabled ? BUTTON_ACTIVE : BUTTON_FILL);
         drawBorder(context, islandToggleBtn.x, islandToggleBtn.y, islandToggleBtn.w, islandToggleBtn.h, POPUP_BORDER);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(islandFilterLabel),
+        context.centeredText(font, Component.literal(islandFilterLabel),
                 islandToggleBtn.x + islandToggleBtn.w / 2, islandToggleBtn.y + 4, TEXT_COLOR);
         y += 22;
 
@@ -438,7 +438,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
             drawBorder(context, px + 12, y, pw - 24, 14, islandSearchFocused ? accent : POPUP_BORDER);
             String islandSearchDisplay = islandSearch.isEmpty() ? "Islands suchen..." : islandSearch;
             if (islandSearchFocused) islandSearchDisplay += ((System.currentTimeMillis() / 400L) % 2 == 0 ? "_" : "");
-            context.drawTextWithShadow(textRenderer, Text.literal(islandSearchDisplay),
+            context.text(font, Component.literal(islandSearchDisplay),
                     px + 14, y + 3, islandSearchFocused ? TEXT_COLOR : MUTED);
             y += 20;
 
@@ -454,8 +454,8 @@ public final class InventoryButtonLayoutScreen extends Screen {
                 context.fill(ix, iy, ix + colW - 2, iy + 16, selected ? 0xCC1A4A2A : 0xCC1A2030);
                 drawBorder(context, ix, iy, colW - 2, 16, selected ? BUTTON_ACTIVE : POPUP_BORDER);
                 String mark = selected ? "\u2713 " : "  ";
-                context.drawTextWithShadow(textRenderer,
-                        Text.literal(mark + islands[i].label()),
+                context.text(font,
+                        Component.literal(mark + islands[i].label()),
                         ix + 4, iy + 4, selected ? TEXT_COLOR : MUTED);
             }
             y += islandRowCount() * 18;
@@ -469,7 +469,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
                     gardenBtn.x + gardenBtn.w, gardenBtn.y + gardenBtn.h,
                     editGardenOnly ? BUTTON_ACTIVE : BUTTON_FILL);
             drawBorder(context, gardenBtn.x, gardenBtn.y, gardenBtn.w, gardenBtn.h, POPUP_BORDER);
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal(gardenLabel),
+            context.centeredText(font, Component.literal(gardenLabel),
                     gardenBtn.x + gardenBtn.w / 2, gardenBtn.y + 4, TEXT_COLOR);
             y += 22;
 
@@ -479,7 +479,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
                     mouseBtn.x + mouseBtn.w, mouseBtn.y + mouseBtn.h,
                     editSqueakyMousemat ? BUTTON_ACTIVE : BUTTON_FILL);
             drawBorder(context, mouseBtn.x, mouseBtn.y, mouseBtn.w, mouseBtn.h, POPUP_BORDER);
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal(mouseLabel),
+            context.centeredText(font, Component.literal(mouseLabel),
                     mouseBtn.x + mouseBtn.w / 2, mouseBtn.y + 4, TEXT_COLOR);
             y += 22;
         }
@@ -494,19 +494,19 @@ public final class InventoryButtonLayoutScreen extends Screen {
 
         context.fill(saveBtn.x, saveBtn.y,
                 saveBtn.x + saveBtn.w, saveBtn.y + saveBtn.h, BUTTON_ACTIVE);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Speichern"),
+        context.centeredText(font, Component.literal("Speichern"),
                 saveBtn.x + saveBtn.w / 2, saveBtn.y + 5, TEXT_COLOR);
 
         if (deleteBtn != null) {
             context.fill(deleteBtn.x, deleteBtn.y,
                     deleteBtn.x + deleteBtn.w, deleteBtn.y + deleteBtn.h, BUTTON_DEL);
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal("Loeschen"),
+            context.centeredText(font, Component.literal("Loeschen"),
                     deleteBtn.x + deleteBtn.w / 2, deleteBtn.y + 5, TEXT_COLOR);
         }
 
         context.fill(cancelBtn.x, cancelBtn.y,
                 cancelBtn.x + cancelBtn.w, cancelBtn.y + cancelBtn.h, BUTTON_FILL);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Abbrechen"),
+        context.centeredText(font, Component.literal("Abbrechen"),
                 cancelBtn.x + cancelBtn.w / 2, cancelBtn.y + 5, MUTED);
     }
 
@@ -681,7 +681,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
             return true;
         }
 
-        // Click outside popup → close
+        // MouseButtonEvent outside popup → close
         if (mx < px || mx > px + pw || my < py || my > py + ph) {
             closePopup();
         }
@@ -689,12 +689,12 @@ public final class InventoryButtonLayoutScreen extends Screen {
     }
 
     private void openItemPicker(java.util.function.Consumer<String> callback) {
-        if (client == null) return;
+        if (minecraft == null) return;
         // Open the picker and return here afterwards (this screen is the parent).
-        client.setScreen(new ItemPickerScreen(this, chosen -> {
+        minecraft.setScreen(new ItemPickerScreen(this, chosen -> {
             callback.accept(chosen);
             // Re-open this layout screen
-            client.setScreen(InventoryButtonLayoutScreen.this);
+            minecraft.setScreen(InventoryButtonLayoutScreen.this);
         }));
     }
 
@@ -789,7 +789,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
-    private static void drawBorder(DrawContext ctx, int x, int y, int w, int h, int color) {
+    private static void drawBorder(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int color) {
         ctx.fill(x,         y,         x + w,     y + 1,     color);
         ctx.fill(x,         y + h - 1, x + w,     y + h,     color);
         ctx.fill(x,         y,         x + 1,     y + h,     color);

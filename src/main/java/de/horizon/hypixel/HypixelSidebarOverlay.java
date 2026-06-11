@@ -4,16 +4,16 @@ import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.hud.HudStyle;
 import de.horizon.render.PillarboxState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardEntry;
-import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Scoreboard;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,16 +31,16 @@ public final class HypixelSidebarOverlay {
     private static SidebarSnapshot cachedSnapshot;
     private static long cachedSnapshotAt;
 
-    public void render(DrawContext context, MinecraftClient client) {
+    public void render(GuiGraphicsExtractor context, Minecraft client) {
         SidebarSnapshot snapshot = snapshot(client);
         if (snapshot == null) {
             return;
         }
 
-        TextRenderer textRenderer = client.textRenderer;
+        Font textRenderer = client.font;
         int barOffset = PillarboxState.scaledBarWidth();
-        int width = context.getScaledWindowWidth() - 2 * barOffset;
-        int height = context.getScaledWindowHeight();
+        int width = context.guiWidth() - 2 * barOffset;
+        int height = context.guiHeight();
         int top = height - BAR_HEIGHT;
         context.fill(0, top, width, height, HudStyle.panel());
         context.fill(0, top, width, top + 1, HudStyle.accent());
@@ -61,16 +61,16 @@ public final class HypixelSidebarOverlay {
             }
 
             String content = trimToWidth(textRenderer, segment, remainingWidth);
-            int contentWidth = textRenderer.getWidth(content);
-            if (!suffix.isEmpty() && contentWidth + textRenderer.getWidth(suffix) > remainingWidth) {
+            int contentWidth = textRenderer.width(content);
+            if (!suffix.isEmpty() && contentWidth + textRenderer.width(suffix) > remainingWidth) {
                 suffix = "";
             }
 
-            context.drawTextWithShadow(textRenderer, content, x, baseline, index == 0 ? HudStyle.accent() : HudStyle.text());
+            context.text(textRenderer, content, x, baseline, index == 0 ? HudStyle.accent() : HudStyle.text());
             x += contentWidth;
             if (!suffix.isEmpty()) {
-                context.drawTextWithShadow(textRenderer, suffix, x, baseline, HudStyle.muted());
-                x += textRenderer.getWidth(suffix);
+                context.text(textRenderer, suffix, x, baseline, HudStyle.muted());
+                x += textRenderer.width(suffix);
             }
         }
     }
@@ -82,7 +82,7 @@ public final class HypixelSidebarOverlay {
      * numeric values (kill counts, timers, plot numbers, etc.) always produce a
      * single stable entry.
      */
-    public static Map<String, String> liveDeduplicatedLines(MinecraftClient client) {
+    public static Map<String, String> liveDeduplicatedLines(Minecraft client) {
         SidebarSnapshot snap = cachedSnapshot;
         if (snap == null) {
             return new LinkedHashMap<>();
@@ -98,12 +98,12 @@ public final class HypixelSidebarOverlay {
     }
 
     /** Returns the island detected from the tab list "Area:" entry. */
-    public static SkyBlockIsland liveIsland(MinecraftClient client) {
+    public static SkyBlockIsland liveIsland(Minecraft client) {
         return SkyBlockIsland.fromTabList(client);
     }
 
     /** Returns true if the sidebar contains a "Plot" line, indicating the player is on a garden plot. */
-    public static boolean isOnPlot(MinecraftClient client) {
+    public static boolean isOnPlot(Minecraft client) {
         SidebarSnapshot snap = cachedSnapshot;
         if (snap == null) return false;
         for (String line : snap.lines()) {
@@ -113,7 +113,7 @@ public final class HypixelSidebarOverlay {
         return false;
     }
 
-    public static boolean shouldReplaceVanillaSidebar(MinecraftClient client) {
+    public static boolean shouldReplaceVanillaSidebar(Minecraft client) {
         HorizonClient horizon = HorizonClient.getInstance();
         if (horizon != null && !horizon.getConfigManager().getConfig().isCustomScoreboardEnabled()) {
             return false;
@@ -121,28 +121,28 @@ public final class HypixelSidebarOverlay {
         return snapshot(client) != null;
     }
 
-    public static int lowerHudOffset(MinecraftClient client) {
+    public static int lowerHudOffset(Minecraft client) {
         return shouldReplaceVanillaSidebar(client) ? HOTBAR_OFFSET : 0;
     }
 
-    private static SidebarSnapshot snapshot(MinecraftClient client) {
-        if (!isHypixelSkyBlock(client) || client.world == null) {
+    private static SidebarSnapshot snapshot(Minecraft client) {
+        if (!isHypixelSkyBlock(client) || client.level == null) {
             clearCache();
             return null;
         }
 
-        Scoreboard scoreboard = client.world.getScoreboard();
-        ScoreboardObjective objective = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+        Scoreboard scoreboard = client.level.getScoreboard();
+        Objective objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
         if (objective == null) {
             return cachedSnapshot(client);
         }
 
         String title = clean(objective.getDisplayName());
         List<String> lines = new ArrayList<>();
-        Collection<ScoreboardEntry> entries = scoreboard.getScoreboardEntries(objective);
+        Collection<PlayerScoreEntry> entries = scoreboard.listPlayerScores(objective);
         entries.stream()
-            .filter(entry -> !entry.hidden())
-            .sorted(Comparator.comparingInt(ScoreboardEntry::value).reversed())
+            .filter(entry -> !entry.isHidden())
+            .sorted(Comparator.comparingInt(PlayerScoreEntry::value).reversed())
             .forEach(entry -> {
                 String line = lineText(scoreboard, entry);
                 if (!line.isBlank()) {
@@ -158,25 +158,25 @@ public final class HypixelSidebarOverlay {
         return snapshot;
     }
 
-    private static boolean isHypixelSkyBlock(MinecraftClient client) {
+    private static boolean isHypixelSkyBlock(Minecraft client) {
         if (client == null || client.player == null) {
             return false;
         }
 
-        ServerInfo serverInfo = client.getCurrentServerEntry();
+        ServerData serverInfo = client.getCurrentServer();
         if (serverInfo != null) {
-            String address = normalize(serverInfo.address);
+            String address = normalize(serverInfo.ip);
             if (address.contains("hypixel.net")) {
                 return true;
             }
         }
 
-        if (client.world == null) {
+        if (client.level == null) {
             return false;
         }
 
-        Scoreboard scoreboard = client.world.getScoreboard();
-        ScoreboardObjective objective = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+        Scoreboard scoreboard = client.level.getScoreboard();
+        Objective objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
         if (objective == null) {
             return false;
         }
@@ -186,8 +186,8 @@ public final class HypixelSidebarOverlay {
             return true;
         }
 
-        for (ScoreboardEntry entry : scoreboard.getScoreboardEntries(objective)) {
-            if (entry.hidden()) {
+        for (PlayerScoreEntry entry : scoreboard.listPlayerScores(objective)) {
+            if (entry.isHidden()) {
                 continue;
             }
             String normalized = normalize(lineText(scoreboard, entry));
@@ -353,41 +353,41 @@ public final class HypixelSidebarOverlay {
         return false;
     }
 
-    private static String lineText(Scoreboard scoreboard, ScoreboardEntry entry) {
+    private static String lineText(Scoreboard scoreboard, PlayerScoreEntry entry) {
         StringBuilder builder = new StringBuilder();
-        Team team = scoreboard.getScoreHolderTeam(entry.owner());
+        PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
         if (team != null) {
-            builder.append(clean(team.getPrefix()));
+            builder.append(clean(team.getPlayerPrefix()));
         }
         if (entry.display() != null) {
             builder.append(clean(entry.display()));
         } else {
-            builder.append(clean(entry.name()));
+            builder.append(clean(entry.ownerName()));
         }
         if (team != null) {
-            builder.append(clean(team.getSuffix()));
+            builder.append(clean(team.getPlayerSuffix()));
         }
         String value = builder.toString().replace('\u00A0', ' ').trim();
         return value.replaceAll("\\s{2,}", " ");
     }
 
-    private static String trimToWidth(TextRenderer textRenderer, String value, int maxWidth) {
-        if (textRenderer.getWidth(value) <= maxWidth) {
+    private static String trimToWidth(Font textRenderer, String value, int maxWidth) {
+        if (textRenderer.width(value) <= maxWidth) {
             return value;
         }
-        if (maxWidth <= textRenderer.getWidth("...")) {
+        if (maxWidth <= textRenderer.width("...")) {
             return "";
         }
 
         String ellipsis = "...";
         String current = value;
-        while (!current.isEmpty() && textRenderer.getWidth(current + ellipsis) > maxWidth) {
+        while (!current.isEmpty() && textRenderer.width(current + ellipsis) > maxWidth) {
             current = current.substring(0, current.length() - 1);
         }
         return current.isEmpty() ? "" : current + ellipsis;
     }
 
-    private static String clean(Text text) {
+    private static String clean(Component text) {
         return text == null ? "" : text.getString();
     }
 
@@ -432,7 +432,7 @@ public final class HypixelSidebarOverlay {
         }
     }
 
-    private static SidebarSnapshot cachedSnapshot(MinecraftClient client) {
+    private static SidebarSnapshot cachedSnapshot(Minecraft client) {
         if (cachedSnapshot == null) {
             return null;
         }
@@ -443,7 +443,7 @@ public final class HypixelSidebarOverlay {
         return cachedSnapshot;
     }
 
-    private static long now(MinecraftClient client) {
+    private static long now(Minecraft client) {
         return System.currentTimeMillis();
     }
 

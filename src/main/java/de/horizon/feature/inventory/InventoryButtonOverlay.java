@@ -3,15 +3,15 @@ package de.horizon.feature.inventory;
 import de.horizon.config.ConfigManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;
 import de.horizon.hypixel.SkyBlockIsland;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.item.ItemStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
 /**
- * Renders inventory buttons around any {@link HandledScreen}.
+ * Renders inventory buttons around any {@link AbstractContainerScreen}.
  *
  * Positions are computed relative to the GUI background centre so that they
  * align regardless of screen resolution.  The default inventory size 176 × 166
@@ -41,8 +41,8 @@ public final class InventoryButtonOverlay {
 
     // ── Render ───────────────────────────────────────────────────────────────
 
-    public void render(HandledScreen<?> screen, DrawContext context, int mouseX, int mouseY) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+    public void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor context, int mouseX, int mouseY) {
+        Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) return;
         if (!configManager.getConfig().isInventoryButtonsEnabled()) return;
 
@@ -66,7 +66,7 @@ public final class InventoryButtonOverlay {
         }
     }
 
-    private void renderSlot(DrawContext context, MinecraftClient mc,
+    private void renderSlot(GuiGraphicsExtractor context, Minecraft mc,
                              List<InventoryButton> buttons, String slotId,
                              int x, int y, int mouseX, int mouseY) {
         InventoryButton button = findButton(buttons, slotId);
@@ -93,12 +93,12 @@ public final class InventoryButtonOverlay {
         String itemId = (button.toggle && !button.toggleActive)
                 ? button.itemIdInactive : button.itemIdActive;
         ItemStack stack = InventoryButtonItems.resolve(itemId);
-        context.drawItem(stack, x + 1, y + 1);
+        context.item(stack, x + 1, y + 1);
 
         // Tooltip on hover
         if (hovered && !button.label.isBlank()) {
-            context.drawTooltip(mc.textRenderer,
-                    net.minecraft.text.Text.literal(button.label),
+            context.setTooltipForNextFrame(mc.font,
+                    net.minecraft.network.chat.Component.literal(button.label),
                     mouseX, mouseY);
         }
 
@@ -115,7 +115,7 @@ public final class InventoryButtonOverlay {
 
     public boolean mouseClicked(double mouseX, double mouseY, int btn) {
         if (btn != 0) return false;
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc == null) return false;
         for (int i = 0; i < hitCount; i++) {
             SlotHit h = hits[i];
@@ -137,7 +137,7 @@ public final class InventoryButtonOverlay {
         return null;
     }
 
-    private static void drawBorder(DrawContext ctx, int x, int y, int w, int h, int color) {
+    private static void drawBorder(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int color) {
         ctx.fill(x,         y,         x + w,     y + 1,     color);
         ctx.fill(x,         y + h - 1, x + w,     y + h,     color);
         ctx.fill(x,         y,         x + 1,     y + h,     color);

@@ -4,8 +4,8 @@ import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
 import de.horizon.feature.misc.SystemStatsService;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public final class SystemStatsHudElement implements HudElement {
     @Override
@@ -34,18 +34,18 @@ public final class SystemStatsHudElement implements HudElement {
     }
 
     @Override
-    public int width(MinecraftClient client, HudPosition position) {
-        int widest = Math.max(client.textRenderer.getWidth("CPU 100% | 99C"), client.textRenderer.getWidth("GPU 100% | 99C"));
+    public int width(Minecraft client, HudPosition position) {
+        int widest = Math.max(client.font.width("CPU 100% | 99C"), client.font.width("GPU 100% | 99C"));
         return (int) Math.ceil(widest * position.getScale());
     }
 
     @Override
-    public int height(MinecraftClient client, HudPosition position) {
-        return (int) Math.ceil(((client.textRenderer.fontHeight * 2) + 4) * position.getScale());
+    public int height(Minecraft client, HudPosition position) {
+        return (int) Math.ceil(((client.font.lineHeight * 2) + 4) * position.getScale());
     }
 
     @Override
-    public void render(DrawContext drawContext, MinecraftClient client, HudPosition position, boolean editorMode) {
+    public void render(GuiGraphicsExtractor drawContext, Minecraft client, HudPosition position, boolean editorMode) {
         SystemStatsService service = HorizonClient.getInstance().getSystemStatsService();
         service.requestUpdate();
         String cpuText = editorMode
@@ -55,12 +55,12 @@ public final class SystemStatsHudElement implements HudElement {
             ? "GPU 72% | 65C"
             : "GPU " + formatPercent(service.getGpuUsage()) + " | " + formatTemp(service.getGpuTemp());
 
-        drawContext.getMatrices().pushMatrix();
-        drawContext.getMatrices().translate(position.getX(), position.getY());
-        drawContext.getMatrices().scale((float) position.getScale(), (float) position.getScale());
-        drawContext.drawText(client.textRenderer, cpuText, 0, 0, HudStyle.accent(), true);
-        drawContext.drawText(client.textRenderer, gpuText, 0, client.textRenderer.fontHeight + 4, HudStyle.muted(), true);
-        drawContext.getMatrices().popMatrix();
+        drawContext.pose().pushMatrix();
+        drawContext.pose().translate(position.getX(), position.getY());
+        drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
+        drawContext.text(client.font, cpuText, 0, 0, HudStyle.accent(), true);
+        drawContext.text(client.font, gpuText, 0, client.font.lineHeight + 4, HudStyle.muted(), true);
+        drawContext.pose().popMatrix();
     }
 
     private String formatTemp(Double value) {

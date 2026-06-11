@@ -75,7 +75,7 @@ public final class SpotifyAuthService {
             callbackServer = server;
             loginInProgress = true;
             statusMessage = "Spotify Login im Browser bestaetigen";
-            Util.getOperatingSystem().open(URI.create(buildAuthorizationUrl(port, pendingState, pendingVerifier)));
+            Util.getPlatform().openUri(URI.create(buildAuthorizationUrl(port, pendingState, pendingVerifier)));
         } catch (IOException exception) {
             HorizonMod.LOGGER.error("Failed to start Spotify callback server", exception);
             statusMessage = "Spotify Callback-Port ist blockiert";

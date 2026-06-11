@@ -1,10 +1,10 @@
 package de.horizon.feature.dungeon;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.item.FilledMapItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.map.MapDecoration;
-import net.minecraft.item.map.MapState;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.item.MapItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.saveddata.maps.MapDecoration;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,8 +17,8 @@ public final class DungeonMapService {
 
     public record PlayerDot(float pixelX, float pixelZ, int argbColor) {}
 
-    public void tick(MinecraftClient client, DungeonStateService dungeonState) {
-        if (client == null || client.player == null || client.world == null) {
+    public void tick(Minecraft client, DungeonStateService dungeonState) {
+        if (client == null || client.player == null || client.level == null) {
             reset();
             return;
         }
@@ -27,7 +27,7 @@ public final class DungeonMapService {
             return;
         }
 
-        MapState mapState = findDungeonMapState(client);
+        MapItemSavedData mapState = findDungeonMapItemSavedData(client);
         if (mapState == null) {
             return;
         }
@@ -42,19 +42,19 @@ public final class DungeonMapService {
         for (MapDecoration deco : mapState.getDecorations()) {
             // signed byte -128..127 → pixel 0..127
             float px = (deco.x() + 128) / 2.0f;
-            float pz = (deco.z() + 128) / 2.0f;
+            float pz = (deco.y() + 128) / 2.0f;
             playerDots.add(new PlayerDot(px, pz, 0xFFFFFFFF));
         }
     }
 
-    private MapState findDungeonMapState(MinecraftClient client) {
+    private MapItemSavedData findDungeonMapItemSavedData(Minecraft client) {
         var player = client.player;
-        var world = client.world;
+        var world = client.level;
         // Hotbar first (slots 0-8), then rest of inventory
-        for (int i = 0; i < player.getInventory().size(); i++) {
-            ItemStack stack = player.getInventory().getStack(i);
-            if (stack.getItem() instanceof FilledMapItem) {
-                MapState state = FilledMapItem.getMapState(stack, world);
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof MapItem) {
+                MapItemSavedData state = MapItem.getSavedData(stack, world);
                 if (state != null) {
                     return state;
                 }

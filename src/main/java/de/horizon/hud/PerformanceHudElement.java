@@ -3,8 +3,8 @@ package de.horizon.hud;
 import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public final class PerformanceHudElement implements HudElement {
     @Override
@@ -33,27 +33,27 @@ public final class PerformanceHudElement implements HudElement {
     }
 
     @Override
-    public int width(MinecraftClient client, HudPosition position) {
-        return (int) Math.ceil(client.textRenderer.getWidth("FPS 999 | TPS 20.0 | PING 999") * position.getScale());
+    public int width(Minecraft client, HudPosition position) {
+        return (int) Math.ceil(client.font.width("FPS 999 | TPS 20.0 | PING 999") * position.getScale());
     }
 
     @Override
-    public int height(MinecraftClient client, HudPosition position) {
-        return (int) Math.ceil((client.textRenderer.fontHeight + 2) * position.getScale());
+    public int height(Minecraft client, HudPosition position) {
+        return (int) Math.ceil((client.font.lineHeight + 2) * position.getScale());
     }
 
     @Override
-    public void render(DrawContext drawContext, MinecraftClient client, HudPosition position, boolean editorMode) {
+    public void render(GuiGraphicsExtractor drawContext, Minecraft client, HudPosition position, boolean editorMode) {
         int ping = HorizonClient.getInstance().getPingService().getPing(client);
         String pingText = ping < 0 ? "..." : String.valueOf(ping);
         String text = editorMode
             ? "FPS 420 | TPS 20.0 | PING 12"
-            : "FPS " + client.getCurrentFps() + " | TPS " + String.format("%.1f", HorizonClient.getInstance().getTpsTracker().getLastKnownTps()) + " | PING " + pingText;
+            : "FPS " + client.getFps() + " | TPS " + String.format("%.1f", HorizonClient.getInstance().getTpsTracker().getLastKnownTps()) + " | PING " + pingText;
 
-        drawContext.getMatrices().pushMatrix();
-        drawContext.getMatrices().translate(position.getX(), position.getY());
-        drawContext.getMatrices().scale((float) position.getScale(), (float) position.getScale());
-        drawContext.drawText(client.textRenderer, text, 0, 0, HudStyle.accent(), true);
-        drawContext.getMatrices().popMatrix();
+        drawContext.pose().pushMatrix();
+        drawContext.pose().translate(position.getX(), position.getY());
+        drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
+        drawContext.text(client.font, text, 0, 0, HudStyle.accent(), true);
+        drawContext.pose().popMatrix();
     }
 }

@@ -4,6 +4,7 @@ public final class DungeonConfig {
     int catacombsLevel = 0;
     boolean dungeonPartyFinderOverlayEnabled = true;
     boolean dungeonRareRoomAlertsEnabled = true;
+    boolean terminalDropSwapEnabled = false;
     boolean terminalCorrectAllEnabled = true;
     boolean terminalNavigateMazeEnabled = true;
     boolean terminalClickInOrderEnabled = true;

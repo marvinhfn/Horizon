@@ -5,7 +5,6 @@ import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import de.horizon.HorizonClient;
 import de.horizon.render.PillarboxState;
-import net.minecraft.client.gl.GlCommandEncoder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,7 +15,7 @@ import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.function.Supplier;
 
-@Mixin(GlCommandEncoder.class)
+@Mixin(targets = "com.mojang.blaze3d.opengl.GlCommandEncoder")
 public class GlCommandEncoderMixin {
 
     @Inject(

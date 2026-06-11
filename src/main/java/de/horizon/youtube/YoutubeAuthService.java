@@ -76,7 +76,7 @@ public final class YoutubeAuthService {
             callbackServer = server;
             loginInProgress = true;
             statusMessage = "YouTube Login im Browser bestaetigen";
-            Util.getOperatingSystem().open(URI.create(buildAuthorizationUrl(port, pendingState, pendingVerifier)));
+            Util.getPlatform().openUri(URI.create(buildAuthorizationUrl(port, pendingState, pendingVerifier)));
         } catch (IOException exception) {
             HorizonMod.LOGGER.error("Failed to start YouTube callback server", exception);
             statusMessage = "YouTube Callback-Port ist blockiert";

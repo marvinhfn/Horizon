@@ -16,13 +16,13 @@ import de.horizon.feature.revive.ReviveSource;
 import de.horizon.hud.HudStyle;
 import de.horizon.spotify.SpotifyService;
 import de.horizon.youtube.YoutubeService;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -94,7 +94,7 @@ public final class HorizonConfigScreen extends Screen {
     private boolean fishingCreatureListExpanded = false;
 
     public HorizonConfigScreen(Screen parent, HorizonClient horizonClient) {
-        super(Text.literal("Horizon"));
+        super(Component.literal("Horizon"));
         this.parent = parent;
         this.horizonClient = horizonClient;
         this.spotifyService = horizonClient.getSpotifyService();
@@ -106,16 +106,16 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         commitInputs();
         horizonClient.getConfigManager().save();
-        if (client != null) {
-            client.setScreen(parent);
+        if (minecraft != null) {
+            minecraft.setScreen(parent);
         }
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != 0) {
             return super.mouseClicked(click, doubled);
         }
@@ -144,7 +144,7 @@ public final class HorizonConfigScreen extends Screen {
         }
 
         if (closeRect(frame).contains(click.x(), click.y())) {
-            close();
+            onClose();
             return true;
         }
         if (searchRect(frame).contains(click.x(), click.y())) {
@@ -261,7 +261,7 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     @Override
-    public boolean charTyped(CharInput input) {
+    public boolean charTyped(CharacterEvent input) {
         if (inputFocus == InputFocus.CATACOMBS_LEVEL && Character.isDigit(input.codepoint())) {
             if ("0".equals(catacombsInput)) {
                 catacombsInput = "";
@@ -305,7 +305,7 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(KeyInput input) {
+    public boolean keyPressed(KeyEvent input) {
         if (inputFocus != InputFocus.NONE) {
             boolean controlDown = (input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
             if (controlDown) {
@@ -352,7 +352,7 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         if (click.button() == 0 && activeSliderIndex >= 0 && activeTab == Tab.DISPLAY && activeDisplaySection == DisplaySection.ANIMATIONS) {
             Rect viewport = contentViewportRect(frame());
             applySliderValue(activeSliderIndex, click.x(), viewport.x);
@@ -367,7 +367,7 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && activeSliderIndex >= 0) {
             activeSliderIndex = -1;
             return true;
@@ -423,7 +423,7 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         Rect frame = frame();
         Rect sidebar = sidebarRect(frame);
         Rect viewport = contentViewportRect(frame);
@@ -523,10 +523,10 @@ public final class HorizonConfigScreen extends Screen {
         }
         drawHeaderMask(context, frame, accent);
 
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
-    private void renderGeneralText(DrawContext context, Rect viewport) {
+    private void renderGeneralText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "General");
         Lang.Language lang = config().getLanguage();
@@ -568,14 +568,14 @@ public final class HorizonConfigScreen extends Screen {
             + actionRowHeight(Lang.t("Konfiguration neu laden.", "Reload the configuration from disk."));
     }
 
-    private void renderHudText(DrawContext context, Rect viewport) {
+    private void renderHudText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "HUD");
         y = drawActionRow(context, viewport.x, y, Lang.t("HUD bearbeiten", "Edit HUD"), "HUD reset", Lang.t("Layout bearbeiten oder Positionen zuruecksetzen.", "Edit layout or reset positions."));
         drawHudColorRow(context, viewport.x, y);
     }
 
-    private void renderDungeonText(DrawContext context, Rect viewport) {
+    private void renderDungeonText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         switch (activeDungeonSection) {
             case GENERAL -> {
@@ -596,6 +596,7 @@ public final class HorizonConfigScreen extends Screen {
             }
             case TERMINAL_SOLVER -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeons / Terminal Solver");
+                y = drawToggleRow(context, viewport.x, y, "Drop Terms", config().isTerminalDropSwapEnabled(), Lang.t("Tauscht Drop und Attack im Terminal. Blockiert Droppen 2s nach Schliessen.", "Swaps Drop and Attack in terminals. Blocks dropping for 2s after closing."));
                 for (TerminalSolverOption option : TerminalSolverOption.values()) {
                     y = drawToggleRow(context, viewport.x, y, option.title(), option.isEnabled(config()), option.description());
                 }
@@ -615,7 +616,7 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private void renderParticleText(DrawContext context, Rect viewport) {
+    private void renderParticleText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y;
         drawFieldRow(context, viewport.x, y, Lang.t("Particle Suche", "Particle Search"), particleSearchInput, inputFocus == InputFocus.PARTICLE_SEARCH, Lang.t("Liste filtern.", "Filter list."));
         y += fieldRowHeight(Lang.t("Liste filtern.", "Filter list."));
@@ -629,7 +630,7 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private void renderMiscText(DrawContext context, Rect viewport) {
+    private void renderMiscText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Misc");
         y = drawToggleRow(context, viewport.x, y, Lang.t("Zeit HUD", "Time HUD"), config().isTimeHudEnabled(), Lang.t("Lokale Uhrzeit als Overlay.", "Local time as overlay."));
@@ -640,7 +641,7 @@ public final class HorizonConfigScreen extends Screen {
         drawToggleRow(context, viewport.x, y, Lang.t("Kompakte Herzen", "Compact Hearts"), config().isCompactHypixelHealthEnabled(), Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
     }
 
-    private void renderDisplayText(DrawContext context, Rect viewport) {
+    private void renderDisplayText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         switch (activeDisplaySection) {
             case GENERAL -> {
@@ -700,7 +701,7 @@ public final class HorizonConfigScreen extends Screen {
         };
     }
 
-    private void renderChatText(DrawContext context, Rect viewport) {
+    private void renderChatText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         switch (activeChatSection) {
             case GENERAL -> {
@@ -709,7 +710,7 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Bridge verstecken", "Hide Bridge"), config().isChatBridgeHidden(), Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."));
                 y = drawFieldRow(context, viewport.x, y, "Bridge Bot Name", chatBridgeBotNameInput, inputFocus == InputFocus.CHAT_BRIDGE_BOT_NAME, Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."));
                 ChatCopyMode copyMode = config().getChatCopyMode();
-                y = drawCycleRow(context, viewport.x, y, Lang.t("Nachrichten kopieren", "Copy Messages"), copyMode.label(), copyMode != ChatCopyMode.OFF, Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."));
+                y = drawCycleRow(context, viewport.x, y, Lang.t("Nachrichten kopieren", "Copy Messages"), copyMode.label(), copyMode != ChatCopyMode.OFF, Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right MouseButtonEvent or Both."));
                 drawToggleRow(context, viewport.x + 16, y, Lang.t("Gesamte Nachricht", "Full Message"), config().isChatCopyFullMessage(), Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
             }
             case SPAM_FILTERS -> {
@@ -740,7 +741,7 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private void renderScoreboardText(DrawContext context, Rect viewport) {
+    private void renderScoreboardText(GuiGraphicsExtractor context, Rect viewport) {
         if (scoreboardGeneralActive) {
             renderGeneralScoreboardText(context, viewport);
         } else {
@@ -748,7 +749,7 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private void renderGeneralScoreboardText(DrawContext context, Rect viewport) {
+    private void renderGeneralScoreboardText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Scoreboard / General");
         y = drawToggleRow(context, viewport.x, y, "Custom Scoreboard", config().isCustomScoreboardEnabled(), Lang.t("Eigene Scoreboard-Leiste am unteren Bildschirmrand anzeigen.", "Show custom scoreboard bar at the bottom of the screen."));
@@ -759,7 +760,7 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private void renderIslandScoreboardText(DrawContext context, Rect viewport) {
+    private void renderIslandScoreboardText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Scoreboard / " + activeScoreboardIsland.label());
         Map<String, String> known = islandDisplayLines();
@@ -804,7 +805,7 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private void renderMusicText(DrawContext context, Rect viewport) {
+    private void renderMusicText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         switch (activeMusicSection) {
             case GENERAL -> {
@@ -834,7 +835,7 @@ public final class HorizonConfigScreen extends Screen {
 
     // ── Inventory tab ─────────────────────────────────────────────────────────
 
-    private void renderInventoryText(DrawContext context, Rect viewport) {
+    private void renderInventoryText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         switch (activeInventorySection) {
             case GENERAL -> {
@@ -868,7 +869,7 @@ public final class HorizonConfigScreen extends Screen {
             }
             case INVENTORY_BUTTONS -> {
                 if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
-                    client.setScreen(new InventoryButtonLayoutScreen(this, horizonClient));
+                    minecraft.setScreen(new InventoryButtonLayoutScreen(this, horizonClient));
                     return true;
                 }
             }
@@ -887,7 +888,7 @@ public final class HorizonConfigScreen extends Screen {
         };
     }
 
-    private void renderSearchResults(DrawContext context, Rect viewport) {
+    private void renderSearchResults(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y;
         List<SearchResult> results = searchResults();
         for (int index = 0; index < Math.min(12, results.size()); index++) {
@@ -901,18 +902,18 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private int drawSectionTitle(DrawContext context, int x, int y, String title) {
+    private int drawSectionTitle(GuiGraphicsExtractor context, int x, int y, String title) {
         drawTextLine(context, x, y, title, accentColor());
         context.fill(x, y + 14, x + CONTENT_ROW_WIDTH, y + 15, HudStyle.border());
         return y + 24;
     }
 
-    private int drawToggleRow(DrawContext context, int x, int y, String title, boolean enabled, String description) {
+    private int drawToggleRow(GuiGraphicsExtractor context, int x, int y, String title, boolean enabled, String description) {
         int rowHeight = toggleRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, enabled ? 0xFF2DBA68 : 0xFF8A97A8, false);
         Rect badge = toggleBadgeRect(x, y);
         context.fill(badge.x, badge.y, badge.right(), badge.bottom(), enabled ? 0xFF2DBA68 : 0xFF667487);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(enabled ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        context.centeredText(font, Component.literal(enabled ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
         int contentX = badge.right() + 10;
         int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
         drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, TEXT);
@@ -924,7 +925,7 @@ public final class HorizonConfigScreen extends Screen {
     private static final int SLIDER_HEIGHT = 10;
     private static final int SLIDER_ROW_HEIGHT = CARD_PADDING_TOP + LINE_HEIGHT + SLIDER_HEIGHT + 8 + CARD_PADDING_BOTTOM + CARD_GAP;
 
-    private int drawSliderRow(DrawContext context, int x, int y, String title, double value, double min, double max, String description) {
+    private int drawSliderRow(GuiGraphicsExtractor context, int x, int y, String title, double value, double min, double max, String description) {
         int rowHeight = sliderRowHeight();
         drawSettingCard(context, x, y, rowHeight, accentColor(), false);
         String formatted = String.format("%.2f", value);
@@ -967,12 +968,12 @@ public final class HorizonConfigScreen extends Screen {
         horizonClient.getConfigManager().save();
     }
 
-    private int drawCycleRow(DrawContext context, int x, int y, String title, String modeLabel, boolean active, String description) {
+    private int drawCycleRow(GuiGraphicsExtractor context, int x, int y, String title, String modeLabel, boolean active, String description) {
         int rowHeight = toggleRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, active ? 0xFF2DBA68 : 0xFF8A97A8, false);
         Rect badge = cycleBadgeRect(x, y);
         context.fill(badge.x, badge.y, badge.right(), badge.bottom(), active ? 0xFF2DBA68 : 0xFF667487);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(modeLabel), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        context.centeredText(font, Component.literal(modeLabel), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
         int contentX = badge.right() + 10;
         int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
         drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, TEXT);
@@ -984,7 +985,7 @@ public final class HorizonConfigScreen extends Screen {
         return new Rect(x, y + CARD_PADDING_TOP - 1, 54, 18);
     }
 
-    private int drawActionRow(DrawContext context, int x, int y, String left, String right, String description) {
+    private int drawActionRow(GuiGraphicsExtractor context, int x, int y, String left, String right, String description) {
         int rowHeight = actionRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, HudStyle.selected(), false);
         Rect leftRect = actionButtonRect(x, y, true);
@@ -996,7 +997,7 @@ public final class HorizonConfigScreen extends Screen {
         return y + rowHeight;
     }
 
-    private int drawFieldRow(DrawContext context, int x, int y, String title, String value, boolean focused, String description) {
+    private int drawFieldRow(GuiGraphicsExtractor context, int x, int y, String title, String value, boolean focused, String description) {
         int rowHeight = fieldRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, focused ? HudStyle.accent() : HudStyle.border(), focused);
         drawTextLine(context, x, y + CARD_PADDING_TOP, title + ": " + fieldValue(value, focused), TEXT);
@@ -1004,7 +1005,7 @@ public final class HorizonConfigScreen extends Screen {
         return y + rowHeight;
     }
 
-    private int drawHudColorRow(DrawContext context, int x, int y) {
+    private int drawHudColorRow(GuiGraphicsExtractor context, int x, int y) {
         int rowHeight = hudColorRowHeight();
         drawSettingCard(context, x, y, rowHeight, inputFocus == InputFocus.HUD_ACCENT_COLOR ? HudStyle.accent() : HudStyle.selected(), inputFocus == InputFocus.HUD_ACCENT_COLOR);
         drawTextLine(context, x, y + CARD_PADDING_TOP, Lang.t("HUD Farbe: ", "HUD Color: ") + fieldValue(hudAccentColorInput, inputFocus == InputFocus.HUD_ACCENT_COLOR), TEXT);
@@ -1023,7 +1024,7 @@ public final class HorizonConfigScreen extends Screen {
         return y + rowHeight;
     }
 
-    private int drawNumberRow(DrawContext context, int x, int y, String title, String value, boolean focused, String description) {
+    private int drawNumberRow(GuiGraphicsExtractor context, int x, int y, String title, String value, boolean focused, String description) {
         int rowHeight = numberRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, focused ? HudStyle.accent() : HudStyle.border(), focused);
         Rect minusRect = cataButtonRect(x, y, true);
@@ -1035,7 +1036,7 @@ public final class HorizonConfigScreen extends Screen {
         return y + rowHeight;
     }
 
-    private void drawSettingCard(DrawContext context, int x, int y, int height, int markerColor, boolean focused) {
+    private void drawSettingCard(GuiGraphicsExtractor context, int x, int y, int height, int markerColor, boolean focused) {
         int top = y;
         int bottom = y + height - CARD_GAP + 1;
         int left = x - 12;
@@ -1044,8 +1045,8 @@ public final class HorizonConfigScreen extends Screen {
         context.fill(left, top, left + 3, bottom, markerColor);
     }
 
-    private void drawTextLine(DrawContext context, int x, int y, String text, int color) {
-        context.drawTextWithShadow(textRenderer, Text.literal(text), x, y, color);
+    private void drawTextLine(GuiGraphicsExtractor context, int x, int y, String text, int color) {
+        context.text(font, Component.literal(text), x, y, color);
     }
 
     private String fieldValue(String value, boolean focused) {
@@ -1057,7 +1058,7 @@ public final class HorizonConfigScreen extends Screen {
         Rect viewport = contentViewportRect(frame);
         int y = viewport.y - contentScrollOffset + 24;
         if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
-            client.setScreen(new HudLayoutScreen(this, horizonClient));
+            minecraft.setScreen(new HudLayoutScreen(this, horizonClient));
             return true;
         }
         if (actionButtonRect(viewport.x, y, false).contains(mouseX, mouseY)) {
@@ -1160,6 +1161,12 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private boolean handleTerminalRows(double mouseX, double mouseY, Rect viewport, int y) {
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setTerminalDropSwapEnabled(!config().isTerminalDropSwapEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Tauscht Drop und Attack im Terminal. Blockiert Droppen 2s nach Schliessen.", "Swaps Drop and Attack in terminals. Blocks dropping for 2s after closing."));
         for (TerminalSolverOption option : TerminalSolverOption.values()) {
             if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                 option.toggle(config());
@@ -1291,7 +1298,7 @@ public final class HorizonConfigScreen extends Screen {
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."));
+                y += toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right MouseButtonEvent or Both."));
                 if (rowRect(viewport.x + 16, y).contains(mouseX, mouseY)) {
                     config().setChatCopyFullMessage(!config().isChatCopyFullMessage());
                     horizonClient.getConfigManager().save();
@@ -1599,10 +1606,10 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private void pasteIntoFocusedField() {
-        if (client == null) {
+        if (minecraft == null) {
             return;
         }
-        String clipboard = client.keyboard.getClipboard();
+        String clipboard = minecraft.keyboardHandler.getClipboard();
         if (clipboard == null) {
             return;
         }
@@ -1621,10 +1628,10 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private void copyFocusedField() {
-        if (client == null) {
+        if (minecraft == null) {
             return;
         }
-        client.keyboard.setClipboard(switch (inputFocus) {
+        minecraft.keyboardHandler.setClipboard(switch (inputFocus) {
             case CATACOMBS_LEVEL -> catacombsInput;
             case HUD_ACCENT_COLOR -> hudAccentColorInput;
             case CHAT_BRIDGE_BOT_NAME -> chatBridgeBotNameInput;
@@ -1746,6 +1753,7 @@ public final class HorizonConfigScreen extends Screen {
         for (ReviveSource source : ReviveSource.values()) {
             addSearchResult(results, query, source.displayName(), "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, source.displayName() + " revive");
         }
+        addSearchResult(results, query, "Drop Terms", "Dungeons / Terminal Solver", Tab.DUNGEON, DungeonSection.TERMINAL_SOLVER, "drop terms terminal swap attack block");
         for (TerminalSolverOption option : TerminalSolverOption.values()) {
             addSearchResult(results, query, option.title(), "Dungeons / Terminal Solver", Tab.DUNGEON, DungeonSection.TERMINAL_SOLVER, option.title() + " " + option.description());
         }
@@ -1929,7 +1937,7 @@ public final class HorizonConfigScreen extends Screen {
         return titleBlock + descBlock + CARD_PADDING_BOTTOM + CARD_GAP;
     }
 
-    private void drawWrappedText(DrawContext context, int x, int y, String text, int maxWidth, int color) {
+    private void drawWrappedText(GuiGraphicsExtractor context, int x, int y, String text, int maxWidth, int color) {
         int lineY = y;
         for (String line : wrappedLines(text, maxWidth)) {
             drawTextLine(context, x, lineY, line, color);
@@ -1947,7 +1955,7 @@ public final class HorizonConfigScreen extends Screen {
         StringBuilder current = new StringBuilder();
         for (String word : words) {
             String candidate = current.isEmpty() ? word : current + " " + word;
-            if (textRenderer.getWidth(candidate) > maxWidth && !current.isEmpty()) {
+            if (font.width(candidate) > maxWidth && !current.isEmpty()) {
                 lines.add(current.toString());
                 current = new StringBuilder(word);
             } else {
@@ -1972,9 +1980,9 @@ public final class HorizonConfigScreen extends Screen {
         return new Rect(x + (minus ? 500 : 540), y + CARD_PADDING_TOP - 1, 34, 22);
     }
 
-    private void drawInlineAction(DrawContext context, Rect rect, String label) {
+    private void drawInlineAction(GuiGraphicsExtractor context, Rect rect, String label) {
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), CONFIG_BUTTON);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(label), rect.centerX(), rect.y + 5, CONFIG_BUTTON_TEXT);
+        context.centeredText(font, Component.literal(label), rect.centerX(), rect.y + 5, CONFIG_BUTTON_TEXT);
     }
 
     private int hudContentHeight() {
@@ -2008,7 +2016,7 @@ public final class HorizonConfigScreen extends Screen {
                 yield height;
             }
             case TERMINAL_SOLVER -> {
-                int height = 0;
+                int height = toggleRowHeight(Lang.t("Tauscht Drop und Attack im Terminal. Blockiert Droppen 2s nach Schliessen.", "Swaps Drop and Attack in terminals. Blocks dropping for 2s after closing."));
                 for (TerminalSolverOption option : TerminalSolverOption.values()) {
                     height += toggleRowHeight(option.description());
                 }
@@ -2064,7 +2072,7 @@ public final class HorizonConfigScreen extends Screen {
         return h;
     }
 
-    private void renderFishingText(DrawContext context, Rect viewport) {
+    private void renderFishingText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Fishing");
         y = drawToggleRow(context, viewport.x, y, Lang.t("Announce Rare Sea Creatures", "Announce Rare Sea Creatures"),
@@ -2130,7 +2138,7 @@ public final class HorizonConfigScreen extends Screen {
             case GENERAL -> toggleRowHeight(Lang.t("Alle Guild-Chat-Nachrichten ausblenden.", "Hide all guild chat messages."))
                 + toggleRowHeight(Lang.t("Discord-Bridge-Nachrichten im Guild-Chat ausblenden.", "Hide Discord bridge messages in guild chat."))
                 + fieldRowHeight(Lang.t("Ingame-Name des Discord-Bridge-Bots (z.B. catgirlfc).", "In-game name of the Discord bridge bot (e.g. catgirlfc)."))
-                + toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right Click or Both."))
+                + toggleRowHeight(Lang.t("Modus: Aus, Strg+LK, Rechtsklick oder Beides.", "Mode: Off, Ctrl+LClick, Right MouseButtonEvent or Both."))
                 + toggleRowHeight(Lang.t("Alle Zeilen des Eintrags oder nur die angeklickte Zeile.", "All lines of the entry or only the clicked line."));
             case SPAM_FILTERS -> {
                 int height = toggleRowHeight(Lang.t("Reduziert Dungeon- und Ability-Noise.", "Reduces dungeon and ability noise."));
@@ -2175,17 +2183,17 @@ public final class HorizonConfigScreen extends Screen {
         return CARD_PADDING_TOP + LINE_HEIGHT + 6 + CARD_PADDING_BOTTOM + CARD_GAP;
     }
 
-    private int drawScoreboardLineRow(DrawContext context, int x, int y, String lineText, boolean visible, int textColor) {
+    private int drawScoreboardLineRow(GuiGraphicsExtractor context, int x, int y, String lineText, boolean visible, int textColor) {
         int rowHeight = scoreboardLineRowHeight();
         drawSettingCard(context, x, y, rowHeight, visible ? 0xFF2DBA68 : 0xFF8A97A8, false);
         Rect badge = toggleBadgeRect(x, y);
         context.fill(badge.x, badge.y, badge.right(), badge.bottom(), visible ? 0xFF2DBA68 : 0xFF667487);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(visible ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        context.centeredText(font, Component.literal(visible ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
         int contentX = badge.right() + 10;
         if (visible) {
             drawTextLine(context, contentX, y + CARD_PADDING_TOP, lineText, textColor);
         } else {
-            context.drawTextWithShadow(textRenderer, Text.literal(lineText).formatted(Formatting.STRIKETHROUGH), contentX, y + CARD_PADDING_TOP, MUTED);
+            context.text(font, Component.literal(lineText).withStyle(ChatFormatting.STRIKETHROUGH), contentX, y + CARD_PADDING_TOP, MUTED);
         }
         return y + rowHeight;
     }
@@ -2204,33 +2212,33 @@ public final class HorizonConfigScreen extends Screen {
         return new Rect(bar.x + col * (width + gap), bar.y + row * 18, width, 14);
     }
 
-    private void drawConfirmationOverlay(DrawContext context, Rect frame, int accent) {
+    private void drawConfirmationOverlay(GuiGraphicsExtractor context, Rect frame, int accent) {
         int w = 320, h = 94;
         int ox = frame.x + (frame.width - w) / 2;
         int oy = frame.y + (frame.height - h) / 2;
         context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
-        context.drawStrokedRectangle(ox, oy, w, h, HudStyle.border());
+        context.outline(ox, oy, w, h, HudStyle.border());
         drawTextLine(context, ox + 12, oy + 12, Lang.t("Globale Aenderung", "Global Change"), accent);
         drawTextLine(context, ox + 12, oy + 28, "\"" + pendingGlobalToggleLabel + "\"" + Lang.t(" fuer alle Islands toggeln?", " toggle for all islands?"), MUTED);
         Rect yes = confirmYesRect(frame);
         Rect no = confirmNoRect(frame);
         context.fill(yes.x, yes.y, yes.right(), yes.bottom(), 0xFF2DBA68);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(Lang.t("JA", "YES")), yes.centerX(), yes.y + 5, 0xFFF7FBFF);
+        context.centeredText(font, Component.literal(Lang.t("JA", "YES")), yes.centerX(), yes.y + 5, 0xFFF7FBFF);
         context.fill(no.x, no.y, no.right(), no.bottom(), 0xFF8A3A3A);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(Lang.t("NEIN", "NO")), no.centerX(), no.y + 5, 0xFFF7FBFF);
+        context.centeredText(font, Component.literal(Lang.t("NEIN", "NO")), no.centerX(), no.y + 5, 0xFFF7FBFF);
     }
 
-    private void drawReloadPopup(DrawContext context, Rect frame, int accent) {
+    private void drawReloadPopup(GuiGraphicsExtractor context, Rect frame, int accent) {
         int w = 280, h = 82;
         int ox = frame.x + (frame.width - w) / 2;
         int oy = frame.y + (frame.height - h) / 2;
         context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
-        context.drawStrokedRectangle(ox, oy, w, h, HudStyle.border());
+        context.outline(ox, oy, w, h, HudStyle.border());
         drawTextLine(context, ox + 12, oy + 12, Lang.t("Config Reload", "Config Reload"), accent);
         drawTextLine(context, ox + 12, oy + 28, Lang.t("Konfiguration wurde neu geladen.", "Configuration reloaded successfully."), MUTED);
         int bw = 80, bx = ox + (w - bw) / 2, by = oy + h - 28;
         context.fill(bx, by, bx + bw, by + 18, 0xFF2DBA68);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("OK"), bx + bw / 2, by + 5, 0xFFF7FBFF);
+        context.centeredText(font, Component.literal("OK"), bx + bw / 2, by + 5, 0xFFF7FBFF);
     }
 
     private Rect confirmYesRect(Rect frame) {
@@ -2247,19 +2255,19 @@ public final class HorizonConfigScreen extends Screen {
         return new Rect(ox + 198, oy + 58, 110, 22);
     }
 
-    private void drawWindowChrome(DrawContext context, Rect frame, Rect viewport, int accent) {
+    private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame, Rect viewport, int accent) {
         context.fill(frame.x, frame.y, frame.right(), frame.bottom(), CONFIG_WINDOW);
         context.fill(viewport.x - 12, frame.y + 35, frame.right() - 1, frame.bottom() - 1, CONFIG_WINDOW);
-        context.drawStrokedRectangle(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
+        context.outline(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
         context.fill(frame.x, frame.y, frame.right(), frame.y + 34, CONFIG_WINDOW_HEADER);
         drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
         drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : TEXT);
         drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", WARNING);
     }
 
-    private void drawHeaderMask(DrawContext context, Rect frame, int accent) {
+    private void drawHeaderMask(GuiGraphicsExtractor context, Rect frame, int accent) {
         context.fill(frame.x + 1, frame.y + 1, frame.right() - 1, frame.y + 34, CONFIG_WINDOW_HEADER);
-        context.drawStrokedRectangle(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
+        context.outline(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
         drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
         drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : TEXT);
         drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", WARNING);

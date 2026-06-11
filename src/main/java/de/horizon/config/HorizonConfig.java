@@ -99,6 +99,9 @@ public final class HorizonConfig {
     public boolean isDungeonRareRoomAlertsEnabled() { return dungeon.dungeonRareRoomAlertsEnabled; }
     public void setDungeonRareRoomAlertsEnabled(boolean v) { dungeon.dungeonRareRoomAlertsEnabled = v; }
 
+    public boolean isTerminalDropSwapEnabled() { return dungeon.terminalDropSwapEnabled; }
+    public void setTerminalDropSwapEnabled(boolean v) { dungeon.terminalDropSwapEnabled = v; }
+
     public boolean isTerminalCorrectAllEnabled() { return dungeon.terminalCorrectAllEnabled; }
     public void setTerminalCorrectAllEnabled(boolean v) { dungeon.terminalCorrectAllEnabled = v; }
 

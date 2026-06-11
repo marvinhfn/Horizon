@@ -5,11 +5,11 @@ import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
 import de.horizon.hud.HudElement;
 import de.horizon.hud.HudStyle;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 import java.util.Locale;
 
@@ -23,28 +23,28 @@ public final class HudLayoutScreen extends Screen {
     private int dragOffsetY;
 
     public HudLayoutScreen(Screen parent, HorizonClient horizonClient) {
-        super(Text.literal("HUD Layout"));
+        super(Component.literal("HUD Layout"));
         this.parent = parent;
         this.horizonClient = horizonClient;
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         horizonClient.getConfigManager().save();
-        if (client != null) {
-            client.setScreen(parent);
+        if (minecraft != null) {
+            minecraft.setScreen(parent);
         }
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != 0) {
             return super.mouseClicked(click, doubled);
         }
 
         Rect panel = sidePanel();
         if (doneRect(panel).contains(click.x(), click.y())) {
-            close();
+            onClose();
             return true;
         }
 
@@ -77,11 +77,11 @@ public final class HudLayoutScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
-        if (click.button() == 0 && draggedElement != null && client != null) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+        if (click.button() == 0 && draggedElement != null && minecraft != null) {
             HudPosition position = positionOf(draggedElement);
-            int maxX = Math.max(0, width - draggedElement.width(client, position));
-            int maxY = Math.max(0, height - draggedElement.height(client, position));
+            int maxX = Math.max(0, width - draggedElement.width(minecraft, position));
+            int maxY = Math.max(0, height - draggedElement.height(minecraft, position));
             position.setX(clamp((int) click.x() - dragOffsetX, 0, maxX));
             position.setY(clamp((int) click.y() - dragOffsetY, 0, maxY));
             horizonClient.getConfigManager().save();
@@ -92,7 +92,7 @@ public final class HudLayoutScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0) {
             draggedElement = null;
         }
@@ -117,10 +117,10 @@ public final class HudLayoutScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, width, height, HudStyle.backdrop());
 
-        MinecraftClient minecraftClient = MinecraftClient.getInstance();
+        Minecraft minecraftClient = Minecraft.getInstance();
         HorizonConfig config = horizonClient.getConfigManager().getConfig();
         for (HudElement element : horizonClient.getHudRegistry().getElements()) {
             if (!element.isMovable() || !element.isEnabled(config)) {
@@ -130,35 +130,35 @@ public final class HudLayoutScreen extends Screen {
             HudPosition position = positionOf(element);
             element.render(context, minecraftClient, position, true);
             if (element == selectedElement) {
-                context.drawStrokedRectangle(position.getX() - 2, position.getY() - 2, element.width(minecraftClient, position) + 4, element.height(minecraftClient, position) + 4, HudStyle.selected());
+                context.outline(position.getX() - 2, position.getY() - 2, element.width(minecraftClient, position) + 4, element.height(minecraftClient, position) + 4, HudStyle.selected());
             }
         }
 
         Rect panel = sidePanel();
         context.fill(panel.x, panel.y, panel.right(), panel.bottom(), HudStyle.panel());
-        context.drawStrokedRectangle(panel.x, panel.y, panel.width, panel.height, HudStyle.border());
-        context.drawTextWithShadow(textRenderer, title, panel.x + 16, panel.y + 16, HudStyle.accent());
-        context.drawTextWithShadow(textRenderer, Text.literal("Ziehen verschiebt. Mausrad oder +/- aendert die Groesse."), panel.x + 16, panel.y + 34, HudStyle.muted());
+        context.outline(panel.x, panel.y, panel.width, panel.height, HudStyle.border());
+        context.text(font, title, panel.x + 16, panel.y + 16, HudStyle.accent());
+        context.text(font, Component.literal("Ziehen verschiebt. Mausrad oder +/- aendert die Groesse."), panel.x + 16, panel.y + 34, HudStyle.muted());
 
         String selection = selectedElement == null ? "Kein HUD ausgewaehlt" : "Auswahl: " + selectedElement.id();
-        context.drawTextWithShadow(textRenderer, Text.literal(selection), panel.x + 16, panel.y + 62, HudStyle.text());
+        context.text(font, Component.literal(selection), panel.x + 16, panel.y + 62, HudStyle.text());
 
         String scaleText = selectedElement == null ? "--" : String.format(Locale.ROOT, "%.2fx", positionOf(selectedElement).getScale());
         context.fill(panel.x + 12, panel.y + 82, panel.right() - 12, panel.y + 138, HudStyle.panelAlt());
-        context.drawStrokedRectangle(panel.x + 12, panel.y + 82, panel.width - 24, 56, HudStyle.border());
-        context.drawTextWithShadow(textRenderer, Text.literal("Groesse"), panel.x + 24, panel.y + 92, HudStyle.muted());
+        context.outline(panel.x + 12, panel.y + 82, panel.width - 24, 56, HudStyle.border());
+        context.text(font, Component.literal("Groesse"), panel.x + 24, panel.y + 92, HudStyle.muted());
         drawAction(context, scaleRect(panel, true), "-");
         drawAction(context, scaleRect(panel, false), "+");
 
         Rect valueRect = scaleValueRect(panel);
         context.fill(valueRect.x, valueRect.y, valueRect.right(), valueRect.bottom(), HudStyle.action());
-        context.drawStrokedRectangle(valueRect.x, valueRect.y, valueRect.width, valueRect.height, HudStyle.border());
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(scaleText), valueRect.centerX(), valueRect.y + 8, HudStyle.text());
+        context.outline(valueRect.x, valueRect.y, valueRect.width, valueRect.height, HudStyle.border());
+        context.centeredText(font, Component.literal(scaleText), valueRect.centerX(), valueRect.y + 8, HudStyle.text());
 
         drawAction(context, resetRect(panel), "Reset HUD");
         drawDone(context, doneRect(panel), "Schliessen");
 
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     private void adjustScale(HudElement element, double delta) {
@@ -172,7 +172,7 @@ public final class HudLayoutScreen extends Screen {
     }
 
     private HudElement findHitElement(double mouseX, double mouseY) {
-        MinecraftClient minecraftClient = MinecraftClient.getInstance();
+        Minecraft minecraftClient = Minecraft.getInstance();
         HorizonConfig config = horizonClient.getConfigManager().getConfig();
         for (int index = horizonClient.getHudRegistry().getElements().size() - 1; index >= 0; index--) {
             HudElement element = horizonClient.getHudRegistry().getElements().get(index);
@@ -214,16 +214,16 @@ public final class HudLayoutScreen extends Screen {
         return new Rect(panel.x + 24, panel.y + 178, panel.width - 48, 24);
     }
 
-    private void drawAction(DrawContext context, Rect rect, String label) {
+    private void drawAction(GuiGraphicsExtractor context, Rect rect, String label) {
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), HudStyle.action());
-        context.drawStrokedRectangle(rect.x, rect.y, rect.width, rect.height, HudStyle.border());
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(label), rect.centerX(), rect.y + 8, HudStyle.text());
+        context.outline(rect.x, rect.y, rect.width, rect.height, HudStyle.border());
+        context.centeredText(font, Component.literal(label), rect.centerX(), rect.y + 8, HudStyle.text());
     }
 
-    private void drawDone(DrawContext context, Rect rect, String label) {
+    private void drawDone(GuiGraphicsExtractor context, Rect rect, String label) {
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), HudStyle.accent());
-        context.drawStrokedRectangle(rect.x, rect.y, rect.width, rect.height, HudStyle.border());
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(label), rect.centerX(), rect.y + 8, 0xFF0A1016);
+        context.outline(rect.x, rect.y, rect.width, rect.height, HudStyle.border());
+        context.centeredText(font, Component.literal(label), rect.centerX(), rect.y + 8, 0xFF0A1016);
     }
 
     private int clamp(int value, int min, int max) {

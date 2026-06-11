@@ -3,8 +3,8 @@ package de.horizon.mixin;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import de.horizon.HorizonClient;
 import de.horizon.render.PillarboxState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.Window;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.platform.Window;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -25,11 +25,11 @@ public class GlStateManagerMixin {
         HorizonClient horizon = HorizonClient.getInstance();
         if (horizon == null || !horizon.getConfigManager().getConfig().isPillarboxEnabled()) return;
 
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
         Window window = mc.getWindow();
-        int fbW = window.getFramebufferWidth();
-        int fbH = window.getFramebufferHeight();
+        int fbW = window.getWidth();
+        int fbH = window.getHeight();
         if ((long) fbW * 9 <= (long) fbH * 16) return;
 
         if (x == 0 && y == 0 && width == fbW && height == fbH) {

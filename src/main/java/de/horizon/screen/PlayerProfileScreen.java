@@ -16,27 +16,27 @@ import de.horizon.hud.HudStyle;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.ingame.InventoryScreen;
-import net.minecraft.client.network.OtherClientPlayerEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.DyedColorComponent;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.player.RemotePlayer;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.DyedItemColor;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.ChatFormatting;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -84,7 +84,7 @@ public final class PlayerProfileScreen extends Screen {
     private ItemStack hoveredTooltipStack;
 
     public PlayerProfileScreen(Screen parent, String requestedPlayer, HorizonProfileGateway profileGateway) {
-        super(Text.literal("Horizon Viewer"));
+        super(Component.literal("Horizon Viewer"));
         this.parent = parent;
         this.requestedPlayer = requestedPlayer;
         this.profileGateway = profileGateway;
@@ -103,9 +103,9 @@ public final class PlayerProfileScreen extends Screen {
                 throw new RuntimeException(exception);
             }
         }).handle((loaded, throwable) -> {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null) {
-                client.execute(() -> {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft != null) {
+                minecraft.execute(() -> {
                     if (throwable != null) {
                         Throwable cause = throwable.getCause() == null ? throwable : throwable.getCause();
                         error = cause.getMessage() == null ? "Profil konnte nicht geladen werden." : cause.getMessage();
@@ -120,14 +120,14 @@ public final class PlayerProfileScreen extends Screen {
     }
 
     @Override
-    public void close() {
-        if (client != null) {
-            client.setScreen(parent);
+    public void onClose() {
+        if (minecraft != null) {
+            minecraft.setScreen(parent);
         }
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         Rect frame = frame();
         if (!frame.contains(click.x(), click.y())) {
             return super.mouseClicked(click, doubled);
@@ -136,7 +136,7 @@ public final class PlayerProfileScreen extends Screen {
             return super.mouseClicked(click, doubled);
         }
         if (closeRect(frame).contains(click.x(), click.y())) {
-            close();
+            onClose();
             return true;
         }
 
@@ -182,7 +182,7 @@ public final class PlayerProfileScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         Rect frame = frame();
         Rect sidebar = sidebarRect(frame);
         Rect viewport = contentViewportRect(frame);
@@ -211,13 +211,13 @@ public final class PlayerProfileScreen extends Screen {
         context.disableScissor();
         drawScrollBar(context, viewport);
         if (hoveredTooltipStack != null) {
-            context.drawItemTooltip(textRenderer, hoveredTooltipStack, mouseX, mouseY);
+            context.setTooltipForNextFrame(font, hoveredTooltipStack, mouseX, mouseY);
         }
 
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
-    private void drawSidebar(DrawContext context, Rect sidebar) {
+    private void drawSidebar(GuiGraphicsExtractor context, Rect sidebar) {
         for (int index = 0; index < ViewerTab.values().length; index++) {
             ViewerTab tab = ViewerTab.values()[index];
             Rect rect = sidebarTabRect(sidebar, index);
@@ -226,21 +226,21 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private void drawLoading(DrawContext context, Rect viewport) {
+    private void drawLoading(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionHeader(context, viewport.x, y, "Profile Viewer", "Lade SkyBlock-Daten fuer " + displayRequestedPlayer() + ".");
         y = drawInfoCard(context, viewport.x, y, "Backend", "Der Viewer wartet auf Horizon-Backend, Auth-Token und Profildaten.");
         drawInfoCard(context, viewport.x, y, "Hinweis", "Aktiviere das Horizon-Backend im Client und starte den lokalen Backend-Service.");
     }
 
-    private void drawError(DrawContext context, Rect viewport) {
+    private void drawError(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionHeader(context, viewport.x, y, "Profile Viewer", "Der Abruf konnte nicht abgeschlossen werden.");
         y = drawInfoCard(context, viewport.x, y, "Fehler", error);
         drawInfoCard(context, viewport.x, y, "Hinweis", "Wenn der Hypixel-Key ungueltig ist oder das Backend nicht laeuft, bleiben Inventories leer.");
     }
 
-    private void drawOverview(DrawContext context, Rect viewport) {
+    private void drawOverview(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawHeroCard(context, viewport.x, y, "SkyBlock Profile", "Klare Uebersicht ueber Progress, Dungeons, Slayer und wichtige Profilwerte.");
         y = drawStatsStrip(context, viewport.x, y);
@@ -250,14 +250,14 @@ public final class PlayerProfileScreen extends Screen {
         drawProfileListCard(context, viewport.x, y);
     }
 
-    private void drawInventories(DrawContext context, Rect viewport, int mouseX, int mouseY) {
+    private void drawInventories(GuiGraphicsExtractor context, Rect viewport, int mouseX, int mouseY) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionHeader(context, viewport.x, y, "Inventories", "Container-Browser fuer Inventory, Ender Chest, Wardrobe, Backpack, Pets und Accessory-Bag.");
         y = drawInventorySelector(context, viewport.x, y, mouseX, mouseY);
         drawInventoryPage(context, viewport, y, mouseX, mouseY);
     }
 
-    private void drawSkills(DrawContext context, Rect viewport) {
+    private void drawSkills(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionHeader(context, viewport.x, y, "Skills", "Skill-Level, Progress und Experience je Skill.");
         List<HorizonSkill> skills = sortedSkills();
@@ -276,7 +276,7 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private void drawSlayers(DrawContext context, Rect viewport) {
+    private void drawSlayers(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionHeader(context, viewport.x, y, "Slayers", "Level, XP und Kills pro Boss.");
         int row = 0;
@@ -297,13 +297,13 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private void drawPets(DrawContext context, Rect viewport, int mouseX, int mouseY) {
+    private void drawPets(GuiGraphicsExtractor context, Rect viewport, int mouseX, int mouseY) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionHeader(context, viewport.x, y, "Pets", "Aktive und gespeicherte Pets mit Tooltip, Level und Pet-Item.");
         drawPetBrowser(context, viewport, y, mouseX, mouseY);
     }
 
-    private void drawDungeons(DrawContext context, Rect viewport) {
+    private void drawDungeons(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionHeader(context, viewport.x, y, "Dungeons", "Catacombs, Klassenfortschritt, Secrets und absolvierte Floors.");
         y = drawDungeonOverview(context, viewport.x, y);
@@ -314,7 +314,7 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private int drawDungeonOverview(DrawContext context, int x, int y) {
+    private int drawDungeonOverview(GuiGraphicsExtractor context, int x, int y) {
         int height = 152;
         drawSettingCard(context, x, y, height, HudStyle.selected());
         drawText(context, x, y + 10, "Catacombs Overview", TEXT);
@@ -340,7 +340,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + 88 + Math.max(1, (sortedDungeonClasses().size() + 2) / 3) * 96;
     }
 
-    private int drawDungeonFloorRows(DrawContext context, int x, int y) {
+    private int drawDungeonFloorRows(GuiGraphicsExtractor context, int x, int y) {
         int height = 114;
         drawSettingCard(context, x, y, height, HudStyle.border());
         drawText(context, x, y + 10, "Floors", TEXT);
@@ -351,7 +351,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private void drawDungeonFloorRow(DrawContext context, int x, int y, boolean masterMode) {
+    private void drawDungeonFloorRow(GuiGraphicsExtractor context, int x, int y, boolean masterMode) {
         for (int floor = 1; floor <= 7; floor++) {
             HorizonDungeonFloor data = dungeonFloor(masterMode, floor);
             Rect rect = dungeonFloorChipRect(x, y, floor - 1);
@@ -364,7 +364,7 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private void drawDungeonFloorDetail(DrawContext context, int x, int y, HorizonDungeonFloor floor) {
+    private void drawDungeonFloorDetail(GuiGraphicsExtractor context, int x, int y, HorizonDungeonFloor floor) {
         int height = 104;
         drawSettingCard(context, x, y, height, HudStyle.selected());
         drawText(context, x, y + 10, floor.displayName(), TEXT);
@@ -375,7 +375,7 @@ public final class PlayerProfileScreen extends Screen {
         drawKeyValue(context, x, y + 78, "Mode", floor.id().startsWith("m") ? "Master" : "Catacombs");
     }
 
-    private void drawAccessories(DrawContext context, Rect viewport, int mouseX, int mouseY) {
+    private void drawAccessories(GuiGraphicsExtractor context, Rect viewport, int mouseX, int mouseY) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionHeader(context, viewport.x, y, "Accessories", "Accessoires aus der Accessory-Bag, inklusive Power, Tuning und Rarity.");
         y = drawAccessoryPages(context, viewport, y, mouseX, mouseY);
@@ -389,7 +389,7 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private int drawHeroCard(DrawContext context, int x, int y, String title, String subtitle) {
+    private int drawHeroCard(GuiGraphicsExtractor context, int x, int y, String title, String subtitle) {
         int height = 152;
         drawSettingCard(context, x, y, height, HudStyle.accent());
         Rect avatar = new Rect(x + 8, y + 10, 88, 88);
@@ -406,7 +406,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private int drawSectionHeader(DrawContext context, int x, int y, String title, String subtitle) {
+    private int drawSectionHeader(GuiGraphicsExtractor context, int x, int y, String title, String subtitle) {
         int height = 92;
         drawSettingCard(context, x, y, height, HudStyle.accent());
         drawText(context, x, y + 12, title, TEXT);
@@ -414,7 +414,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private int drawStatsStrip(DrawContext context, int x, int y) {
+    private int drawStatsStrip(GuiGraphicsExtractor context, int x, int y) {
         int height = 98;
         drawSettingCard(context, x, y, height, HudStyle.selected());
         drawMetric(context, new Rect(x - 4, y + 28, 145, 54), "SkyBlock", String.valueOf(profile.skyblockLevel()));
@@ -424,7 +424,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private int drawOverviewHighlights(DrawContext context, int x, int y) {
+    private int drawOverviewHighlights(GuiGraphicsExtractor context, int x, int y) {
         int height = 104;
         drawSettingCard(context, x, y, height, HudStyle.border());
         drawText(context, x, y + 10, "Highlights", TEXT);
@@ -434,7 +434,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private int drawProfileSummary(DrawContext context, int x, int y) {
+    private int drawProfileSummary(GuiGraphicsExtractor context, int x, int y) {
         int height = 126;
         drawSettingCard(context, x, y, height, HudStyle.selected());
         drawText(context, x, y + 10, "Profile Summary", TEXT);
@@ -448,7 +448,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private void drawHighlightPill(DrawContext context, int x, int y, int width, String label, String value) {
+    private void drawHighlightPill(GuiGraphicsExtractor context, int x, int y, int width, String label, String value) {
         Rect rect = new Rect(x - 4, y, width, 46);
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), CARD_ALT);
         context.fill(rect.x, rect.y, rect.x + 3, rect.bottom(), HudStyle.accent());
@@ -456,7 +456,7 @@ public final class PlayerProfileScreen extends Screen {
         drawWrappedTextClamped(context, rect.x + 10, rect.y + 22, value, rect.width - 20, 1, TEXT);
     }
 
-    private void drawPetBrowser(DrawContext context, Rect viewport, int y, int mouseX, int mouseY) {
+    private void drawPetBrowser(GuiGraphicsExtractor context, Rect viewport, int y, int mouseX, int mouseY) {
         List<HorizonPet> pets = sortedPets();
         int rows = Math.max(1, (pets.size() + 7) / 8);
         int height = Math.max(276, rows * 40 + 56);
@@ -482,24 +482,24 @@ public final class PlayerProfileScreen extends Screen {
         drawPetDetail(context, detail, hoveredPet);
     }
 
-    private void drawPetSlot(DrawContext context, Rect rect, HorizonPet pet, boolean hovered) {
+    private void drawPetSlot(GuiGraphicsExtractor context, Rect rect, HorizonPet pet, boolean hovered) {
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), hovered ? 0xFF3A4958 : pet.active() ? BUTTON : CARD_ALT);
         context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, hovered ? 0xE2354657 : 0xCC16202A);
         context.fill(rect.x, rect.y, rect.x + 2, rect.bottom(), pet.active() ? rarityColor(pet.tier()) : 0x664F5A66);
         ItemStack stack = buildPetStack(pet);
-        context.drawItem(stack, rect.x + 9, rect.y + 9);
+        context.item(stack, rect.x + 9, rect.y + 9);
         if (isMaxedPet(pet)) {
             drawText(context, rect.x + 4, rect.y + 3, "MAX", rarityColor("LEGENDARY"));
         }
     }
 
-    private void drawPetDetail(DrawContext context, Rect rect, HorizonPet pet) {
+    private void drawPetDetail(GuiGraphicsExtractor context, Rect rect, HorizonPet pet) {
         if (pet == null) {
             drawText(context, rect.x + 10, rect.y + 12, "Keine Pets", TEXT);
             return;
         }
         ItemStack stack = buildPetStack(pet);
-        context.drawItem(stack, rect.x + 10, rect.y + 10);
+        context.item(stack, rect.x + 10, rect.y + 10);
         drawWrappedTextClamped(context, rect.x + 34, rect.y + 12, plainText(pet.displayName()), rect.width - 44, 2, TEXT);
         drawText(context, rect.x + 10, rect.y + 44, pet.tier().isBlank() ? "Tier unbekannt" : pet.tier(), rarityColor(pet.tier()));
         drawText(context, rect.x + 10, rect.y + 60, pet.level() > 0 ? "Level " + pet.level() : "Level --", isMaxedPet(pet) ? rarityColor("LEGENDARY") : TEXT);
@@ -514,7 +514,7 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private int drawAccessoryStorageSummary(DrawContext context, int x, int y) {
+    private int drawAccessoryStorageSummary(GuiGraphicsExtractor context, int x, int y) {
         HorizonAccessoryStorage storage = profile.accessoryStorage();
         int height = 118;
         drawSettingCard(context, x, y, height, HudStyle.border());
@@ -532,7 +532,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private int drawAccessoryPages(DrawContext context, Rect viewport, int y, int mouseX, int mouseY) {
+    private int drawAccessoryPages(GuiGraphicsExtractor context, Rect viewport, int y, int mouseX, int mouseY) {
         List<HorizonStoragePage> pages = accessoryPages();
         if (pages.isEmpty()) {
             return y;
@@ -558,7 +558,7 @@ public final class PlayerProfileScreen extends Screen {
         return y;
     }
 
-    private int drawMetadataCard(DrawContext context, int x, int y) {
+    private int drawMetadataCard(GuiGraphicsExtractor context, int x, int y) {
         int height = 34 + Math.max(1, profile.metadata().size()) * 20;
         drawSettingCard(context, x, y, height, HudStyle.border());
         drawText(context, x, y + 10, "Metadata", TEXT);
@@ -571,7 +571,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private void drawProfileListCard(DrawContext context, int x, int y) {
+    private void drawProfileListCard(GuiGraphicsExtractor context, int x, int y) {
         int height = 34 + Math.max(1, profile.profileNames().size()) * 22;
         drawSettingCard(context, x, y, height, HudStyle.selected());
         drawText(context, x, y + 10, "Profiles", TEXT);
@@ -582,7 +582,7 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private int drawInventorySummary(DrawContext context, int x, int y) {
+    private int drawInventorySummary(GuiGraphicsExtractor context, int x, int y) {
         int height = 94;
         drawSettingCard(context, x, y, height, HudStyle.selected());
         HorizonStoragePage selected = selectedStoragePage();
@@ -592,7 +592,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private int drawInventorySelector(DrawContext context, int x, int y, int mouseX, int mouseY) {
+    private int drawInventorySelector(GuiGraphicsExtractor context, int x, int y, int mouseX, int mouseY) {
         int rows = inventoryChipRows();
         int height = 24 + rows * 34;
         drawSettingCard(context, x, y, height, HudStyle.border());
@@ -615,7 +615,7 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private void drawInventoryPage(DrawContext context, Rect viewport, int y, int mouseX, int mouseY) {
+    private void drawInventoryPage(GuiGraphicsExtractor context, Rect viewport, int y, int mouseX, int mouseY) {
         HorizonStoragePage page = selectedStoragePage();
         if (page == null) {
             drawInfoCard(context, viewport.x, y, "Inventory", "Keine Containerdaten verfuegbar.");
@@ -649,7 +649,7 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private void drawInventorySlot(DrawContext context, Rect rect, HorizonInventorySlot slot, boolean hovered) {
+    private void drawInventorySlot(GuiGraphicsExtractor context, Rect rect, HorizonInventorySlot slot, boolean hovered) {
         HorizonInventoryItem item = slot == null ? HorizonInventoryItem.empty() : slot.item();
         int background = item.isEmpty() ? 0xFF1B2630 : 0xFF2A3744;
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), hovered ? 0xFF3A4958 : background);
@@ -659,13 +659,13 @@ public final class PlayerProfileScreen extends Screen {
             return;
         }
         ItemStack stack = buildItemStack(item);
-        context.drawItem(stack, rect.x + 8, rect.y + 8);
+        context.item(stack, rect.x + 8, rect.y + 8);
         if (item.count() > 1) {
             drawText(context, rect.x + 4, rect.bottom() - 12, String.valueOf(item.count()), HudStyle.accent());
         }
     }
 
-    private void drawInventoryDetail(DrawContext context, Rect rect, HorizonInventorySlot slot) {
+    private void drawInventoryDetail(GuiGraphicsExtractor context, Rect rect, HorizonInventorySlot slot) {
         if (slot == null || slot.item().isEmpty()) {
             drawText(context, rect.x + 10, rect.y + 12, "Item Details", TEXT);
             drawWrappedText(context, rect.x + 10, rect.y + 32, "Fahre mit der Maus ueber einen Slot, um Name, Rarity und Lore anzuzeigen.", rect.width - 20, MUTED);
@@ -674,7 +674,7 @@ public final class PlayerProfileScreen extends Screen {
 
         HorizonInventoryItem item = slot.item();
         ItemStack stack = buildItemStack(item);
-        context.drawItem(stack, rect.x + 10, rect.y + 10);
+        context.item(stack, rect.x + 10, rect.y + 10);
         drawWrappedTextClamped(context, rect.x + 34, rect.y + 12, plainText(item.displayName()), rect.width - 44, 2, TEXT);
         drawText(context, rect.x + 34, rect.y + 38, item.rarity().isBlank() ? "Rarity unbekannt" : item.rarity(), rarityColor(item.rarity()));
         drawText(context, rect.x + 10, rect.y + 58, "Stack " + item.count(), MUTED);
@@ -683,7 +683,7 @@ public final class PlayerProfileScreen extends Screen {
         drawWrappedTextClamped(context, rect.x + 10, rect.y + 92, item.lore().isBlank() ? "Keine Lore verfuegbar." : plainText(item.lore()), rect.width - 20, maxLoreLines, TEXT);
     }
 
-    private int drawInfoCard(DrawContext context, int x, int y, String title, String value) {
+    private int drawInfoCard(GuiGraphicsExtractor context, int x, int y, String title, String value) {
         int height = 48 + wrappedLines(value, 590).size() * 12;
         drawSettingCard(context, x, y, height, HudStyle.selected());
         drawText(context, x, y + 10, title, TEXT);
@@ -691,31 +691,31 @@ public final class PlayerProfileScreen extends Screen {
         return y + height;
     }
 
-    private void drawMetric(DrawContext context, Rect rect, String label, String value) {
+    private void drawMetric(GuiGraphicsExtractor context, Rect rect, String label, String value) {
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), CARD_ALT);
         drawText(context, rect.x + 10, rect.y + 8, label, MUTED);
         drawText(context, rect.x + 10, rect.y + 24, value, TEXT);
     }
 
-    private void drawSettingCard(DrawContext context, int x, int y, int height, int markerColor) {
+    private void drawSettingCard(GuiGraphicsExtractor context, int x, int y, int height, int markerColor) {
         int left = x - 12;
         int right = x + 622;
         context.fill(left, y, right, y + height - 10, CARD);
         context.fill(left, y, left + 3, y + height - 10, markerColor);
     }
 
-    private void drawKeyValue(DrawContext context, int x, int y, String key, String value) {
+    private void drawKeyValue(GuiGraphicsExtractor context, int x, int y, String key, String value) {
         drawText(context, x, y, key, MUTED);
         drawText(context, x + 120, y, value, TEXT);
     }
 
-    private void drawProgressBar(DrawContext context, int x, int y, int width, int height, float progress, int color, String label) {
+    private void drawProgressBar(GuiGraphicsExtractor context, int x, int y, int width, int height, float progress, int color, String label) {
         context.fill(x, y, x + width, y + height, BUTTON);
         context.fill(x, y, x + Math.max(0, Math.min(width, Math.round(width * progress))), y + height, color);
         drawText(context, x, y - 10, label, MUTED);
     }
 
-    private void drawWrappedText(DrawContext context, int x, int y, String text, int maxWidth, int color) {
+    private void drawWrappedText(GuiGraphicsExtractor context, int x, int y, String text, int maxWidth, int color) {
         int lineY = y;
         for (String line : wrappedLines(text, maxWidth)) {
             drawText(context, x, lineY, line, color);
@@ -723,7 +723,7 @@ public final class PlayerProfileScreen extends Screen {
         }
     }
 
-    private void drawWrappedTextClamped(DrawContext context, int x, int y, String text, int maxWidth, int maxLines, int color) {
+    private void drawWrappedTextClamped(GuiGraphicsExtractor context, int x, int y, String text, int maxWidth, int maxLines, int color) {
         List<String> lines = wrappedLines(text, maxWidth);
         int limit = Math.max(1, Math.min(maxLines, lines.size()));
         for (int index = 0; index < limit; index++) {
@@ -746,7 +746,7 @@ public final class PlayerProfileScreen extends Screen {
             StringBuilder current = new StringBuilder();
             for (String word : words) {
                 String candidate = current.isEmpty() ? word : current + " " + word;
-                if (textRenderer.getWidth(candidate) > maxWidth && !current.isEmpty()) {
+                if (font.width(candidate) > maxWidth && !current.isEmpty()) {
                     lines.add(current.toString());
                     current = new StringBuilder(word);
                 } else {
@@ -763,15 +763,15 @@ public final class PlayerProfileScreen extends Screen {
         return lines;
     }
 
-    private void drawText(DrawContext context, int x, int y, String text, int color) {
-        context.drawTextWithShadow(textRenderer, Text.literal(text), x, y, color);
+    private void drawText(GuiGraphicsExtractor context, int x, int y, String text, int color) {
+        context.text(font, Component.literal(text), x, y, color);
     }
 
-    private void drawCenteredText(DrawContext context, int centerX, int y, String text, int color) {
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(text), centerX, y, color);
+    private void drawCenteredText(GuiGraphicsExtractor context, int centerX, int y, String text, int color) {
+        context.centeredText(font, Component.literal(text), centerX, y, color);
     }
 
-    private void drawWindowChrome(DrawContext context, Rect frame) {
+    private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame) {
         context.fill(frame.x, frame.y, frame.right(), frame.bottom(), WINDOW);
         context.fill(frame.x, frame.y, frame.right(), frame.y + 34, WINDOW_HEADER);
         drawText(context, frame.x + 12, frame.y + 12, "HORIZON", HudStyle.accent());
@@ -779,7 +779,7 @@ public final class PlayerProfileScreen extends Screen {
         drawText(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", WARNING);
     }
 
-    private void drawScrollBar(DrawContext context, Rect viewport) {
+    private void drawScrollBar(GuiGraphicsExtractor context, Rect viewport) {
         int totalHeight = contentHeight();
         if (totalHeight <= viewport.height) {
             return;
@@ -1193,31 +1193,31 @@ public final class PlayerProfileScreen extends Screen {
         return humanize(item.itemId());
     }
 
-    private void renderStorageButton(DrawContext context, Rect rect, HorizonStoragePage page, boolean selected) {
+    private void renderStorageButton(GuiGraphicsExtractor context, Rect rect, HorizonStoragePage page, boolean selected) {
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), selected ? BUTTON : CARD_ALT);
         context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, selected ? 0xFF304356 : 0xCC16202A);
         context.fill(rect.x, rect.y, rect.right(), rect.y + 2, selected ? HudStyle.accent() : 0x664F5A66);
-        context.drawItem(buildItemStack(page.buttonItem()), rect.x + 6, rect.y + 6);
+        context.item(buildItemStack(page.buttonItem()), rect.x + 6, rect.y + 6);
     }
 
     private ItemStack buildItemStack(HorizonInventoryItem item) {
         if (item == null || item.isEmpty() && (item.minecraftItemId() == null || item.minecraftItemId().isBlank())) {
-            return Items.BARRIER.getDefaultStack();
+            return Items.BARRIER.getDefaultInstance();
         }
         Item vanillaItem = resolveVanillaItem(item.minecraftItemId());
         ItemStack stack = new ItemStack(vanillaItem, Math.max(1, item.count()));
         if (item.displayName() != null && !item.displayName().isBlank()) {
-            stack.set(DataComponentTypes.CUSTOM_NAME, parseLegacyText(item.displayName()));
+            stack.set(DataComponents.CUSTOM_NAME, parseLegacyText(item.displayName()));
         }
         if (item.lore() != null && !item.lore().isBlank()) {
-            List<Text> loreLines = new ArrayList<>();
+            List<Component> loreLines = new ArrayList<>();
             for (String line : item.lore().split("\\R")) {
                 loreLines.add(parseLegacyText(line));
             }
-            stack.set(DataComponentTypes.LORE, new LoreComponent(loreLines));
+            stack.set(DataComponents.LORE, new ItemLore(loreLines));
         }
         if (item.leatherColor() >= 0) {
-            stack.set(DataComponentTypes.DYED_COLOR, new DyedColorComponent(item.leatherColor()));
+            stack.set(DataComponents.DYED_COLOR, new DyedItemColor(item.leatherColor()));
         }
         if (!item.iconTexture().isBlank() && vanillaItem == Items.PLAYER_HEAD) {
             var textures = LinkedHashMultimap.<String, Property>create();
@@ -1232,19 +1232,19 @@ public final class PlayerProfileScreen extends Screen {
                 "horizon_head",
                 new PropertyMap(textures)
             );
-            stack.set(DataComponentTypes.PROFILE, net.minecraft.component.type.ProfileComponent.ofStatic(profile));
+            stack.set(DataComponents.PROFILE, net.minecraft.world.item.component.ResolvableProfile.createResolved(profile));
         }
         return stack;
     }
 
-    private Text parseLegacyText(String value) {
+    private Component parseLegacyText(String value) {
         if (value == null || value.isBlank()) {
-            return Text.empty();
+            return Component.empty();
         }
-        MutableText result = Text.empty();
+        MutableComponent result = Component.empty();
         StringBuilder segment = new StringBuilder();
-        Formatting color = null;
-        List<Formatting> modifiers = new ArrayList<>();
+        ChatFormatting color = null;
+        List<ChatFormatting> modifiers = new ArrayList<>();
         for (int index = 0; index < value.length(); index++) {
             char character = value.charAt(index);
             if (character == '\u00A7' && index + 1 < value.length()) {
@@ -1252,11 +1252,11 @@ public final class PlayerProfileScreen extends Screen {
                     result.append(applyFormatting(segment.toString(), color, modifiers));
                     segment.setLength(0);
                 }
-                Formatting formatting = Formatting.byCode(value.charAt(++index));
+                ChatFormatting formatting = ChatFormatting.getByCode(value.charAt(++index));
                 if (formatting == null) {
                     continue;
                 }
-                if (formatting == Formatting.RESET) {
+                if (formatting == ChatFormatting.RESET) {
                     color = null;
                     modifiers = new ArrayList<>();
                 } else if (formatting.isColor()) {
@@ -1274,13 +1274,13 @@ public final class PlayerProfileScreen extends Screen {
         return result;
     }
 
-    private Text applyFormatting(String text, Formatting color, List<Formatting> modifiers) {
-        MutableText formatted = Text.literal(text).styled(style -> style.withItalic(false));
+    private Component applyFormatting(String text, ChatFormatting color, List<ChatFormatting> modifiers) {
+        MutableComponent formatted = Component.literal(text).withStyle(style -> style.withItalic(false));
         if (color != null) {
-            formatted.styled(style -> style.withFormatting(color));
+            formatted.withStyle(style -> style.applyFormat(color));
         }
-        for (Formatting formatting : modifiers) {
-            formatted.styled(style -> style.withFormatting(formatting));
+        for (ChatFormatting formatting : modifiers) {
+            formatted.withStyle(style -> style.applyFormat(formatting));
         }
         return formatted;
     }
@@ -1347,26 +1347,26 @@ public final class PlayerProfileScreen extends Screen {
 
     private ItemStack buildPlayerHead() {
         if (profile == null) {
-            return Items.PLAYER_HEAD.getDefaultStack();
+            return Items.PLAYER_HEAD.getDefaultInstance();
         }
         try {
-            ItemStack stack = Items.PLAYER_HEAD.getDefaultStack();
+            ItemStack stack = Items.PLAYER_HEAD.getDefaultInstance();
             GameProfile gameProfile = texturedGameProfile();
             if (gameProfile != null) {
-                stack.set(DataComponentTypes.PROFILE, net.minecraft.component.type.ProfileComponent.ofStatic(gameProfile));
+                stack.set(DataComponents.PROFILE, net.minecraft.world.item.component.ResolvableProfile.createResolved(gameProfile));
             } else if (profile.playerUuid() != null && !profile.playerUuid().isBlank()) {
-                stack.set(DataComponentTypes.PROFILE, net.minecraft.component.type.ProfileComponent.ofDynamic(UUID.fromString(profile.playerUuid())));
+                stack.set(DataComponents.PROFILE, net.minecraft.world.item.component.ResolvableProfile.createUnresolved(UUID.fromString(profile.playerUuid())));
             }
             if (profile.playerName() != null && !profile.playerName().isBlank()) {
-                stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(profile.playerName()));
+                stack.set(DataComponents.CUSTOM_NAME, Component.literal(profile.playerName()));
             }
             return stack;
         } catch (Exception ignored) {
-            return Items.PLAYER_HEAD.getDefaultStack();
+            return Items.PLAYER_HEAD.getDefaultInstance();
         }
     }
 
-    private void drawPlayerModel(DrawContext context, Rect rect) {
+    private void drawPlayerModel(GuiGraphicsExtractor context, Rect rect) {
         LivingEntity entity = buildPlayerModelEntity();
         if (entity == null) {
             drawLargeItem(context, buildPlayerHead(), rect.x + 12, rect.y + 12, 4.0F);
@@ -1374,7 +1374,7 @@ public final class PlayerProfileScreen extends Screen {
         }
         int centerX = rect.x + rect.width / 2;
         int centerY = rect.y + rect.height / 2;
-        InventoryScreen.drawEntity(
+        InventoryScreen.extractEntityInInventoryFollowsMouse(
             context,
             rect.x + 4,
             rect.y + 2,
@@ -1389,23 +1389,23 @@ public final class PlayerProfileScreen extends Screen {
     }
 
     private LivingEntity buildPlayerModelEntity() {
-        if (client == null || client.world == null) {
-            return client == null ? null : client.player;
+        if (minecraft == null || minecraft.level == null) {
+            return minecraft == null ? null : minecraft.player;
         }
         if (profile == null || profile.playerUuid() == null || profile.playerUuid().isBlank()) {
-            return client.player;
+            return minecraft.player;
         }
         try {
-            return new OtherClientPlayerEntity(
-                client.world,
+            return new RemotePlayer(
+                minecraft.level,
                 texturedGameProfile(UUID.fromString(profile.playerUuid()), profile.playerName().isBlank() ? displayRequestedPlayer() : profile.playerName())
             );
         } catch (Exception ignored) {
-            return client.player;
+            return minecraft.player;
         }
     }
 
-    private void drawSlayerMob(DrawContext context, Rect rect, HorizonSlayerBoss slayer) {
+    private void drawSlayerMob(GuiGraphicsExtractor context, Rect rect, HorizonSlayerBoss slayer) {
         LivingEntity entity = buildSlayerEntity(slayer);
         if (entity == null) {
             drawLargeItem(context, fallbackSlayerIcon(slayer), rect.x + 8, rect.y + 8, 1.5F);
@@ -1413,7 +1413,7 @@ public final class PlayerProfileScreen extends Screen {
         }
         int centerX = rect.x + rect.width / 2;
         int centerY = rect.y + rect.height / 2;
-        InventoryScreen.drawEntity(
+        InventoryScreen.extractEntityInInventoryFollowsMouse(
             context,
             rect.x,
             rect.y,
@@ -1445,7 +1445,7 @@ public final class PlayerProfileScreen extends Screen {
     }
 
     private LivingEntity buildSlayerEntity(HorizonSlayerBoss slayer) {
-        if (client == null || client.world == null || slayer == null) {
+        if (minecraft == null || minecraft.level == null || slayer == null) {
             return null;
         }
         EntityType<?> type = switch ((slayer.id() == null ? "" : slayer.id()).toLowerCase(Locale.ROOT)) {
@@ -1461,7 +1461,7 @@ public final class PlayerProfileScreen extends Screen {
             return null;
         }
         try {
-            Entity entity = type.create(client.world, SpawnReason.COMMAND);
+            Entity entity = type.create(minecraft.level, EntitySpawnReason.COMMAND);
             return entity instanceof LivingEntity livingEntity ? livingEntity : null;
         } catch (Exception ignored) {
             return null;
@@ -1514,12 +1514,12 @@ public final class PlayerProfileScreen extends Screen {
         return gameProfile;
     }
 
-    private void drawLargeItem(DrawContext context, ItemStack stack, int x, int y, float scale) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(x, y);
-        context.getMatrices().scale(scale, scale);
-        context.drawItem(stack, 0, 0);
-        context.getMatrices().popMatrix();
+    private void drawLargeItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, float scale) {
+        context.pose().pushMatrix();
+        context.pose().translate(x, y);
+        context.pose().scale(scale, scale);
+        context.item(stack, 0, 0);
+        context.pose().popMatrix();
     }
 
     private Item resolveVanillaItem(String minecraftItemId) {
@@ -1527,7 +1527,8 @@ public final class PlayerProfileScreen extends Screen {
             return Items.PAPER;
         }
         try {
-            Item item = Registries.ITEM.get(Identifier.of(minecraftItemId));
+            Item item = BuiltInRegistries.ITEM.get(Identifier.parse(minecraftItemId))
+                    .map(ref -> ref.value()).orElse(Items.AIR);
             return item == Items.AIR ? Items.PAPER : item;
         } catch (Exception ignored) {
             return Items.PAPER;

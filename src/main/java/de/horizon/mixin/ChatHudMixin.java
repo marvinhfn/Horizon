@@ -4,14 +4,17 @@ import de.horizon.HorizonClient;
 import de.horizon.feature.chat.ChatHudAccess;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.render.PillarboxState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.client.gui.hud.ChatHudLine;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.text.OrderedText;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.multiplayer.chat.GuiMessage;
+import net.minecraft.client.multiplayer.chat.GuiMessageSource;
+import net.minecraft.client.multiplayer.chat.GuiMessageTag;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.network.chat.MessageSignature;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -23,20 +26,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
-@Mixin(ChatHud.class)
+@Mixin(ChatComponent.class)
 public abstract class ChatHudMixin implements ChatHudAccess {
 
     @Shadow
-    MinecraftClient client;
+    Minecraft minecraft;
 
     @Shadow
-    private List<ChatHudLine.Visible> visibleMessages;
+    private List<GuiMessage.Line> trimmedMessages;
 
     @Shadow
-    private int scrolledLines;
+    private int chatScrollbarPos;
 
     @Shadow
-    abstract double getChatScale();
+    abstract double getScale();
 
     @Shadow
     abstract int getLineHeight();
@@ -44,52 +47,44 @@ public abstract class ChatHudMixin implements ChatHudAccess {
     @Unique
     @Override
     public String horizon$getMessageTextAt(double mouseX, double mouseY, boolean fullEntry) {
-        if (visibleMessages == null || visibleMessages.isEmpty()) {
+        if (trimmedMessages == null || trimmedMessages.isEmpty()) {
             return null;
         }
-        int scaledHeight = client.getWindow().getScaledHeight();
+        int scaledHeight = minecraft.getWindow().getGuiScaledHeight();
         double adjustedY = mouseY + ChatTabManager.TAB_BAR_LIFT;
-        double d = (scaledHeight - adjustedY - 40.0) / ((double) getLineHeight() * getChatScale());
+        double d = (scaledHeight - adjustedY - 40.0) / ((double) getLineHeight() * getScale());
         if (d < 0.0) {
             return null;
         }
-        int lineIndex = (int) d + scrolledLines;
-        if (lineIndex < 0 || lineIndex >= visibleMessages.size()) {
+        int lineIndex = (int) d + chatScrollbarPos;
+        if (lineIndex < 0 || lineIndex >= trimmedMessages.size()) {
             return null;
         }
         if (!fullEntry) {
-            String single = horizon$lineToString(visibleMessages.get(lineIndex).content()).trim();
+            String single = horizon$lineToString(trimmedMessages.get(lineIndex).content()).trim();
             return single.isEmpty() ? null : single;
         }
-        // visibleMessages stores entries newest-first. Within each entry, the bottom-most
-        // visible line is at the LOWEST index (endOfEntry=true), and higher indices hold
-        // lines further up (reading order: highest index = top line of message).
-        //
-        // Find the bottom of this entry (walk toward lower indices until endOfEntry=true).
         int bottom = lineIndex;
-        while (bottom > 0 && !visibleMessages.get(bottom).endOfEntry()) {
+        while (bottom > 0 && !trimmedMessages.get(bottom).endOfEntry()) {
             bottom--;
         }
-        // Find the top of this entry (walk toward higher indices until the next element
-        // starts a new entry via endOfEntry=true, or we hit the end of the list).
         int top = lineIndex;
-        while (top + 1 < visibleMessages.size() && !visibleMessages.get(top + 1).endOfEntry()) {
+        while (top + 1 < trimmedMessages.size() && !trimmedMessages.get(top + 1).endOfEntry()) {
             top++;
         }
-        // Collect from top down to bottom (high index → low index) for correct reading order.
         StringBuilder sb = new StringBuilder();
         for (int i = top; i >= bottom; i--) {
             if (i < top) {
                 sb.append(' ');
             }
-            sb.append(horizon$lineToString(visibleMessages.get(i).content()));
+            sb.append(horizon$lineToString(trimmedMessages.get(i).content()));
         }
         String result = sb.toString().trim();
         return result.isEmpty() ? null : result;
     }
 
     @Unique
-    private String horizon$lineToString(OrderedText text) {
+    private String horizon$lineToString(FormattedCharSequence text) {
         if (text == null) {
             return "";
         }
@@ -102,19 +97,18 @@ public abstract class ChatHudMixin implements ChatHudAccess {
     }
 
     /**
-     * Intercept every game message before it is added to the visible chat.
+     * Intercept every message before it is added to the visible chat.
      * We store all messages in our own history buffer and only let through
      * those that match the active tab (and bridge toggle).
      */
-    @Inject(method = "addMessage(Lnet/minecraft/text/Text;)V", at = @At("HEAD"), cancellable = true)
-    private void horizon$interceptMessage(Text message, CallbackInfo ci) {
+    @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V", at = @At("HEAD"), cancellable = true)
+    private void horizon$interceptMessage(Component message, MessageSignature signature, GuiMessageSource source, GuiMessageTag tag, CallbackInfo ci) {
         HorizonClient horizonClient = HorizonClient.getInstance();
         if (horizonClient == null) {
             return;
         }
         ChatTabManager tabManager = horizonClient.getChatTabManager();
         if (tabManager.isRepopulating()) {
-            // Repopulate pass — let the message through without storing it again
             return;
         }
         boolean show = tabManager.onMessageAdded(message, horizonClient.getConfigManager().getConfig());
@@ -127,53 +121,34 @@ public abstract class ChatHudMixin implements ChatHudAccess {
      * Lift the entire chat render upward by TAB_BAR_LIFT pixels when the chat
      * screen is focused, so the tab buttons below have clear space.
      */
-    @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("HEAD"))
-    private void horizon$pushChatLift(DrawContext context, TextRenderer textRenderer, int ticks,
-                                       int mouseX, int mouseY, boolean focused, boolean showingQueued,
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At("HEAD"))
+    private void horizon$pushChatLift(GuiGraphicsExtractor context, Font textRenderer, int ticks,
+                                       int mouseX, int mouseY, ChatComponent.DisplayMode displayMode, boolean showingQueued,
                                        CallbackInfo ci) {
+        boolean focused = displayMode == ChatComponent.DisplayMode.FOREGROUND;
         int barOffset = PillarboxState.scaledBarWidth();
         if (focused || barOffset > 0) {
-            context.getMatrices().pushMatrix();
+            context.pose().pushMatrix();
             float translateY = focused ? -ChatTabManager.TAB_BAR_LIFT : 0.0f;
-            context.getMatrices().translate(barOffset, translateY);
+            context.pose().translate(barOffset, translateY);
         }
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("TAIL"))
-    private void horizon$popChatLift(DrawContext context, TextRenderer textRenderer, int ticks,
-                                      int mouseX, int mouseY, boolean focused, boolean showingQueued,
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At("TAIL"))
+    private void horizon$popChatLift(GuiGraphicsExtractor context, Font textRenderer, int ticks,
+                                      int mouseX, int mouseY, ChatComponent.DisplayMode displayMode, boolean showingQueued,
                                       CallbackInfo ci) {
+        boolean focused = displayMode == ChatComponent.DisplayMode.FOREGROUND;
         int barOffset = PillarboxState.scaledBarWidth();
         if (focused || barOffset > 0) {
-            context.getMatrices().popMatrix();
+            context.pose().popMatrix();
         }
     }
 
-    // ── 1.21.10: fix click detection for chat links.
-    // getTextStyleAt calls toChatLineY(y) to map screen Y to a chat line index.
-    // The visual render applies translate(0, -TAB_BAR_LIFT), so messages appear
-    // TAB_BAR_LIFT pixels higher than their logical positions. We compensate by
-    // adding TAB_BAR_LIFT to y before toChatLineY converts it, so the line index
-    // matches the visual position. require=0: toChatLineY does not exist in 1.21.11.
-    @ModifyArg(method = "getTextStyleAt",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;toChatLineY(D)D"),
-            require = 0)
-    private double horizon$liftChatLinkClickY(double y) {
-        return (client.currentScreen instanceof ChatScreen) ? y + ChatTabManager.TAB_BAR_LIFT : y;
-    }
-
-    // ── 1.21.11: fix click detection for chat links.
-    // ChatScreen.mouseClicked passes Window.getScaledHeight() as scaledHeight to
-    // ChatHud.render(DrawnTextConsumer, scaledHeight, ...) for hit-testing. Messages
-    // are positioned at (scaledHeight - 40 - lineIdx*lineHeight). The visual render
-    // applies translate(0, -TAB_BAR_LIFT), shifting messages up by TAB_BAR_LIFT pixels.
-    // Reducing scaledHeight by TAB_BAR_LIFT shifts hit-test positions by the same amount,
-    // aligning click areas with the visual chat. require=0: this overload does not exist
-    // in 1.21.10.
-    @ModifyVariable(method = "render(Lnet/minecraft/client/font/DrawnTextConsumer;IIZ)V",
+    @ModifyVariable(method = "captureClickableText(Lnet/minecraft/client/gui/ActiveTextCollector;IILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;)V",
             at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private int horizon$liftClickRenderScaledHeight(int scaledHeight) {
-        return (client.currentScreen instanceof ChatScreen)
+        return (minecraft.screen instanceof ChatScreen)
                 ? scaledHeight - ChatTabManager.TAB_BAR_LIFT
                 : scaledHeight;
     }

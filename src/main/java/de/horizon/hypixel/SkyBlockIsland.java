@@ -1,9 +1,9 @@
 package de.horizon.hypixel;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.Component;
 
 import java.util.Collection;
 import java.util.List;
@@ -153,13 +153,13 @@ public enum SkyBlockIsland {
      * Reads the current island from the tab list "Area: <name>" entry.
      * Used for feature gating (island filters, dungeon-only features, etc.).
      */
-    public static SkyBlockIsland fromTabList(MinecraftClient mc) {
+    public static SkyBlockIsland fromTabList(Minecraft mc) {
         if (mc == null) return UNKNOWN;
-        ClientPlayNetworkHandler handler = mc.getNetworkHandler();
+        ClientPacketListener handler = mc.getConnection();
         if (handler == null) return UNKNOWN;
-        Collection<PlayerListEntry> entries = handler.getPlayerList();
-        for (PlayerListEntry entry : entries) {
-            Text display = entry.getDisplayName();
+        Collection<PlayerInfo> entries = handler.getListedOnlinePlayers();
+        for (PlayerInfo entry : entries) {
+            Component display = entry.getTabListDisplayName();
             if (display == null) continue;
             String text = display.getString().toLowerCase(Locale.ROOT).trim();
             if (text.contains("area:")) {

@@ -5,13 +5,13 @@ import de.horizon.config.ConfigManager;
 import de.horizon.hypixel.HypixelSidebarOverlay;
 import de.horizon.hypixel.SkyBlockIsland;
 import de.horizon.mixin.KeyBindingAccessor;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -57,8 +57,8 @@ public final class InventoryButtonService {
 
     private final ConfigManager configManager;
 
-    private InputUtil.Key savedJumpKey = null;
-    private InputUtil.Key savedAttackKey = null;
+    private InputConstants.Key savedJumpKey = null;
+    private InputConstants.Key savedAttackKey = null;
     private boolean rebindApplied = false;
     private boolean mouseLocked = false;
 
@@ -68,7 +68,7 @@ public final class InventoryButtonService {
 
     // ── Tick ─────────────────────────────────────────────────────────────────
 
-    public void tick(MinecraftClient mc) {
+    public void tick(Minecraft mc) {
         if (mc.player == null) return;
 
         boolean wantFarmingRebind = false;
@@ -84,7 +84,7 @@ public final class InventoryButtonService {
             }
         }
 
-        ItemStack heldStack = mc.player.getMainHandStack();
+        ItemStack heldStack = mc.player.getMainHandItem();
         boolean holdsFarmingTool = isFarmingTool(heldStack);
         boolean holdsMousemat = isSqueakyMousemat(heldStack);
         boolean holdsRebindItem = holdsFarmingTool || holdsMousemat;
@@ -116,7 +116,7 @@ public final class InventoryButtonService {
     // ── Button activation ────────────────────────────────────────────────────
 
     /** Called when the player clicks a button in the overlay. */
-    public void activateButton(InventoryButton button, MinecraftClient mc) {
+    public void activateButton(InventoryButton button, Minecraft mc) {
         if (mc == null || mc.player == null) return;
 
         if (button.toggle) {
@@ -129,14 +129,14 @@ public final class InventoryButtonService {
         executeFunction(button, mc);
     }
 
-    private void executeFunction(InventoryButton button, MinecraftClient mc) {
+    private void executeFunction(InventoryButton button, Minecraft mc) {
         switch (button.function) {
             case COMMAND -> {
                 String cmd = button.command == null ? "" : button.command.trim();
                 if (!cmd.isEmpty()) {
                     if (cmd.startsWith("/")) cmd = cmd.substring(1);
                     try {
-                        mc.player.networkHandler.sendChatCommand(cmd);
+                        mc.player.connection.sendCommand(cmd);
                     } catch (Exception e) {
                         HorizonMod.LOGGER.warn("InventoryButton command '{}' failed: {}", cmd, e.getMessage());
                     }
@@ -151,20 +151,20 @@ public final class InventoryButtonService {
 
     // ── Key remapping ────────────────────────────────────────────────────────
 
-    private void applyRebind(boolean active, MinecraftClient mc) {
+    private void applyRebind(boolean active, Minecraft mc) {
         if (active && !rebindApplied) {
-            savedJumpKey = ((KeyBindingAccessor) mc.options.jumpKey).getBoundKey();
-            savedAttackKey = ((KeyBindingAccessor) mc.options.attackKey).getBoundKey();
+            savedJumpKey = ((KeyBindingAccessor) mc.options.keyJump).getBoundKey();
+            savedAttackKey = ((KeyBindingAccessor) mc.options.keyAttack).getBoundKey();
             // Swap: jump gets the attack binding (typically LMB),
             //       attack gets the jump binding (typically Space).
-            mc.options.jumpKey.setBoundKey(savedAttackKey);
-            mc.options.attackKey.setBoundKey(savedJumpKey);
-            KeyBinding.updateKeysByCode();
+            mc.options.keyJump.setKey(savedAttackKey);
+            mc.options.keyAttack.setKey(savedJumpKey);
+            KeyMapping.resetMapping();
             rebindApplied = true;
         } else if (!active && rebindApplied) {
-            if (savedJumpKey != null)   mc.options.jumpKey.setBoundKey(savedJumpKey);
-            if (savedAttackKey != null) mc.options.attackKey.setBoundKey(savedAttackKey);
-            KeyBinding.updateKeysByCode();
+            if (savedJumpKey != null)   mc.options.keyJump.setKey(savedJumpKey);
+            if (savedAttackKey != null) mc.options.keyAttack.setKey(savedAttackKey);
+            KeyMapping.resetMapping();
             rebindApplied = false;
             savedJumpKey   = null;
             savedAttackKey = null;
@@ -173,7 +173,7 @@ public final class InventoryButtonService {
 
     /** Called when the player disconnects so bindings are always restored. */
     public void onDisconnect() {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc != null && rebindApplied) {
             applyRebind(false, mc);
         }
@@ -198,7 +198,7 @@ public final class InventoryButtonService {
             }
         }
         // Fallback: match against the item's display name (stripped of formatting)
-        String name = stack.getName().getString()
+        String name = stack.getHoverName().getString()
                 .replaceAll("(?i)\u00a7[0-9a-fk-or]", "")
                 .toUpperCase(java.util.Locale.ROOT);
         for (String pattern : FARMING_TOOL_NAME_PATTERNS) {
@@ -211,7 +211,7 @@ public final class InventoryButtonService {
         if (stack.isEmpty()) return false;
         String sbId = getSkyBlockItemId(stack);
         if (sbId != null && sbId.contains("SQUEAKY_MOUSEMAT")) return true;
-        String name = stack.getName().getString()
+        String name = stack.getHoverName().getString()
                 .replaceAll("(?i)\u00a7[0-9a-fk-or]", "")
                 .toUpperCase(java.util.Locale.ROOT);
         return name.contains("SQUEAKY MOUSEMAT");
@@ -219,15 +219,15 @@ public final class InventoryButtonService {
 
     /** Reads the Hypixel SkyBlock item ID from ExtraAttributes NBT, or null. */
     private static String getSkyBlockItemId(ItemStack stack) {
-        NbtComponent customData = stack.get(DataComponentTypes.CUSTOM_DATA);
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
         if (customData == null) return null;
-        NbtCompound nbt = customData.copyNbt();
+        CompoundTag nbt = customData.copyTag();
         // Hypixel stores ExtraAttributes as a sub-compound in custom_data
-        NbtCompound extra = nbt.getCompoundOrEmpty("ExtraAttributes");
-        String id = extra.getString("id", "");
+        CompoundTag extra = nbt.getCompoundOrEmpty("ExtraAttributes");
+        String id = extra.getStringOr("id", "");
         if (!id.isEmpty()) return id;
         // Fallback: id might be directly in custom_data root
-        id = nbt.getString("id", "");
+        id = nbt.getStringOr("id", "");
         return id.isEmpty() ? null : id;
     }
 

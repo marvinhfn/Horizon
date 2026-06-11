@@ -9,28 +9,28 @@ import de.horizon.render.PillarboxState;
 import de.horizon.feature.dungeon.room.DetectedDungeonRoom;
 import de.horizon.feature.dungeon.room.DungeonRoomDetector;
 import de.horizon.hud.HudStyle;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexRendering;
-import net.minecraft.block.Blocks;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.DyedColorComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.decoration.ArmorStandEntity;
-import net.minecraft.entity.mob.CreeperEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.ShapeRenderer;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.DyedItemColor;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 
 import java.lang.reflect.Field;
 import java.io.InputStream;
@@ -79,9 +79,9 @@ public final class DungeonSolverOverlay {
     private final Set<Integer> glowingEntities = new HashSet<>();
     private final List<String> solverLines = new ArrayList<>();
     private final List<WorldBox> worldBoxes = new ArrayList<>();
-    private RenderLayer cachedFilledRenderLayer;
+    private RenderType cachedFilledRenderType;
     private boolean filledRenderUnavailable;
-    private RenderLayer cachedLineRenderLayer;
+    private RenderType cachedLineRenderType;
     private boolean lineRenderUnavailable;
     private Field screenXField;
     private Field screenYField;
@@ -89,13 +89,13 @@ public final class DungeonSolverOverlay {
     private BlazeTarget currentBlazeTarget;
     private List<BlazeTarget> cachedBlazeTargets = List.of();
     private long cachedBlazeTargetsTick;
-    private Box cachedBlazeBox;
+    private AABB cachedBlazeBox;
     private long cachedBlazeBoxTick;
     private String activeBoulderLayout = "";
-    private BlockPos activeBoulderOrigin = BlockPos.ORIGIN;
+    private BlockPos activeBoulderOrigin = BlockPos.ZERO;
     private List<int[]> activeBoulderSolution = List.of();
     private int activeBoulderStep;
-    private BlockPos activeTeleportOrigin = BlockPos.ORIGIN;
+    private BlockPos activeTeleportOrigin = BlockPos.ZERO;
     private final Set<BlockPos> visitedTeleportPads = new HashSet<>();
     private String lastQuizAnswer = "";
     private List<String> lastQuizAnswers = List.of();
@@ -175,11 +175,11 @@ public final class DungeonSolverOverlay {
         }
     }
 
-    public void tick(MinecraftClient client, HorizonConfig config, DungeonStateService dungeonState, DungeonRoomDetector roomDetector) {
+    public void tick(Minecraft client, HorizonConfig config, DungeonStateService dungeonState, DungeonRoomDetector roomDetector) {
         if (chatHintTicks > 0) {
             chatHintTicks--;
         }
-        if (client == null || client.world == null || client.player == null || config == null) {
+        if (client == null || client.level == null || client.player == null || config == null) {
             clearGlowing(client);
             return;
         }
@@ -192,8 +192,8 @@ public final class DungeonSolverOverlay {
             activeBoulderLayout = "";
             activeBoulderSolution = List.of();
             activeBoulderStep = 0;
-            activeBoulderOrigin = BlockPos.ORIGIN;
-            activeTeleportOrigin = BlockPos.ORIGIN;
+            activeBoulderOrigin = BlockPos.ZERO;
+            activeTeleportOrigin = BlockPos.ZERO;
             visitedTeleportPads.clear();
             return;
         }
@@ -252,21 +252,21 @@ public final class DungeonSolverOverlay {
             advanceBoulderStep(pos, currentRoom, roomDetector);
         }
         if (currentRoom.isPuzzle("Teleport Maze")) {
-            visitedTeleportPads.add(pos.toImmutable());
+            visitedTeleportPads.add(pos.immutable());
         }
     }
 
-    public void renderWorldHud(DrawContext context, MinecraftClient client, HorizonConfig config) {
+    public void renderWorldHud(GuiGraphicsExtractor context, Minecraft client, HorizonConfig config) {
         // World puzzle solvers intentionally render with particles/glow in tick(), not as a generic HUD.
     }
 
-    public void renderWorld(WorldRenderContext context) {
-        if (worldBoxes.isEmpty() || context == null || context.worldState() == null || context.worldState().cameraRenderState == null || context.consumers() == null) {
+    public void renderWorld(LevelRenderContext context) {
+        if (worldBoxes.isEmpty() || context == null || context.levelState() == null || context.levelState().cameraRenderState == null || context.bufferSource() == null) {
             return;
         }
-        RenderLayer fillLayer = filledRenderLayer();
+        RenderType fillLayer = filledRenderType();
         if (fillLayer != null) {
-            VertexConsumer consumer = context.consumers().getBuffer(fillLayer);
+            VertexConsumer consumer = context.bufferSource().getBuffer(fillLayer);
             if (consumer != null) {
                 for (WorldBox box : worldBoxes) {
                     drawFilledBoxCompat(context, consumer, box.box(), box.color());
@@ -275,11 +275,11 @@ public final class DungeonSolverOverlay {
             }
         }
 
-        RenderLayer lineLayer = lineRenderLayer();
+        RenderType lineLayer = lineRenderType();
         if (lineLayer == null) {
             return;
         }
-        VertexConsumer consumer = context.consumers().getBuffer(lineLayer);
+        VertexConsumer consumer = context.bufferSource().getBuffer(lineLayer);
         if (consumer == null) {
             return;
         }
@@ -288,133 +288,133 @@ public final class DungeonSolverOverlay {
         }
     }
 
-    private RenderLayer filledRenderLayer() {
-        if (cachedFilledRenderLayer != null) {
-            return cachedFilledRenderLayer;
+    private RenderType filledRenderType() {
+        if (cachedFilledRenderType != null) {
+            return cachedFilledRenderType;
         }
         if (filledRenderUnavailable) {
             return null;
         }
         try {
-            cachedFilledRenderLayer = (RenderLayer) Class.forName("net.minecraft.client.render.RenderLayers").getMethod("debugFilledBox").invoke(null);
-            return cachedFilledRenderLayer;
+            cachedFilledRenderType = (RenderType) Class.forName("net.minecraft.client.render.RenderTypes").getMethod("debugFilledBox").invoke(null);
+            return cachedFilledRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            cachedFilledRenderLayer = (RenderLayer) Class.forName("net.minecraft.class_12249").getMethod("method_76019").invoke(null);
-            return cachedFilledRenderLayer;
+            cachedFilledRenderType = (RenderType) Class.forName("net.minecraft.class_12249").getMethod("method_76019").invoke(null);
+            return cachedFilledRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            cachedFilledRenderLayer = (RenderLayer) RenderLayer.class.getMethod("getDebugFilledBox").invoke(null);
-            return cachedFilledRenderLayer;
+            cachedFilledRenderType = (RenderType) RenderType.class.getMethod("getDebugFilledBox").invoke(null);
+            return cachedFilledRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            cachedFilledRenderLayer = (RenderLayer) RenderLayer.class.getMethod("method_49047").invoke(null);
-            return cachedFilledRenderLayer;
+            cachedFilledRenderType = (RenderType) RenderType.class.getMethod("method_49047").invoke(null);
+            return cachedFilledRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            java.lang.reflect.Field field = Class.forName("net.minecraft.client.render.RenderLayers").getDeclaredField("DEBUG_FILLED_BOX");
+            java.lang.reflect.Field field = Class.forName("net.minecraft.client.render.RenderTypes").getDeclaredField("DEBUG_FILLED_BOX");
             field.setAccessible(true);
-            cachedFilledRenderLayer = (RenderLayer) field.get(null);
-            return cachedFilledRenderLayer;
+            cachedFilledRenderType = (RenderType) field.get(null);
+            return cachedFilledRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            java.lang.reflect.Field field = RenderLayer.class.getDeclaredField("DEBUG_FILLED_BOX");
+            java.lang.reflect.Field field = RenderType.class.getDeclaredField("DEBUG_FILLED_BOX");
             field.setAccessible(true);
-            cachedFilledRenderLayer = (RenderLayer) field.get(null);
-            return cachedFilledRenderLayer;
+            cachedFilledRenderType = (RenderType) field.get(null);
+            return cachedFilledRenderType;
         } catch (ReflectiveOperationException ignored) {
             filledRenderUnavailable = true;
             return null;
         }
     }
 
-    private RenderLayer lineRenderLayer() {
-        if (cachedLineRenderLayer != null) {
-            return cachedLineRenderLayer;
+    private RenderType lineRenderType() {
+        if (cachedLineRenderType != null) {
+            return cachedLineRenderType;
         }
         if (lineRenderUnavailable) {
             return null;
         }
         try {
-            cachedLineRenderLayer = (RenderLayer) Class.forName("net.minecraft.client.render.RenderLayers").getMethod("lines").invoke(null);
-            return cachedLineRenderLayer;
+            cachedLineRenderType = (RenderType) Class.forName("net.minecraft.client.render.RenderTypes").getMethod("lines").invoke(null);
+            return cachedLineRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            cachedLineRenderLayer = (RenderLayer) Class.forName("net.minecraft.class_12249").getMethod("method_76015").invoke(null);
-            return cachedLineRenderLayer;
+            cachedLineRenderType = (RenderType) Class.forName("net.minecraft.class_12249").getMethod("method_76015").invoke(null);
+            return cachedLineRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            cachedLineRenderLayer = (RenderLayer) RenderLayer.class.getMethod("getLines").invoke(null);
-            return cachedLineRenderLayer;
+            cachedLineRenderType = (RenderType) RenderType.class.getMethod("getLines").invoke(null);
+            return cachedLineRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            cachedLineRenderLayer = (RenderLayer) RenderLayer.class.getMethod("method_23594").invoke(null);
-            return cachedLineRenderLayer;
+            cachedLineRenderType = (RenderType) RenderType.class.getMethod("method_23594").invoke(null);
+            return cachedLineRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            java.lang.reflect.Field field = Class.forName("net.minecraft.client.render.RenderLayers").getDeclaredField("LINES");
+            java.lang.reflect.Field field = Class.forName("net.minecraft.client.render.RenderTypes").getDeclaredField("LINES");
             field.setAccessible(true);
-            cachedLineRenderLayer = (RenderLayer) field.get(null);
-            return cachedLineRenderLayer;
+            cachedLineRenderType = (RenderType) field.get(null);
+            return cachedLineRenderType;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
-            java.lang.reflect.Field field = RenderLayer.class.getDeclaredField("LINES");
+            java.lang.reflect.Field field = RenderType.class.getDeclaredField("LINES");
             field.setAccessible(true);
-            cachedLineRenderLayer = (RenderLayer) field.get(null);
-            return cachedLineRenderLayer;
+            cachedLineRenderType = (RenderType) field.get(null);
+            return cachedLineRenderType;
         } catch (ReflectiveOperationException ignored) {
             lineRenderUnavailable = true;
             return null;
         }
     }
 
-    private void drawFilledBoxCompat(WorldRenderContext context, VertexConsumer consumer, Box worldBox, int color) {
+    private void drawFilledBoxCompat(LevelRenderContext context, VertexConsumer consumer, AABB worldBox, int color) {
         float alpha = ((color >> 24) & 0xFF) / 255.0F;
         float red = ((color >> 16) & 0xFF) / 255.0F;
         float green = ((color >> 8) & 0xFF) / 255.0F;
         float blue = (color & 0xFF) / 255.0F;
-        double minX = worldBox.minX - context.worldState().cameraRenderState.pos.x;
-        double minY = worldBox.minY - context.worldState().cameraRenderState.pos.y;
-        double minZ = worldBox.minZ - context.worldState().cameraRenderState.pos.z;
-        double maxX = worldBox.maxX - context.worldState().cameraRenderState.pos.x;
-        double maxY = worldBox.maxY - context.worldState().cameraRenderState.pos.y;
-        double maxZ = worldBox.maxZ - context.worldState().cameraRenderState.pos.z;
+        double minX = worldBox.minX - context.levelState().cameraRenderState.pos.x;
+        double minY = worldBox.minY - context.levelState().cameraRenderState.pos.y;
+        double minZ = worldBox.minZ - context.levelState().cameraRenderState.pos.z;
+        double maxX = worldBox.maxX - context.levelState().cameraRenderState.pos.x;
+        double maxY = worldBox.maxY - context.levelState().cameraRenderState.pos.y;
+        double maxZ = worldBox.maxZ - context.levelState().cameraRenderState.pos.z;
         try {
-            VertexRendering.class
-                .getMethod("drawFilledBox", context.matrices().getClass(), VertexConsumer.class, double.class, double.class, double.class, double.class, double.class, double.class, float.class, float.class, float.class, float.class)
-                .invoke(null, context.matrices(), consumer, minX, minY, minZ, maxX, maxY, maxZ, red, green, blue, alpha);
+            ShapeRenderer.class
+                .getMethod("drawFilledBox", context.poseStack().getClass(), VertexConsumer.class, double.class, double.class, double.class, double.class, double.class, double.class, float.class, float.class, float.class, float.class)
+                .invoke(null, context.poseStack(), consumer, minX, minY, minZ, maxX, maxY, maxZ, red, green, blue, alpha);
             return;
         } catch (ReflectiveOperationException ignored) {
         }
         try {
             Class.forName("net.minecraft.class_9974")
-                .getMethod("method_62300", context.matrices().getClass(), VertexConsumer.class, double.class, double.class, double.class, double.class, double.class, double.class, float.class, float.class, float.class, float.class)
-                .invoke(null, context.matrices(), consumer, minX, minY, minZ, maxX, maxY, maxZ, red, green, blue, alpha);
+                .getMethod("method_62300", context.poseStack().getClass(), VertexConsumer.class, double.class, double.class, double.class, double.class, double.class, double.class, float.class, float.class, float.class, float.class)
+                .invoke(null, context.poseStack(), consumer, minX, minY, minZ, maxX, maxY, maxZ, red, green, blue, alpha);
         } catch (ReflectiveOperationException ignored) {
         }
     }
 
-    private void drawOutlineCompat(WorldRenderContext context, VertexConsumer consumer, Box worldBox, int color) {
-        double minX = worldBox.minX - context.worldState().cameraRenderState.pos.x;
-        double minY = worldBox.minY - context.worldState().cameraRenderState.pos.y;
-        double minZ = worldBox.minZ - context.worldState().cameraRenderState.pos.z;
-        double maxX = worldBox.maxX - context.worldState().cameraRenderState.pos.x;
-        double maxY = worldBox.maxY - context.worldState().cameraRenderState.pos.y;
-        double maxZ = worldBox.maxZ - context.worldState().cameraRenderState.pos.z;
+    private void drawOutlineCompat(LevelRenderContext context, VertexConsumer consumer, AABB worldBox, int color) {
+        double minX = worldBox.minX - context.levelState().cameraRenderState.pos.x;
+        double minY = worldBox.minY - context.levelState().cameraRenderState.pos.y;
+        double minZ = worldBox.minZ - context.levelState().cameraRenderState.pos.z;
+        double maxX = worldBox.maxX - context.levelState().cameraRenderState.pos.x;
+        double maxY = worldBox.maxY - context.levelState().cameraRenderState.pos.y;
+        double maxZ = worldBox.maxZ - context.levelState().cameraRenderState.pos.z;
         try {
-            VertexRendering.class
-                .getMethod("drawBox", context.matrices().getClass(), VertexConsumer.class, double.class, double.class, double.class, double.class, double.class, double.class, float.class, float.class, float.class, float.class)
-                .invoke(null, context.matrices(), consumer, minX, minY, minZ, maxX, maxY, maxZ,
+            ShapeRenderer.class
+                .getMethod("drawBox", context.poseStack().getClass(), VertexConsumer.class, double.class, double.class, double.class, double.class, double.class, double.class, float.class, float.class, float.class, float.class)
+                .invoke(null, context.poseStack(), consumer, minX, minY, minZ, maxX, maxY, maxZ,
                     ((color >> 16) & 0xFF) / 255.0F,
                     ((color >> 8) & 0xFF) / 255.0F,
                     (color & 0xFF) / 255.0F,
@@ -424,8 +424,8 @@ public final class DungeonSolverOverlay {
         }
         try {
             Class.forName("net.minecraft.class_9974")
-                .getMethod("method_62297", context.matrices().getClass(), VertexConsumer.class, double.class, double.class, double.class, double.class, double.class, double.class, float.class, float.class, float.class, float.class)
-                .invoke(null, context.matrices(), consumer, minX, minY, minZ, maxX, maxY, maxZ,
+                .getMethod("method_62297", context.poseStack().getClass(), VertexConsumer.class, double.class, double.class, double.class, double.class, double.class, double.class, float.class, float.class, float.class, float.class)
+                .invoke(null, context.poseStack(), consumer, minX, minY, minZ, maxX, maxY, maxZ,
                     ((color >> 16) & 0xFF) / 255.0F,
                     ((color >> 8) & 0xFF) / 255.0F,
                     (color & 0xFF) / 255.0F,
@@ -434,25 +434,25 @@ public final class DungeonSolverOverlay {
         }
     }
 
-    public void renderHudOverlay(DrawContext context, MinecraftClient client, HorizonConfig config) {
-        if (client == null || config == null || client.options.hudHidden || !config.isSolverDebugHudEnabled() || solverLines.isEmpty()) {
+    public void renderHudOverlay(GuiGraphicsExtractor context, Minecraft client, HorizonConfig config) {
+        if (client == null || config == null || client.options.hideGui || !config.isSolverDebugHudEnabled() || solverLines.isEmpty()) {
             return;
         }
 
         int width = 230;
         int height = 24 + solverLines.size() * 13;
-        int x = client.getWindow().getScaledWidth() - 2 * PillarboxState.scaledBarWidth() - width - 14;
+        int x = client.getWindow().getGuiScaledWidth() - 2 * PillarboxState.scaledBarWidth() - width - 14;
         int y = 14;
         context.fill(x, y, x + width, y + height, HudStyle.panel());
-        context.drawStrokedRectangle(x, y, width, height, HudStyle.border());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Horizon Solver"), x + 10, y + 8, HudStyle.accent());
+        context.outline(x, y, width, height, HudStyle.border());
+        context.text(client.font, Component.literal("Horizon Solver"), x + 10, y + 8, HudStyle.accent());
         for (int index = 0; index < solverLines.size(); index++) {
-            context.drawTextWithShadow(client.textRenderer, Text.literal(solverLines.get(index)), x + 10, y + 22 + index * 13, HudStyle.muted());
+            context.text(client.font, Component.literal(solverLines.get(index)), x + 10, y + 22 + index * 13, HudStyle.muted());
         }
     }
 
-    public void render(HandledScreen<?> screen, DrawContext context, HorizonConfig config, DungeonStateService dungeonState, DungeonRoomDetector roomDetector) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor context, HorizonConfig config, DungeonStateService dungeonState, DungeonRoomDetector roomDetector) {
+        Minecraft client = Minecraft.getInstance();
         if (client == null || dungeonState == null || !dungeonState.isInDungeon()) {
             return;
         }
@@ -468,7 +468,7 @@ public final class DungeonSolverOverlay {
         drawPanel(screen, context, client, result);
     }
 
-    private SolveResult solve(HandledScreen<?> screen, String title, HorizonConfig config, DetectedDungeonRoom currentRoom) {
+    private SolveResult solve(AbstractContainerScreen<?> screen, String title, HorizonConfig config, DetectedDungeonRoom currentRoom) {
         List<Slot> containerSlots = containerSlots(screen);
         if (title.contains("correct all") && config.isTerminalCorrectAllEnabled()) {
             return correctAll(containerSlots);
@@ -505,8 +505,8 @@ public final class DungeonSolverOverlay {
     private SolveResult correctAll(List<Slot> slots) {
         List<Highlight> highlights = new ArrayList<>();
         for (Slot slot : slots) {
-            ItemStack stack = slot.getStack();
-            if (stack.isOf(Items.GREEN_STAINED_GLASS_PANE) || stack.isOf(Items.LIME_STAINED_GLASS_PANE)) {
+            ItemStack stack = slot.getItem();
+            if (stack.is(Items.GREEN_STAINED_GLASS_PANE) || stack.is(Items.LIME_STAINED_GLASS_PANE)) {
                 highlights.add(new Highlight(slot, GOOD, "Click"));
             }
         }
@@ -516,7 +516,7 @@ public final class DungeonSolverOverlay {
     private SolveResult clickInOrder(List<Slot> slots) {
         List<NumberedSlot> numbered = new ArrayList<>();
         for (Slot slot : slots) {
-            String text = stackText(slot.getStack());
+            String text = stackText(slot.getItem());
             Integer number = firstInteger(text);
             if (number != null) {
                 numbered.add(new NumberedSlot(slot, number));
@@ -539,7 +539,7 @@ public final class DungeonSolverOverlay {
         String prefix = matcher.group(1).toLowerCase(Locale.ROOT);
         List<Highlight> highlights = new ArrayList<>();
         for (Slot slot : slots) {
-            String name = clean(slot.getStack().getName().getString()).toLowerCase(Locale.ROOT);
+            String name = clean(slot.getItem().getHoverName().getString()).toLowerCase(Locale.ROOT);
             if (name.startsWith(prefix)) {
                 highlights.add(new Highlight(slot, GOOD, prefix.toUpperCase(Locale.ROOT)));
             }
@@ -551,7 +551,7 @@ public final class DungeonSolverOverlay {
         String targetColor = targetColor(title);
         List<Highlight> highlights = new ArrayList<>();
         for (Slot slot : slots) {
-            String itemId = itemId(slot.getStack());
+            String itemId = itemId(slot.getItem());
             if (targetColor != null && itemId.contains(targetColor)) {
                 highlights.add(new Highlight(slot, GOOD, targetColor));
             }
@@ -563,13 +563,13 @@ public final class DungeonSolverOverlay {
         String mostCommon = null;
         int bestCount = 0;
         for (Slot slot : slots) {
-            String color = colorName(slot.getStack());
+            String color = colorName(slot.getItem());
             if (color == null) {
                 continue;
             }
             int count = 0;
             for (Slot other : slots) {
-                if (color.equals(colorName(other.getStack()))) {
+                if (color.equals(colorName(other.getItem()))) {
                     count++;
                 }
             }
@@ -583,7 +583,7 @@ public final class DungeonSolverOverlay {
         }
         List<Highlight> highlights = new ArrayList<>();
         for (Slot slot : slots) {
-            if (!mostCommon.equals(colorName(slot.getStack())) && colorName(slot.getStack()) != null) {
+            if (!mostCommon.equals(colorName(slot.getItem())) && colorName(slot.getItem()) != null) {
                 highlights.add(new Highlight(slot, CURRENT, "Change"));
             }
         }
@@ -597,8 +597,8 @@ public final class DungeonSolverOverlay {
         List<Slot> boardSlots = slots.subList(0, Math.min(9, slots.size()));
         char[] board = new char[9];
         for (int index = 0; index < boardSlots.size(); index++) {
-            String text = stackText(boardSlots.get(index).getStack()).toLowerCase(Locale.ROOT);
-            String id = itemId(boardSlots.get(index).getStack());
+            String text = stackText(boardSlots.get(index).getItem()).toLowerCase(Locale.ROOT);
+            String id = itemId(boardSlots.get(index).getItem());
             if (text.contains("x") || id.contains("red")) {
                 board[index] = 'x';
             } else if (text.contains("o") || id.contains("green") || id.contains("lime")) {
@@ -712,7 +712,7 @@ public final class DungeonSolverOverlay {
         Slot start = null;
         Slot end = null;
         for (Slot slot : slots) {
-            String id = itemId(slot.getStack());
+            String id = itemId(slot.getItem());
             if (id.contains("lime") || id.contains("green")) {
                 start = slot;
             }
@@ -739,7 +739,7 @@ public final class DungeonSolverOverlay {
     private SolveResult iceFill(List<Slot> slots) {
         List<Slot> walkable = new ArrayList<>();
         for (Slot slot : slots) {
-            String id = itemId(slot.getStack());
+            String id = itemId(slot.getItem());
             if (id.contains("ice") || id.contains("packed_ice") || id.contains("blue_ice") || id.contains("light_blue")) {
                 walkable.add(slot);
             }
@@ -846,7 +846,7 @@ public final class DungeonSolverOverlay {
             || normalized.contains("one of the others is lying");
     }
 
-    private void renderBlazeWorldSolver(MinecraftClient client, DetectedDungeonRoom currentRoom) {
+    private void renderBlazeWorldSolver(Minecraft client, DetectedDungeonRoom currentRoom) {
         List<BlazeTarget> targets = blazeTargets(client, currentRoom);
         if (targets.isEmpty() && !cachedBlazeTargets.isEmpty() && solverTick - cachedBlazeTargetsTick <= 30) {
             targets = cachedBlazeTargets.stream()
@@ -867,7 +867,7 @@ public final class DungeonSolverOverlay {
         currentBlazeTarget = target;
         cachedBlazeBox = blazeRenderBox(target.label());
         cachedBlazeBoxTick = solverTick;
-        target.label().setGlowing(true);
+        target.label().setGlowingTag(true);
         glowingEntities.add(target.label().getId());
         worldBoxes.add(new WorldBox(blazeRenderBox(target.label()), CURRENT));
         if (targets.size() > 1) {
@@ -877,36 +877,36 @@ public final class DungeonSolverOverlay {
         solverLines.add("Aim: " + directionTo(client, target.label()));
     }
 
-    private void renderQuizWorldSolver(MinecraftClient client) {
+    private void renderQuizWorldSolver(Minecraft client) {
         if ((lastQuizAnswer.isBlank() && lastQuizOption.isBlank()) || chatHintTicks <= 0) {
             return;
         }
         Entity answerEntity = findNamedEntity(client, lastQuizAnswer);
         if (answerEntity != null) {
-            answerEntity.setGlowing(true);
+            answerEntity.setGlowingTag(true);
             glowingEntities.add(answerEntity.getId());
-            worldBoxes.add(new WorldBox(answerEntity.getBoundingBox().expand(0.3D), 0xFF32FF7A));
+            worldBoxes.add(new WorldBox(answerEntity.getBoundingBox().inflate(0.3D), 0xFF32FF7A));
         }
         String answer = lastQuizOption.isBlank() ? lastQuizAnswer : lastQuizOption + ": " + lastQuizAnswer;
         solverLines.add("Quiz: " + answer);
     }
 
-    private void renderWeirdosWorldSolver(MinecraftClient client) {
+    private void renderWeirdosWorldSolver(Minecraft client) {
         if (correctWeirdoNpc.isBlank() && wrongWeirdoNpc.isBlank()) {
             return;
         }
         if (!correctWeirdoNpc.isBlank()) {
             Entity correct = findNamedEntity(client, correctWeirdoNpc);
             if (correct != null) {
-                correct.setGlowing(true);
+                correct.setGlowingTag(true);
                 glowingEntities.add(correct.getId());
-                worldBoxes.add(new WorldBox(correct.getBoundingBox().expand(0.35D), 0xFF32FF7A));
+                worldBoxes.add(new WorldBox(correct.getBoundingBox().inflate(0.35D), 0xFF32FF7A));
                 solverLines.add("Weirdos: " + correctWeirdoNpc);
             }
         }
     }
 
-    private void renderCreeperBeamsWorldSolver(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+    private void renderCreeperBeamsWorldSolver(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
         if (currentRoom == null || roomDetector == null) {
             return;
         }
@@ -914,10 +914,10 @@ public final class DungeonSolverOverlay {
         for (RelativePair pair : CREEPER_BEAM_PAIRS) {
             BlockPos first = roomDetector.relativeToWorld(currentRoom, pair.first());
             BlockPos second = roomDetector.relativeToWorld(currentRoom, pair.second());
-            if (client.world.getBlockState(first).isOf(Blocks.SEA_LANTERN) && client.world.getBlockState(second).isOf(Blocks.SEA_LANTERN)) {
+            if (client.level.getBlockState(first).is(Blocks.SEA_LANTERN) && client.level.getBlockState(second).is(Blocks.SEA_LANTERN)) {
                 found++;
-                worldBoxes.add(new WorldBox(new Box(first).expand(0.03D), found == 1 ? 0x664DFF9A : 0x5500D1D1));
-                worldBoxes.add(new WorldBox(new Box(second).expand(0.03D), found == 1 ? 0x664DFF9A : 0x5500D1D1));
+                worldBoxes.add(new WorldBox(new AABB(first).inflate(0.03D), found == 1 ? 0x664DFF9A : 0x5500D1D1));
+                worldBoxes.add(new WorldBox(new AABB(second).inflate(0.03D), found == 1 ? 0x664DFF9A : 0x5500D1D1));
                 if (found <= 4) {
                     solverLines.add("Beams " + found + ": " + compactPos(first) + " <-> " + compactPos(second));
                 }
@@ -928,7 +928,7 @@ public final class DungeonSolverOverlay {
         }
     }
 
-    private void renderIceFillWorldSolver(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+    private void renderIceFillWorldSolver(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
         if (currentRoom == null || roomDetector == null || ICE_FILL_DATA.identifier().isEmpty()) {
             return;
         }
@@ -952,7 +952,7 @@ public final class DungeonSolverOverlay {
         worldBoxes.add(new WorldBox(pathNodeBox(path.get(path.size() - 1)), NEXT));
     }
 
-    private void renderBoulderWorldSolver(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+    private void renderBoulderWorldSolver(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
         if (currentRoom == null || roomDetector == null) {
             return;
         }
@@ -980,24 +980,24 @@ public final class DungeonSolverOverlay {
             BlockPos renderPos = roomDetector.relativeToWorld(currentRoom, new BlockPos(step[0], 65, step[1]));
             BlockPos clickPos = roomDetector.relativeToWorld(currentRoom, new BlockPos(step[2], 65, step[3]));
             boolean current = index == activeBoulderStep;
-            worldBoxes.add(new WorldBox(new Box(renderPos).expand(0.08D, 0.35D, 0.08D), current ? CURRENT : NEXT));
-            worldBoxes.add(new WorldBox(new Box(clickPos).expand(0.08D, 0.1D, 0.08D), current ? CURRENT : NEXT));
+            worldBoxes.add(new WorldBox(new AABB(renderPos).inflate(0.08D, 0.35D, 0.08D), current ? CURRENT : NEXT));
+            worldBoxes.add(new WorldBox(new AABB(clickPos).inflate(0.08D, 0.1D, 0.08D), current ? CURRENT : NEXT));
             solverLines.add("Boulder " + (index - activeBoulderStep + 1) + ": " + compactPos(clickPos));
         }
     }
 
-    private void renderIcePathWorldSolver(MinecraftClient client) {
+    private void renderIcePathWorldSolver(Minecraft client) {
         List<BlockPos> icePath = nearbyIce(client, 12);
         if (icePath.size() < 4 || icePath.size() > 180) {
             return;
         }
         solverLines.add("Ice Path: " + icePath.size() + " Eisfelder erkannt");
         for (int index = 0; index < Math.min(40, icePath.size()); index++) {
-            worldBoxes.add(new WorldBox(new Box(icePath.get(index)).expand(0.01D), index == 0 ? 0xFF32FF7A : 0xFF00D1D1));
+            worldBoxes.add(new WorldBox(new AABB(icePath.get(index)).inflate(0.01D), index == 0 ? 0xFF32FF7A : 0xFF00D1D1));
         }
     }
 
-    private void renderTeleportMazeWorldSolver(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+    private void renderTeleportMazeWorldSolver(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
         if (currentRoom == null || roomDetector == null) {
             return;
         }
@@ -1008,9 +1008,9 @@ public final class DungeonSolverOverlay {
         BlockPos currentPad = null;
         for (BlockPos relativePad : TELEPORT_MAZE_PADS) {
             BlockPos worldPad = roomDetector.relativeToWorld(currentRoom, relativePad);
-            if (client.player.getBoundingBox().expand(0.75D, 0.1D, 0.75D).intersects(new Box(worldPad))) {
+            if (client.player.getBoundingBox().inflate(0.75D, 0.1D, 0.75D).intersects(new AABB(worldPad))) {
                 currentPad = worldPad;
-                visitedTeleportPads.add(worldPad.toImmutable());
+                visitedTeleportPads.add(worldPad.immutable());
                 break;
             }
         }
@@ -1045,7 +1045,7 @@ public final class DungeonSolverOverlay {
             } else if (likelyPads.contains(worldPad)) {
                 color = NEXT;
             }
-            worldBoxes.add(new WorldBox(new Box(worldPad).expand(0.02D, 0.35D, 0.02D), color));
+            worldBoxes.add(new WorldBox(new AABB(worldPad).inflate(0.02D, 0.35D, 0.02D), color));
         }
         solverLines.add("Teleport Maze: " + visitedTeleportPads.size() + " Pads besucht");
         if (bestPad != null) {
@@ -1084,7 +1084,7 @@ public final class DungeonSolverOverlay {
         return null;
     }
 
-    private void renderWaterBoardWorldSolver(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+    private void renderWaterBoardWorldSolver(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
         if (currentRoom == null || roomDetector == null || WATER_BOARD_DATA.patterns().isEmpty()) {
             return;
         }
@@ -1109,29 +1109,29 @@ public final class DungeonSolverOverlay {
             WaterStep step = orderedSteps.get(index);
             BlockPos leverPos = waterLeverPos(step.lever(), currentRoom, roomDetector);
             if (leverPos != null) {
-                worldBoxes.add(new WorldBox(new Box(leverPos).expand(0.12D, 0.45D, 0.12D), index == 0 ? CURRENT : NEXT));
+                worldBoxes.add(new WorldBox(new AABB(leverPos).inflate(0.12D, 0.45D, 0.12D), index == 0 ? CURRENT : NEXT));
             }
             solverLines.add("Water " + (index + 1) + ": " + waterLeverName(step.lever()) + (step.time() <= 0.0D ? " jetzt" : " @" + step.time() + "s"));
         }
     }
 
-    private int detectWaterBoardPattern(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
-        if (client.world.getBlockState(roomDetector.relativeToWorld(currentRoom, new BlockPos(14, 77, 27))).isOf(Blocks.TERRACOTTA)) {
+    private int detectWaterBoardPattern(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+        if (client.level.getBlockState(roomDetector.relativeToWorld(currentRoom, new BlockPos(14, 77, 27))).is(Blocks.TERRACOTTA)) {
             return 0;
         }
-        if (client.world.getBlockState(roomDetector.relativeToWorld(currentRoom, new BlockPos(16, 78, 27))).isOf(Blocks.EMERALD_BLOCK)) {
+        if (client.level.getBlockState(roomDetector.relativeToWorld(currentRoom, new BlockPos(16, 78, 27))).is(Blocks.EMERALD_BLOCK)) {
             return 1;
         }
-        if (client.world.getBlockState(roomDetector.relativeToWorld(currentRoom, new BlockPos(14, 78, 27))).isOf(Blocks.DIAMOND_BLOCK)) {
+        if (client.level.getBlockState(roomDetector.relativeToWorld(currentRoom, new BlockPos(14, 78, 27))).is(Blocks.DIAMOND_BLOCK)) {
             return 2;
         }
-        if (client.world.getBlockState(roomDetector.relativeToWorld(currentRoom, new BlockPos(14, 78, 27))).isOf(Blocks.QUARTZ_BLOCK)) {
+        if (client.level.getBlockState(roomDetector.relativeToWorld(currentRoom, new BlockPos(14, 78, 27))).is(Blocks.QUARTZ_BLOCK)) {
             return 3;
         }
         return -1;
     }
 
-    private String waterBoardExtensions(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+    private String waterBoardExtensions(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
         int[][] wools = {
             {15, 56, 18, 1},
             {15, 56, 17, 2},
@@ -1141,14 +1141,14 @@ public final class DungeonSolverOverlay {
         StringBuilder builder = new StringBuilder();
         for (int[] wool : wools) {
             BlockPos pos = roomDetector.relativeToWorld(currentRoom, new BlockPos(wool[0], wool[1], wool[2]));
-            if (!client.world.getBlockState(pos).isAir()) {
+            if (!client.level.getBlockState(pos).isAir()) {
                 builder.append(wool[3]);
             }
         }
         return builder.toString();
     }
 
-    private List<BlockPos> detectIceFillPath(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+    private List<BlockPos> detectIceFillPath(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
         List<BlockPos> worldPath = new ArrayList<>();
         List<List<List<BlockPos>>> identifiers = ICE_FILL_DATA.identifier();
         List<List<List<BlockPos>>> patterns = ICE_FILL_DATA.easy();
@@ -1163,8 +1163,8 @@ public final class DungeonSolverOverlay {
                 }
                 BlockPos first = roomDetector.relativeToWorld(currentRoom, identifier.get(0));
                 BlockPos second = roomDetector.relativeToWorld(currentRoom, identifier.get(1));
-                boolean firstAir = client.world.getBlockState(first).isAir();
-                boolean secondAir = client.world.getBlockState(second).isAir();
+                boolean firstAir = client.level.getBlockState(first).isAir();
+                boolean secondAir = client.level.getBlockState(second).isAir();
                 if (firstAir && !secondAir) {
                     for (BlockPos relative : floorPatterns.get(patternIndex)) {
                         worldPath.add(roomDetector.relativeToWorld(currentRoom, relative));
@@ -1180,7 +1180,7 @@ public final class DungeonSolverOverlay {
         return worldPath;
     }
 
-    private Box pathSegmentBox(BlockPos from, BlockPos to) {
+    private AABB pathSegmentBox(BlockPos from, BlockPos to) {
         double thickness = 0.12D;
         double half = thickness / 2.0D;
         double minX = Math.min(from.getX() + 0.5D, to.getX() + 0.5D) - half;
@@ -1189,12 +1189,12 @@ public final class DungeonSolverOverlay {
         double maxZ = Math.max(from.getZ() + 0.5D, to.getZ() + 0.5D) + half;
         double minY = Math.min(from.getY(), to.getY()) + 0.08D;
         double maxY = minY + 0.08D;
-        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
+        return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    private Box pathNodeBox(BlockPos pos) {
+    private AABB pathNodeBox(BlockPos pos) {
         double half = 0.10D;
-        return new Box(
+        return new AABB(
             pos.getX() + 0.5D - half,
             pos.getY() + 0.08D,
             pos.getZ() + 0.5D - half,
@@ -1204,21 +1204,21 @@ public final class DungeonSolverOverlay {
         );
     }
 
-    private String currentBoulderLayout(MinecraftClient client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
+    private String currentBoulderLayout(Minecraft client, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
         StringBuilder layout = new StringBuilder();
         for (int z = 24; z >= 9; z -= 3) {
             for (int x = 24; x >= 6; x -= 3) {
                 BlockPos sample = roomDetector.relativeToWorld(currentRoom, new BlockPos(x, 66, z));
-                layout.append(client.world.getBlockState(sample).isAir() ? '0' : '1');
+                layout.append(client.level.getBlockState(sample).isAir() ? '0' : '1');
             }
         }
         return layout.toString();
     }
 
-    private List<BlazeTarget> blazeTargets(MinecraftClient client, DetectedDungeonRoom currentRoom) {
+    private List<BlazeTarget> blazeTargets(Minecraft client, DetectedDungeonRoom currentRoom) {
         List<BlazeTarget> targets = new ArrayList<>();
-        for (Entity entity : client.world.getEntities()) {
-            if (!(entity instanceof ArmorStandEntity) && !entity.hasCustomName()) {
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (!(entity instanceof ArmorStand) && !entity.hasCustomName()) {
                 continue;
             }
             String name = clean(entity.getName().getString());
@@ -1251,17 +1251,17 @@ public final class DungeonSolverOverlay {
         }
     }
 
-    private int nearbyCreepers(MinecraftClient client) {
+    private int nearbyCreepers(Minecraft client) {
         int count = 0;
-        for (Entity entity : client.world.getEntities()) {
-            if (entity instanceof CreeperEntity && client.player.distanceTo(entity) <= 35.0D) {
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity instanceof Creeper && client.player.distanceTo(entity) <= 35.0D) {
                 count++;
             }
         }
         return count;
     }
 
-    private boolean inferLowerBlaze(MinecraftClient client, List<BlazeTarget> targets, DetectedDungeonRoom currentRoom) {
+    private boolean inferLowerBlaze(Minecraft client, List<BlazeTarget> targets, DetectedDungeonRoom currentRoom) {
         if (currentRoom != null && currentRoom.containsName("Lower Blaze")) {
             return true;
         }
@@ -1295,8 +1295,8 @@ public final class DungeonSolverOverlay {
         return currentRoom != null && currentRoom.isPuzzle(name);
     }
 
-    private Box blazeRenderBox(Entity label) {
-        return label.getBoundingBox().expand(0.65D, 1.1D, 0.65D).offset(0.0D, -1.2D, 0.0D);
+    private AABB blazeRenderBox(Entity label) {
+        return label.getBoundingBox().inflate(0.65D, 1.1D, 0.65D).move(0.0D, -1.2D, 0.0D);
     }
 
     private String blazeSummary(List<BlazeTarget> targets) {
@@ -1310,11 +1310,11 @@ public final class DungeonSolverOverlay {
         return builder.toString();
     }
 
-    private String directionTo(MinecraftClient client, Entity entity) {
+    private String directionTo(Minecraft client, Entity entity) {
         double dx = entity.getX() - client.player.getX();
         double dz = entity.getZ() - client.player.getZ();
         double targetYaw = Math.toDegrees(Math.atan2(dz, dx)) - 90.0D;
-        double yawDelta = MathHelper.wrapDegrees(targetYaw - client.player.getYaw(1.0F));
+        double yawDelta = Mth.wrapDegrees(targetYaw - client.player.getYRot(1.0F));
         double distance = Math.sqrt((dx * dx) + (dz * dz));
         String side;
         if (Math.abs(yawDelta) < 8.0D) {
@@ -1327,18 +1327,18 @@ public final class DungeonSolverOverlay {
         return side + " / " + Math.round(distance) + "m";
     }
 
-    private double yawDeltaTo(MinecraftClient client, BlockPos pos) {
+    private double yawDeltaTo(Minecraft client, BlockPos pos) {
         double dx = (pos.getX() + 0.5D) - client.player.getX();
         double dz = (pos.getZ() + 0.5D) - client.player.getZ();
         double targetYaw = Math.toDegrees(Math.atan2(dz, dx)) - 90.0D;
-        return Math.abs(MathHelper.wrapDegrees(targetYaw - client.player.getYaw(1.0F)));
+        return Math.abs(Mth.wrapDegrees(targetYaw - client.player.getYRot(1.0F)));
     }
 
     private void addQuizAnswer(String question, String... answers) {
         quizAnswers.put(question.toLowerCase(Locale.ROOT), List.of(answers));
     }
 
-    private void drawHighlights(HandledScreen<?> screen, DrawContext context, SolveResult result) {
+    private void drawHighlights(AbstractContainerScreen<?> screen, GuiGraphicsExtractor context, SolveResult result) {
         ScreenPosition position = screenPosition(screen);
         int left = position.x();
         int top = position.y();
@@ -1347,14 +1347,14 @@ public final class DungeonSolverOverlay {
             int x = left + slot.x;
             int y = top + slot.y;
             context.fill(x, y, x + 16, y + 16, highlight.color());
-            context.drawStrokedRectangle(x, y, 16, 16, HudStyle.border());
+            context.outline(x, y, 16, 16, HudStyle.border());
             if (!highlight.label().isBlank()) {
-                context.drawText(MinecraftClient.getInstance().textRenderer, Text.literal(highlight.label()), x + 1, y + 1, HudStyle.text(), true);
+                context.text(Minecraft.getInstance().font, Component.literal(highlight.label()), x + 1, y + 1, HudStyle.text(), true);
             }
         }
     }
 
-    private ScreenPosition screenPosition(HandledScreen<?> screen) {
+    private ScreenPosition screenPosition(AbstractContainerScreen<?> screen) {
         if (!screenPositionReflectionFailed) {
             try {
                 if (screenXField == null || screenYField == null) {
@@ -1389,34 +1389,34 @@ public final class DungeonSolverOverlay {
         return null;
     }
 
-    private void drawPanel(HandledScreen<?> screen, DrawContext context, MinecraftClient client, SolveResult result) {
+    private void drawPanel(AbstractContainerScreen<?> screen, GuiGraphicsExtractor context, Minecraft client, SolveResult result) {
         int width = 276;
         int height = 56;
         int x = 16;
         int y = screen.height - height - 16;
         context.fill(x, y, x + width, y + height, HudStyle.panel());
-        context.drawStrokedRectangle(x, y, width, height, HudStyle.border());
-        context.drawTextWithShadow(client.textRenderer, Text.literal("Horizon Solver: " + result.name()), x + 12, y + 10, HudStyle.accent());
-        context.drawTextWithShadow(client.textRenderer, Text.literal(result.hint()), x + 12, y + 30, HudStyle.muted());
+        context.outline(x, y, width, height, HudStyle.border());
+        context.text(client.font, Component.literal("Horizon Solver: " + result.name()), x + 12, y + 10, HudStyle.accent());
+        context.text(client.font, Component.literal(result.hint()), x + 12, y + 30, HudStyle.muted());
     }
 
-    private List<Slot> containerSlots(HandledScreen<?> screen) {
+    private List<Slot> containerSlots(AbstractContainerScreen<?> screen) {
         List<Slot> result = new ArrayList<>();
         Set<Integer> seen = new HashSet<>();
-        for (Slot slot : screen.getScreenHandler().slots) {
-            if (slot.hasStack() && slot.id < screen.getScreenHandler().slots.size() - 36 && seen.add(slot.id)) {
+        for (Slot slot : screen.getMenu().slots) {
+            if (slot.hasItem() && slot.index < screen.getMenu().slots.size() - 36 && seen.add(slot.index)) {
                 result.add(slot);
             }
         }
         return result;
     }
 
-    private SlotBounds slotBounds(HandledScreen<?> screen) {
+    private SlotBounds slotBounds(AbstractContainerScreen<?> screen) {
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
         int maxY = Integer.MIN_VALUE;
-        for (Slot slot : screen.getScreenHandler().slots) {
+        for (Slot slot : screen.getMenu().slots) {
             minX = Math.min(minX, slot.x);
             minY = Math.min(minY, slot.y);
             maxX = Math.max(maxX, slot.x + 16);
@@ -1429,9 +1429,9 @@ public final class DungeonSolverOverlay {
     }
 
     private String stackText(ItemStack stack) {
-        StringBuilder builder = new StringBuilder(clean(stack.getName().getString()));
-        if (stack.contains(DataComponentTypes.LORE)) {
-            for (Text line : stack.get(DataComponentTypes.LORE).lines()) {
+        StringBuilder builder = new StringBuilder(clean(stack.getHoverName().getString()));
+        if (stack.has(DataComponents.LORE)) {
+            for (Component line : stack.get(DataComponents.LORE).lines()) {
                 builder.append(' ').append(clean(line.getString()));
             }
         }
@@ -1465,13 +1465,13 @@ public final class DungeonSolverOverlay {
                 return part;
             }
         }
-        DyedColorComponent dyed = stack.get(DataComponentTypes.DYED_COLOR);
+        DyedItemColor dyed = stack.get(DataComponents.DYED_COLOR);
         return dyed == null ? null : Integer.toHexString(dyed.rgb());
     }
 
     private String itemId(ItemStack stack) {
         Item item = stack.getItem();
-        return Registries.ITEM.getId(item).getPath();
+        return BuiltInRegistries.ITEM.getKey(item).getPath();
     }
 
     private String clean(String text) {
@@ -1483,8 +1483,8 @@ public final class DungeonSolverOverlay {
     }
 
     private void advanceBoulderStep(BlockPos clickPos, DetectedDungeonRoom currentRoom, DungeonRoomDetector roomDetector) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.level == null) {
             return;
         }
         if (!currentRoom.origin().equals(activeBoulderOrigin)) {
@@ -1512,22 +1512,22 @@ public final class DungeonSolverOverlay {
         return -1;
     }
 
-    private void clearGlowing(MinecraftClient client) {
-        if (client == null || client.world == null || glowingEntities.isEmpty()) {
+    private void clearGlowing(Minecraft client) {
+        if (client == null || client.level == null || glowingEntities.isEmpty()) {
             glowingEntities.clear();
             return;
         }
-        for (Entity entity : client.world.getEntities()) {
+        for (Entity entity : client.level.entitiesForRendering()) {
             if (glowingEntities.contains(entity.getId())) {
-                entity.setGlowing(false);
+                entity.setGlowingTag(false);
             }
         }
         glowingEntities.clear();
     }
 
-    private Entity findNamedEntity(MinecraftClient client, String needle) {
+    private Entity findNamedEntity(Minecraft client, String needle) {
         String normalizedNeedle = clean(needle).toLowerCase(Locale.ROOT);
-        for (Entity entity : client.world.getEntities()) {
+        for (Entity entity : client.level.entitiesForRendering()) {
             String name = clean(entity.getName().getString()).toLowerCase(Locale.ROOT);
             if (!normalizedNeedle.isBlank() && name.contains(normalizedNeedle) && client.player.distanceTo(entity) <= 40.0D) {
                 return entity;
@@ -1536,41 +1536,41 @@ public final class DungeonSolverOverlay {
         return null;
     }
 
-    private List<BlockPos> nearbyBlocks(MinecraftClient client, int radius, net.minecraft.block.Block block) {
+    private List<BlockPos> nearbyBlocks(Minecraft client, int radius, net.minecraft.world.level.block.Block block) {
         List<BlockPos> result = new ArrayList<>();
-        BlockPos center = client.player.getBlockPos();
-        for (BlockPos pos : BlockPos.iterate(center.add(-radius, -6, -radius), center.add(radius, 8, radius))) {
-            if (client.world.getBlockState(pos).isOf(block)) {
-                result.add(pos.toImmutable());
+        BlockPos center = client.player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -6, -radius), center.offset(radius, 8, radius))) {
+            if (client.level.getBlockState(pos).is(block)) {
+                result.add(pos.immutable());
             }
         }
         return result;
     }
 
-    private List<BlockPos> nearbyIce(MinecraftClient client, int radius) {
+    private List<BlockPos> nearbyIce(Minecraft client, int radius) {
         List<BlockPos> result = new ArrayList<>();
-        BlockPos center = client.player.getBlockPos();
-        for (BlockPos pos : BlockPos.iterate(center.add(-radius, -4, -radius), center.add(radius, 4, radius))) {
-            if (client.world.getBlockState(pos).isOf(Blocks.ICE)
-                || client.world.getBlockState(pos).isOf(Blocks.PACKED_ICE)
-                || client.world.getBlockState(pos).isOf(Blocks.BLUE_ICE)
-                || client.world.getBlockState(pos).isOf(Blocks.FROSTED_ICE)) {
-                result.add(pos.toImmutable());
+        BlockPos center = client.player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -4, -radius), center.offset(radius, 4, radius))) {
+            if (client.level.getBlockState(pos).is(Blocks.ICE)
+                || client.level.getBlockState(pos).is(Blocks.PACKED_ICE)
+                || client.level.getBlockState(pos).is(Blocks.BLUE_ICE)
+                || client.level.getBlockState(pos).is(Blocks.FROSTED_ICE)) {
+                result.add(pos.immutable());
             }
         }
         return result;
     }
 
-    private List<BlockPos> nearbyBoulders(MinecraftClient client, int radius) {
+    private List<BlockPos> nearbyBoulders(Minecraft client, int radius) {
         List<BlockPos> result = new ArrayList<>();
-        BlockPos center = client.player.getBlockPos();
-        for (BlockPos pos : BlockPos.iterate(center.add(-radius, -3, -radius), center.add(radius, 6, radius))) {
-            if ((client.world.getBlockState(pos).isOf(Blocks.STONE)
-                || client.world.getBlockState(pos).isOf(Blocks.COBBLESTONE)
-                || client.world.getBlockState(pos).isOf(Blocks.MOSSY_COBBLESTONE))
-                && client.world.getBlockState(pos.up()).isAir()
-                && client.world.getBlockState(pos.down()).isSolidBlock(client.world, pos.down())) {
-                result.add(pos.toImmutable());
+        BlockPos center = client.player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -3, -radius), center.offset(radius, 6, radius))) {
+            if ((client.level.getBlockState(pos).is(Blocks.STONE)
+                || client.level.getBlockState(pos).is(Blocks.COBBLESTONE)
+                || client.level.getBlockState(pos).is(Blocks.MOSSY_COBBLESTONE))
+                && client.level.getBlockState(pos.above()).isAir()
+                && client.level.getBlockState(pos.below()).isRedstoneConductor(client.level, pos.below())) {
+                result.add(pos.immutable());
             }
         }
         return result;
@@ -1579,7 +1579,7 @@ public final class DungeonSolverOverlay {
     private List<LampPair> logicalLampPairs(List<BlockPos> lanterns) {
         List<LampPair> pairs = new ArrayList<>();
         Set<BlockPos> used = new HashSet<>();
-        lanterns.sort(Comparator.comparingInt(BlockPos::getY).thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
+        lanterns.sort(Comparator.<BlockPos>comparingInt(BlockPos::getY).thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
         for (BlockPos first : lanterns) {
             if (used.contains(first)) {
                 continue;
@@ -1629,7 +1629,7 @@ public final class DungeonSolverOverlay {
     }
 
     private boolean isMazeWalkable(Slot slot) {
-        String id = itemId(slot.getStack());
+        String id = itemId(slot.getItem());
         return !id.contains("black") && !id.contains("gray") && !id.contains("barrier");
     }
 
@@ -1701,7 +1701,7 @@ public final class DungeonSolverOverlay {
     private record BlazeTarget(Entity label, int health, double distance) {
     }
 
-    private record WorldBox(Box box, int color) {
+    private record WorldBox(AABB box, int color) {
     }
 
     private record LampPair(BlockPos first, BlockPos second) {
