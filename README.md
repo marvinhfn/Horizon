@@ -1,10 +1,10 @@
 # Horizon
 
-Horizon ist ein clientseitiger Fabric-Mod fuer Hypixel SkyBlock. Das Projekt kombiniert Ingame-Overlays, HUD-Elemente, Dungeon-Hilfen, Profilansichten und eine optionale Backend-Anbindung fuer serverseitig geladene Profildaten.
+Horizon ist ein clientseitiger Fabric-Mod fuer Hypixel SkyBlock auf Minecraft `26.1.2`. Das Projekt kombiniert Ingame-Overlays, HUD-Elemente, Dungeon-Hilfen, Profilansichten und eine optionale Backend-Anbindung fuer serverseitig geladene Profildaten.
 
 ## Projektstand
 
-Der Mod ist aktuell fuer Minecraft `1.21.10` und `1.21.11` ausgelegt. Gebaut wird mit Fabric Loom, Yarn-Mappings und Java 21. Standardmaessig laeuft der Build auf `1.21.11`; ohne `mcVersion` wird zusaetzlich auch die zweite unterstuetzte Version gebaut.
+Der Mod ist fuer Minecraft `26.1.2` ausgelegt. Gebaut wird mit Fabric Loom 1.15, Mojang Official Mappings und Java 25.
 
 ## Funktionsumfang
 
@@ -14,8 +14,13 @@ Der Mod ist aktuell fuer Minecraft `1.21.10` und `1.21.11` ausgelegt. Gebaut wir
 - Dungeon-Funktionen mit Raum-Erkennung, Puzzle-Overlays und Alerts
 - Party-Finder-Overlay fuer Dungeon-Runs
 - Ersetzende Hypixel-Sidebar als kompakte Statusleiste
-- Chat- und Particle-Filter fuer SkyBlock-spezifische Stoerquellen
-- Spotify-Steuerung direkt aus Inventar-Screens
+- Chat-Tabs und Chat-Filter fuer SkyBlock-spezifische Stoerquellen
+- Particle-Filter mit einzeln konfigurierbaren Partikeltypen
+- Inventory Buttons mit frei konfigurierbarem Layout
+- Fishing Alerts fuer seltene Sea Creatures
+- Spotify- und YouTube-Music-Steuerung direkt aus Inventar-Screens
+- 16:9 Pillarbox-Modus fuer Ultrawide-Monitore
+- Farming Tool Rebind und Squeaky Mousemat Unterstuetzung
 - Optionale Backend-Anbindung fuer authentifizierte Profil- und Inventardaten
 
 ## Architektur
@@ -32,27 +37,18 @@ Wichtige Einstiegspunkte:
 - `src/main/java/de/horizon/screen/PlayerProfileScreen.java`: Profilansicht im Client
 - `src/main/java/de/horizon/feature/dungeon/`: Dungeon-State, Solver und Alerts
 - `src/main/java/de/horizon/spotify/`: Spotify-Integration im Inventar
+- `src/main/java/de/horizon/youtube/`: YouTube-Music-Integration im Inventar
 - `backend/src/main/java/de/horizon/backend/HorizonBackendApplication.java`: Startpunkt des Backends
 
 ## Build
 
-Client kompilieren:
+Client kompilieren und bauen:
 
-```powershell
-.\gradlew.bat compileJava -PmcVersion=12110
-.\gradlew.bat compileJava -PmcVersion=12111
+```bash
+./gradlew build --rerun-tasks
 ```
 
-JARs bauen:
-
-```powershell
-.\gradlew.bat build -PmcVersion=12110 --rerun-tasks
-.\gradlew.bat build -PmcVersion=12111 --rerun-tasks
-```
-
-Ohne gesetzte `mcVersion` wird nach dem ersten Build automatisch auch die jeweils andere unterstuetzte Minecraft-Version gebaut.
-
-Fuer lokale Entwicklung kann der Build die remappte Mod-Datei direkt in eine PrismLauncher-Instanz kopieren. Der Zielpfad laesst sich ueber `-PprismModsDir=...` ueberschreiben.
+Fuer lokale Entwicklung kann der Build die Mod-Datei direkt in eine PrismLauncher-Instanz kopieren. Der Zielpfad laesst sich ueber `-PprismModsDir=...` ueberschreiben.
 
 ## Backend
 
@@ -66,9 +62,9 @@ Konfiguration erfolgt ueber Umgebungsvariablen oder lokal ueber `backend/.env`. 
 
 Start:
 
-```powershell
+```bash
 cd backend
-..\gradlew.bat run
+../gradlew run
 ```
 
 ## Hinweise zum Repository
