@@ -83,9 +83,6 @@ public final class HorizonConfig {
     public boolean isSystemHudEnabled() { return hud.systemHudEnabled; }
     public void setSystemHudEnabled(boolean v) { hud.systemHudEnabled = v; }
 
-    public boolean isSolverDebugHudEnabled() { return hud.solverDebugHudEnabled; }
-    public void setSolverDebugHudEnabled(boolean v) { hud.solverDebugHudEnabled = v; }
-
     public Map<String, HudPosition> getHudPositions() { return hud.hudPositions; }
 
     // ── DUNGEON ───────────────────────────────────────────────────────────────
@@ -99,68 +96,204 @@ public final class HorizonConfig {
     public boolean isDungeonRareRoomAlertsEnabled() { return dungeon.dungeonRareRoomAlertsEnabled; }
     public void setDungeonRareRoomAlertsEnabled(boolean v) { dungeon.dungeonRareRoomAlertsEnabled = v; }
 
-    public boolean isTerminalDropSwapEnabled() { return dungeon.terminalDropSwapEnabled; }
-    public void setTerminalDropSwapEnabled(boolean v) { dungeon.terminalDropSwapEnabled = v; }
+    public boolean isHideNonStarredMobsEnabled() { return dungeon.hideNonStarredMobs; }
+    public void setHideNonStarredMobsEnabled(boolean v) { dungeon.hideNonStarredMobs = v; }
 
-    public boolean isTerminalCorrectAllEnabled() { return dungeon.terminalCorrectAllEnabled; }
-    public void setTerminalCorrectAllEnabled(boolean v) { dungeon.terminalCorrectAllEnabled = v; }
+    public boolean isHighlightStarredMobsEnabled() { return dungeon.highlightStarredMobs; }
+    public void setHighlightStarredMobsEnabled(boolean v) { dungeon.highlightStarredMobs = v; }
+    public boolean isStarredMobGlowThroughWalls() { return dungeon.starredMobGlowThroughWalls; }
+    public void setStarredMobGlowThroughWalls(boolean v) { dungeon.starredMobGlowThroughWalls = v; }
+    public int getStarredMobColor() { return dungeon.starredMobColor; }
+    public void setStarredMobColor(int v) { dungeon.starredMobColor = v; }
+    public boolean isHighlightBatsEnabled() { return dungeon.highlightBats; }
+    public void setHighlightBatsEnabled(boolean v) { dungeon.highlightBats = v; }
+    public int getBatHighlightColor() { return dungeon.batHighlightColor; }
+    public void setBatHighlightColor(int v) { dungeon.batHighlightColor = v; }
+    public boolean isHighlightFelsEnabled() { return dungeon.highlightFels; }
+    public void setHighlightFelsEnabled(boolean v) { dungeon.highlightFels = v; }
+    public int getFelHighlightColor() { return dungeon.felHighlightColor; }
+    public void setFelHighlightColor(int v) { dungeon.felHighlightColor = v; }
+    public boolean isTeammateGlowEnabled() { return dungeon.teammateGlowEnabled; }
+    public void setTeammateGlowEnabled(boolean v) { dungeon.teammateGlowEnabled = v; }
+    public int getClassColorArcher() { return dungeon.classColorArcher; }
+    public void setClassColorArcher(int v) { dungeon.classColorArcher = v; }
+    public int getClassColorBerserk() { return dungeon.classColorBerserk; }
+    public void setClassColorBerserk(int v) { dungeon.classColorBerserk = v; }
+    public int getClassColorHealer() { return dungeon.classColorHealer; }
+    public void setClassColorHealer(int v) { dungeon.classColorHealer = v; }
+    public int getClassColorMage() { return dungeon.classColorMage; }
+    public void setClassColorMage(int v) { dungeon.classColorMage = v; }
+    public int getClassColorTank() { return dungeon.classColorTank; }
+    public void setClassColorTank(int v) { dungeon.classColorTank = v; }
 
-    public boolean isTerminalNavigateMazeEnabled() { return dungeon.terminalNavigateMazeEnabled; }
-    public void setTerminalNavigateMazeEnabled(boolean v) { dungeon.terminalNavigateMazeEnabled = v; }
+    public int getClassColor(de.horizon.feature.dungeon.TeammateGlowService.DungeonClass dc) {
+        return switch (dc) {
+            case ARCHER  -> dungeon.classColorArcher;
+            case BERSERK -> dungeon.classColorBerserk;
+            case HEALER  -> dungeon.classColorHealer;
+            case MAGE    -> dungeon.classColorMage;
+            case TANK    -> dungeon.classColorTank;
+        };
+    }
 
-    public boolean isTerminalClickInOrderEnabled() { return dungeon.terminalClickInOrderEnabled; }
-    public void setTerminalClickInOrderEnabled(boolean v) { dungeon.terminalClickInOrderEnabled = v; }
-
-    public boolean isTerminalStartsWithEnabled() { return dungeon.terminalStartsWithEnabled; }
-    public void setTerminalStartsWithEnabled(boolean v) { dungeon.terminalStartsWithEnabled = v; }
-
-    public boolean isTerminalSelectAllColorEnabled() { return dungeon.terminalSelectAllColorEnabled; }
-    public void setTerminalSelectAllColorEnabled(boolean v) { dungeon.terminalSelectAllColorEnabled = v; }
-
-    public boolean isTerminalSameColorEnabled() { return dungeon.terminalSameColorEnabled; }
-    public void setTerminalSameColorEnabled(boolean v) { dungeon.terminalSameColorEnabled = v; }
-
-    public boolean isPuzzleWaterBoardEnabled() { return dungeon.puzzleWaterBoardEnabled; }
-    public void setPuzzleWaterBoardEnabled(boolean v) { dungeon.puzzleWaterBoardEnabled = v; }
-
-    public boolean isPuzzleThreeWeirdosEnabled() { return dungeon.puzzleThreeWeirdosEnabled; }
-    public void setPuzzleThreeWeirdosEnabled(boolean v) { dungeon.puzzleThreeWeirdosEnabled = v; }
-
-    public boolean isPuzzleBlazeEnabled() { return dungeon.puzzleBlazeEnabled; }
-    public void setPuzzleBlazeEnabled(boolean v) { dungeon.puzzleBlazeEnabled = v; }
-
-    public boolean isPuzzleIceFillEnabled() { return dungeon.puzzleIceFillEnabled; }
-    public void setPuzzleIceFillEnabled(boolean v) { dungeon.puzzleIceFillEnabled = v; }
-
-    public boolean isPuzzleQuizEnabled() { return dungeon.puzzleQuizEnabled; }
-    public void setPuzzleQuizEnabled(boolean v) { dungeon.puzzleQuizEnabled = v; }
-
-    public boolean isPuzzleTicTacToeEnabled() { return dungeon.puzzleTicTacToeEnabled; }
-    public void setPuzzleTicTacToeEnabled(boolean v) { dungeon.puzzleTicTacToeEnabled = v; }
-
-    public boolean isPuzzleCreeperBeamsEnabled() { return dungeon.puzzleCreeperBeamsEnabled; }
-    public void setPuzzleCreeperBeamsEnabled(boolean v) { dungeon.puzzleCreeperBeamsEnabled = v; }
-
-    public boolean isPuzzleBoulderEnabled() { return dungeon.puzzleBoulderEnabled; }
-    public void setPuzzleBoulderEnabled(boolean v) { dungeon.puzzleBoulderEnabled = v; }
-
-    public boolean isPuzzleIcePathEnabled() { return dungeon.puzzleIcePathEnabled; }
-    public void setPuzzleIcePathEnabled(boolean v) { dungeon.puzzleIcePathEnabled = v; }
-
-    public boolean isPuzzleTeleportMazeEnabled() { return dungeon.puzzleTeleportMazeEnabled; }
-    public void setPuzzleTeleportMazeEnabled(boolean v) { dungeon.puzzleTeleportMazeEnabled = v; }
+    public void setClassColor(de.horizon.feature.dungeon.TeammateGlowService.DungeonClass dc, int color) {
+        switch (dc) {
+            case ARCHER  -> dungeon.classColorArcher = color;
+            case BERSERK -> dungeon.classColorBerserk = color;
+            case HEALER  -> dungeon.classColorHealer = color;
+            case MAGE    -> dungeon.classColorMage = color;
+            case TANK    -> dungeon.classColorTank = color;
+        }
+    }
 
     public boolean isRagAxeNotificationEnabled() { return dungeon.ragAxeNotificationEnabled; }
     public void setRagAxeNotificationEnabled(boolean v) { dungeon.ragAxeNotificationEnabled = v; }
 
+    public boolean isLeapMenuEnabled() { return dungeon.leapMenuEnabled; }
+    public void setLeapMenuEnabled(boolean v) { dungeon.leapMenuEnabled = v; }
+
+    public boolean isLeapMenuAnnounce() { return dungeon.leapMenuAnnounce; }
+    public void setLeapMenuAnnounce(boolean v) { dungeon.leapMenuAnnounce = v; }
+
+    public int getLeapMenuSortMode() { return dungeon.leapMenuSortMode; }
+    public void setLeapMenuSortMode(int v) { dungeon.leapMenuSortMode = Math.max(0, Math.min(2, v)); }
+
+    public boolean isEtherwarpEnabled() { return dungeon.etherwarpEnabled; }
+    public void setEtherwarpEnabled(boolean v) { dungeon.etherwarpEnabled = v; }
+
+    public boolean isEtherwarpDepthCheck() { return dungeon.etherwarpDepthCheck; }
+    public void setEtherwarpDepthCheck(boolean v) { dungeon.etherwarpDepthCheck = v; }
+
+    public boolean isEtherwarpSoundEnabled() { return dungeon.etherwarpSoundEnabled; }
+    public void setEtherwarpSoundEnabled(boolean v) { dungeon.etherwarpSoundEnabled = v; }
+
+    public boolean isEtherwarpSneakOnly() { return dungeon.etherwarpSneakOnly; }
+    public void setEtherwarpSneakOnly(boolean v) { dungeon.etherwarpSneakOnly = v; }
+
+    public int getEtherwarpRenderStyle() { return dungeon.etherwarpRenderStyle; }
+    public void setEtherwarpRenderStyle(int v) { dungeon.etherwarpRenderStyle = Math.max(0, Math.min(2, v)); }
+
+    public int getEtherwarpSoundIndex() { return dungeon.etherwarpSoundIndex; }
+    public void setEtherwarpSoundIndex(int v) { dungeon.etherwarpSoundIndex = Math.max(0, Math.min(1, v)); }
+
+    public float getEtherwarpSoundVolume() { return dungeon.etherwarpSoundVolume; }
+    public void setEtherwarpSoundVolume(float v) { dungeon.etherwarpSoundVolume = (float) Math.max(0.0, Math.min(2.0, v)); }
+
+    public float getEtherwarpSoundPitch() { return dungeon.etherwarpSoundPitch; }
+    public void setEtherwarpSoundPitch(float v) { dungeon.etherwarpSoundPitch = (float) Math.max(0.0, Math.min(2.0, v)); }
+
+    public boolean isWardrobeKeybindsEnabled() { return dungeon.wardrobeKeybindsEnabled; }
+    public void setWardrobeKeybindsEnabled(boolean v) { dungeon.wardrobeKeybindsEnabled = v; }
+
+    public boolean isSlotBindsEnabled() { return dungeon.slotBindsEnabled; }
+    public void setSlotBindsEnabled(boolean v) { dungeon.slotBindsEnabled = v; }
+
+    public java.util.Map<Integer, Integer> getSlotBinds() { return dungeon.slotBinds; }
+
+    public int getSlotBindKey() { return dungeon.slotBindKey; }
+    public void setSlotBindKey(int v) { dungeon.slotBindKey = v; }
+
+    public boolean isChatCommandsEnabled() { return dungeon.chatCommandsEnabled; }
+    public void setChatCommandsEnabled(boolean v) { dungeon.chatCommandsEnabled = v; }
+
+    public boolean isChatCommandsParty() { return dungeon.chatCommandsParty; }
+    public void setChatCommandsParty(boolean v) { dungeon.chatCommandsParty = v; }
+
+    public boolean isChatCommandsGuild() { return dungeon.chatCommandsGuild; }
+    public void setChatCommandsGuild(boolean v) { dungeon.chatCommandsGuild = v; }
+
+    public boolean isChatCommandsPrivate() { return dungeon.chatCommandsPrivate; }
+    public void setChatCommandsPrivate(boolean v) { dungeon.chatCommandsPrivate = v; }
+
+    public boolean isChatCommandEnabled(String cmd) { return !dungeon.chatCommandsDisabled.contains(cmd); }
+    public void setChatCommandEnabled(String cmd, boolean v) {
+        if (v) dungeon.chatCommandsDisabled.remove(cmd);
+        else dungeon.chatCommandsDisabled.add(cmd);
+    }
+
+    public int getCommandKeybindPets() { return dungeon.commandKeybindPets; }
+    public void setCommandKeybindPets(int v) { dungeon.commandKeybindPets = v; }
+
+    public int getCommandKeybindEquipment() { return dungeon.commandKeybindEquipment; }
+    public void setCommandKeybindEquipment(int v) { dungeon.commandKeybindEquipment = v; }
+
+    public int getCommandKeybindWardrobe() { return dungeon.commandKeybindWardrobe; }
+    public void setCommandKeybindWardrobe(int v) { dungeon.commandKeybindWardrobe = v; }
+
+    public boolean isTickTimerEnabled() { return dungeon.tickTimerEnabled; }
+    public void setTickTimerEnabled(boolean v) { dungeon.tickTimerEnabled = v; }
+    public boolean isTickTimerSendToChat() { return dungeon.tickTimerSendToChat; }
+    public void setTickTimerSendToChat(boolean v) { dungeon.tickTimerSendToChat = v; }
+
+    public boolean isPuzzleSolverEnabled() { return dungeon.puzzleSolverEnabled; }
+    public void setPuzzleSolverEnabled(boolean v) { dungeon.puzzleSolverEnabled = v; }
+    public int getPuzzleSolverStyle() { return dungeon.puzzleSolverStyle; }
+    public void setPuzzleSolverStyle(int v) { dungeon.puzzleSolverStyle = Math.max(0, Math.min(2, v)); }
+
+    public boolean isTerminalSolverEnabled() { return dungeon.terminalSolverEnabled; }
+    public void setTerminalSolverEnabled(boolean v) { dungeon.terminalSolverEnabled = v; }
+    public boolean isTerminalSolverBlockWrongClicks() { return dungeon.terminalSolverBlockWrongClicks; }
+    public void setTerminalSolverBlockWrongClicks(boolean v) { dungeon.terminalSolverBlockWrongClicks = v; }
+    public boolean isTerminalSolverCustomMode() { return dungeon.terminalSolverCustomMode; }
+    public void setTerminalSolverCustomMode(boolean v) { dungeon.terminalSolverCustomMode = v; }
+
+    public boolean isSimonSaysEnabled() { return dungeon.simonSaysEnabled; }
+    public void setSimonSaysEnabled(boolean v) { dungeon.simonSaysEnabled = v; }
+    public boolean isSimonSaysBlockWrongClicks() { return dungeon.simonSaysBlockWrongClicks; }
+    public void setSimonSaysBlockWrongClicks(boolean v) { dungeon.simonSaysBlockWrongClicks = v; }
+    public boolean isArrowAlignEnabled() { return dungeon.arrowAlignEnabled; }
+    public void setArrowAlignEnabled(boolean v) { dungeon.arrowAlignEnabled = v; }
+    public boolean isSharpShooterEnabled() { return dungeon.sharpShooterEnabled; }
+    public void setSharpShooterEnabled(boolean v) { dungeon.sharpShooterEnabled = v; }
+    public boolean isPurplePadTimerEnabled() { return dungeon.purplePadTimerEnabled; }
+    public void setPurplePadTimerEnabled(boolean v) { dungeon.purplePadTimerEnabled = v; }
+
     public boolean isDungeonMapEnabled() { return dungeon.dungeonMapEnabled; }
     public void setDungeonMapEnabled(boolean v) { dungeon.dungeonMapEnabled = v; }
 
-    public boolean isDungeonMapShowPlayers() { return dungeon.dungeonMapShowPlayers; }
-    public void setDungeonMapShowPlayers(boolean v) { dungeon.dungeonMapShowPlayers = v; }
+    public int getMapColorBackground() { return dungeon.mapColorBackground; }
+    public void setMapColorBackground(int v) { dungeon.mapColorBackground = v; }
+    public int getMapColorNormal()   { return dungeon.mapColorNormal; }
+    public void setMapColorNormal(int v) { dungeon.mapColorNormal = v; }
+    public int getMapColorPuzzle()   { return dungeon.mapColorPuzzle; }
+    public void setMapColorPuzzle(int v) { dungeon.mapColorPuzzle = v; }
+    public int getMapColorTrap()     { return dungeon.mapColorTrap; }
+    public void setMapColorTrap(int v) { dungeon.mapColorTrap = v; }
+    public int getMapColorEntrance() { return dungeon.mapColorEntrance; }
+    public void setMapColorEntrance(int v) { dungeon.mapColorEntrance = v; }
+    public int getMapColorMiniboss() { return dungeon.mapColorMiniboss; }
+    public void setMapColorMiniboss(int v) { dungeon.mapColorMiniboss = v; }
+    public int getMapColorBlood()    { return dungeon.mapColorBlood; }
+    public void setMapColorBlood(int v) { dungeon.mapColorBlood = v; }
+    public int getMapColorRare()     { return dungeon.mapColorRare; }
+    public void setMapColorRare(int v) { dungeon.mapColorRare = v; }
 
-    public boolean isDungeonMapOutlineEnabled() { return dungeon.dungeonMapOutline; }
-    public void setDungeonMapOutlineEnabled(boolean v) { dungeon.dungeonMapOutline = v; }
+    public boolean isBloodCamperEnabled() { return dungeon.bloodCamperEnabled; }
+    public void setBloodCamperEnabled(boolean v) { dungeon.bloodCamperEnabled = v; }
+
+    public boolean isDungeonScoreEnabled() { return dungeon.dungeonScoreEnabled; }
+    public void setDungeonScoreEnabled(boolean v) { dungeon.dungeonScoreEnabled = v; }
+
+    public boolean isDragonEnabled() { return dungeon.dragonEnabled; }
+    public void setDragonEnabled(boolean v) { dungeon.dragonEnabled = v; }
+    public boolean isDragonBoxes() { return dungeon.dragonBoxes; }
+    public void setDragonBoxes(boolean v) { dungeon.dragonBoxes = v; }
+    public boolean isDragonTimer() { return dungeon.dragonTimer; }
+    public void setDragonTimer(boolean v) { dungeon.dragonTimer = v; }
+    public boolean isDragonSpawnAlert() { return dungeon.dragonSpawnAlert; }
+    public void setDragonSpawnAlert(boolean v) { dungeon.dragonSpawnAlert = v; }
+    public boolean isDragonPriority() { return dungeon.dragonPriority; }
+    public void setDragonPriority(boolean v) { dungeon.dragonPriority = v; }
+    public String getDragonSplitPrio() { return dungeon.dragonSplitPrio == null ? "ogrbp" : dungeon.dragonSplitPrio; }
+    public void setDragonSplitPrio(String v) { dungeon.dragonSplitPrio = v == null ? "ogrbp" : v; }
+    public String getDragonNoSplitPrio() { return dungeon.dragonNoSplitPrio == null ? "robpg" : dungeon.dragonNoSplitPrio; }
+    public void setDragonNoSplitPrio(String v) { dungeon.dragonNoSplitPrio = v == null ? "robpg" : v; }
+
+    public boolean isRelicTimerEnabled() { return dungeon.relicTimerEnabled; }
+    public void setRelicTimerEnabled(boolean v) { dungeon.relicTimerEnabled = v; }
+
+    public float getTerminalGuiScale() { return dungeon.terminalGuiScale; }
+    public void setTerminalGuiScale(float v) { dungeon.terminalGuiScale = (float) clamp(v, 0.5, 3.0); }
 
     // ── SPOTIFY ───────────────────────────────────────────────────────────────
 
@@ -495,6 +628,12 @@ public final class HorizonConfig {
 
     public double getSwingSpeed() { return display.animation.swingSpeed; }
     public void setSwingSpeed(double v) { display.animation.swingSpeed = clamp(v, 0.1, 4.0); }
+
+    public boolean isFireOverlayDisabled() { return display.fireOverlayDisabled; }
+    public void setFireOverlayDisabled(boolean v) { display.fireOverlayDisabled = v; }
+
+    public float getHurtCamIntensity() { return display.hurtCamIntensity; }
+    public void setHurtCamIntensity(float v) { display.hurtCamIntensity = (float) clamp(v, 0.0, 1.0); }
 
     private static double clamp(double v, double min, double max) {
         return Math.max(min, Math.min(max, v));

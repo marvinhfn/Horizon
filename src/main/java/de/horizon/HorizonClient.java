@@ -7,34 +7,58 @@ import de.horizon.api.auth.HorizonApiAuthService;
 import de.horizon.api.profile.HorizonProfileGateway;
 import de.horizon.config.ConfigManager;
 import de.horizon.render.PillarboxState;
+import de.horizon.feature.chat.ChatCommandService;
 import de.horizon.feature.chat.ChatTabManager;
 import de.horizon.feature.chat.SpamHider;
+import de.horizon.feature.dungeon.BloodCamperService;
 import de.horizon.feature.dungeon.DungeonAlertService;
-import de.horizon.feature.dungeon.DungeonMapService;
+import de.horizon.feature.dungeon.DungeonScoreService;
+import de.horizon.feature.dungeon.StarredMobService;
+import de.horizon.feature.dungeon.TeammateGlowService;
+import de.horizon.feature.dungeon.LeapMenuOverlay;
+import de.horizon.feature.dungeon.TickTimerService;
 import de.horizon.feature.fishing.FishingAlertService;
 import de.horizon.feature.dungeon.DungeonStateService;
-import de.horizon.feature.dungeon.DungeonSolverOverlay;
-import de.horizon.feature.dungeon.TerminalDropService;
 import de.horizon.feature.dungeon.room.DungeonRoomDetector;
+import de.horizon.feature.dungeon.puzzle.PuzzleSolverService;
+import de.horizon.feature.dungeon.terminal.TerminalSolverService;
+import de.horizon.feature.dungeon.boss.SimonSaysService;
+import de.horizon.feature.dungeon.boss.ArrowAlignService;
+import de.horizon.feature.dungeon.boss.PurplePadTimerService;
+import de.horizon.feature.dungeon.boss.DragonService;
+import de.horizon.feature.dungeon.boss.RelicTimerService;
+import de.horizon.feature.dungeon.boss.SharpShooterService;
+import de.horizon.feature.dungeon.map.DungeonMapService;
+import de.horizon.hud.DungeonMapHudElement;
+import de.horizon.hud.DungeonScoreHudElement;
+import de.horizon.feature.inventory.SlotBindService;
+import de.horizon.feature.misc.EtherwarpHelperService;
 import de.horizon.feature.misc.PingService;
 import de.horizon.feature.misc.SystemStatsService;
 import de.horizon.feature.misc.TpsTracker;
+import de.horizon.feature.misc.WardrobeKeybindService;
 import de.horizon.feature.particle.ParticleFilterService;
 import de.horizon.feature.revive.ReviveTracker;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.saveddata.maps.MapDecoration;
 import de.horizon.hypixel.HypixelProfileService;
 import de.horizon.hypixel.PartyFinderOverlay;
 import de.horizon.hypixel.HypixelSidebarOverlay;
-import de.horizon.hud.DungeonMapHudElement;
 import de.horizon.hud.HudElement;
 import de.horizon.hud.HudRegistry;
 import de.horizon.hud.PerformanceHudElement;
 import de.horizon.hud.RevivalStatusHudElement;
 import de.horizon.hud.SystemStatsHudElement;
+import de.horizon.hud.PurplePadTimerHudElement;
+import de.horizon.hud.RelicTimerHudElement;
+import de.horizon.hud.TickTimerHudElement;
 import de.horizon.hud.TimeHudElement;
 import de.horizon.screen.HorizonConfigScreen;
 import de.horizon.screen.PlayerProfileScreen;
 import de.horizon.feature.inventory.InventoryButtonOverlay;
 import de.horizon.feature.inventory.InventoryButtonService;
+import de.horizon.mixin.AbstractContainerScreenAccessor;
 import de.horizon.spotify.SpotifyInventoryOverlay;
 import de.horizon.spotify.SpotifyService;
 import de.horizon.youtube.YoutubeMusicInventoryOverlay;
@@ -50,6 +74,7 @@ import java.util.regex.Pattern;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -61,6 +86,7 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.inventory.ContainerInput;
 import org.lwjgl.glfw.GLFW;
 
 public final class HorizonClient implements ClientModInitializer {
@@ -75,9 +101,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final DungeonAlertService dungeonAlertService = new DungeonAlertService();
     private final FishingAlertService fishingAlertService = new FishingAlertService();
     private final DungeonStateService dungeonStateService = new DungeonStateService();
-    private final DungeonMapService dungeonMapService = new DungeonMapService();
     private final DungeonRoomDetector dungeonRoomDetector = new DungeonRoomDetector();
-    private final DungeonSolverOverlay dungeonSolverOverlay = new DungeonSolverOverlay();
     private final HudRegistry hudRegistry = new HudRegistry();
     private final ParticleFilterService particleFilterService = new ParticleFilterService(configManager);
     private final TpsTracker tpsTracker = new TpsTracker();
@@ -87,7 +111,6 @@ public final class HorizonClient implements ClientModInitializer {
     private final SpotifyInventoryOverlay spotifyInventoryOverlay = new SpotifyInventoryOverlay(spotifyService);
     private final YoutubeService youtubeService = new YoutubeService(configManager);
     private final YoutubeMusicInventoryOverlay youtubeMusicInventoryOverlay = new YoutubeMusicInventoryOverlay(youtubeService);
-    private final TerminalDropService terminalDropService = new TerminalDropService();
     private final InventoryButtonService inventoryButtonService = new InventoryButtonService(configManager);
     private final InventoryButtonOverlay inventoryButtonOverlay = new InventoryButtonOverlay(configManager, inventoryButtonService);
     private final HypixelProfileService hypixelProfileService = new HypixelProfileService(configManager);
@@ -96,8 +119,28 @@ public final class HorizonClient implements ClientModInitializer {
     private final HorizonProfileGateway horizonProfileGateway = new HorizonProfileGateway(horizonApiClient);
     private final PartyFinderOverlay partyFinderOverlay = new PartyFinderOverlay(hypixelProfileService);
     private final HypixelSidebarOverlay hypixelSidebarOverlay = new HypixelSidebarOverlay();
+    private final LeapMenuOverlay leapMenuOverlay = new LeapMenuOverlay();
+    private final EtherwarpHelperService etherwarpHelperService = new EtherwarpHelperService();
+    private final WardrobeKeybindService wardrobeKeybindService = new WardrobeKeybindService();
+    private final SlotBindService slotBindService = new SlotBindService();
+    private final ChatCommandService chatCommandService = new ChatCommandService(pingService, tpsTracker, spotifyService);
+    private final TickTimerService tickTimerService = new TickTimerService();
+    private final PuzzleSolverService puzzleSolverService = new PuzzleSolverService();
+    private final TerminalSolverService terminalSolverService = new TerminalSolverService();
+    private final SimonSaysService simonSaysService = new SimonSaysService();
+    private final ArrowAlignService arrowAlignService = new ArrowAlignService();
+    private final SharpShooterService sharpShooterService = new SharpShooterService();
+    private final PurplePadTimerService purplePadTimerService = new PurplePadTimerService();
+    private final BloodCamperService bloodCamperService = new BloodCamperService();
+    private final DungeonScoreService dungeonScoreService = new DungeonScoreService();
+    private final DragonService dragonService = new DragonService();
+    private final RelicTimerService relicTimerService = new RelicTimerService();
+    private final DungeonMapService dungeonMapService = new DungeonMapService();
+    private final TeammateGlowService teammateGlowService = new TeammateGlowService();
+    private boolean quizColoringSending = false;
     private KeyMapping openConfigKeyBinding;
     private Screen pendingScreen;
+    private final java.util.Set<Integer> pressedLastTick = new java.util.HashSet<>();
 
     public static HorizonClient getInstance() {
         return instance;
@@ -115,7 +158,11 @@ public final class HorizonClient implements ClientModInitializer {
         hudRegistry.register(new TimeHudElement());
         hudRegistry.register(new PerformanceHudElement());
         hudRegistry.register(new SystemStatsHudElement());
+        hudRegistry.register(new TickTimerHudElement(tickTimerService, dungeonStateService));
+        hudRegistry.register(new PurplePadTimerHudElement(purplePadTimerService));
         hudRegistry.register(new DungeonMapHudElement(dungeonMapService, dungeonStateService));
+        hudRegistry.register(new DungeonScoreHudElement(dungeonScoreService, dungeonStateService));
+        hudRegistry.register(new RelicTimerHudElement(relicTimerService));
         openConfigKeyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.horizon.open_config",
             InputConstants.Type.KEYSYM,
@@ -124,16 +171,42 @@ public final class HorizonClient implements ClientModInitializer {
         ));
 
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("horizon", "hud"), this::renderHud);
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(context -> dungeonSolverOverlay.renderWorld(context));
+        LevelRenderEvents.AFTER_SOLID_FEATURES.register(context -> {
+            etherwarpHelperService.renderWorld(context, configManager.getConfig());
+            puzzleSolverService.renderWorld(context, configManager.getConfig(), Minecraft.getInstance());
+            simonSaysService.renderWorld(context, configManager.getConfig());
+            arrowAlignService.renderWorld(context, configManager.getConfig());
+            sharpShooterService.renderWorld(context, configManager.getConfig());
+            bloodCamperService.renderWorld(context, Minecraft.getInstance(), configManager.getConfig().isBloodCamperEnabled());
+            dragonService.renderWorld(context, configManager.getConfig());
+            renderStarredMobHighlights(context);
+        });
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
             String raw = message.getString();
             dungeonStateService.handleChatMessage(raw);
             dungeonRoomDetector.handleChatMessage(raw);
-            dungeonSolverOverlay.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
             fishingAlertService.handleChatMessage(raw, configManager.getConfig());
             handleRagAxeNotification(raw);
+            handleChatCommand(raw);
+            handleTickTimerMessage(raw);
+            puzzleSolverService.handleChatMessage(raw, Minecraft.getInstance());
+            simonSaysService.handleChatMessage(raw);
+            bloodCamperService.handleChatMessage(raw, configManager.getConfig().isBloodCamperEnabled());
+            dungeonScoreService.handleChatMessage(raw);
+            dragonService.handleChatMessage(raw, dungeonStateService);
+            relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
+            // Quiz answer coloring: replace option messages with colored versions
+            if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
+                var colored = puzzleSolverService.colorQuizOption(raw);
+                if (colored != null) {
+                    quizColoringSending = true;
+                    Minecraft.getInstance().player.sendSystemMessage(colored);
+                    quizColoringSending = false;
+                    return false;
+                }
+            }
             return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon())
                     && !fishingAlertService.shouldHideMessage(raw, configManager.getConfig());
         });
@@ -141,16 +214,34 @@ public final class HorizonClient implements ClientModInitializer {
             String raw = message.getString();
             dungeonStateService.handleChatMessage(raw);
             dungeonRoomDetector.handleChatMessage(raw);
-            dungeonSolverOverlay.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
             fishingAlertService.handleChatMessage(raw, configManager.getConfig());
+            handleChatCommand(raw);
+            handleTickTimerMessage(raw);
+            puzzleSolverService.handleChatMessage(raw, Minecraft.getInstance());
+            simonSaysService.handleChatMessage(raw);
+            bloodCamperService.handleChatMessage(raw, configManager.getConfig().isBloodCamperEnabled());
+            dungeonScoreService.handleChatMessage(raw);
+            dragonService.handleChatMessage(raw, dungeonStateService);
+            relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
+            if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
+                var colored = puzzleSolverService.colorQuizOption(raw);
+                if (colored != null) {
+                    quizColoringSending = true;
+                    Minecraft.getInstance().player.sendSystemMessage(colored);
+                    quizColoringSending = false;
+                    return false;
+                }
+            }
             return !spamHider.shouldHide(raw, configManager.getConfig(), dungeonStateService.isInDungeon())
                     && !fishingAlertService.shouldHideMessage(raw, configManager.getConfig());
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             inventoryButtonService.onDisconnect();
-            terminalDropService.onDisconnect();
+            resetDungeonServices();
         });
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
+            resetDungeonServices());
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, Minecraft.getInstance() == null ? null : Minecraft.getInstance().screen));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
             dispatcher.register(ClientCommands.literal("horizon")
@@ -202,19 +293,70 @@ public final class HorizonClient implements ClientModInitializer {
         }
         horizonApiAuthService.tick();
         dungeonStateService.tick(client);
-        dungeonMapService.tick(client, dungeonStateService);
         dungeonRoomDetector.tick(client, dungeonStateService);
         dungeonAlertService.tick(client, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
-        dungeonSolverOverlay.tick(client, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
+        etherwarpHelperService.tick(configManager.getConfig());
+        tickTimerService.tick(dungeonStateService);
+        purplePadTimerService.tick();
+        puzzleSolverService.tick(client, dungeonStateService, dungeonRoomDetector, configManager.getConfig());
+        simonSaysService.tick(client, dungeonStateService, configManager.getConfig());
+        arrowAlignService.tick(client, dungeonStateService, configManager.getConfig());
+        dungeonScoreService.tick(client, dungeonStateService);
+        dragonService.tick(client, dungeonStateService, configManager.getConfig());
+        relicTimerService.tick();
+        teammateGlowService.tick(client, dungeonStateService.isInDungeon());
+        if (dungeonStateService.isInDungeon()) {
+            StarredMobService.tick(client);
+            bloodCamperService.tick(client);
+        }
         pingService.tick(client);
         reviveTracker.tick();
         fishingAlertService.tick(client, configManager.getConfig());
-        terminalDropService.tick(client, configManager.getConfig());
         inventoryButtonService.tick(client);
         while (openConfigKeyBinding != null && openConfigKeyBinding.consumeClick()) {
             HorizonMod.LOGGER.info("Opening Horizon config through keybind");
             openConfigScreen(client.screen);
         }
+        tickCommandKeybinds(client);
+    }
+
+    private void tickCommandKeybinds(Minecraft mc) {
+        if (mc == null || mc.screen != null || mc.player == null || mc.getWindow() == null) {
+            pressedLastTick.clear();
+            return;
+        }
+        long window = mc.getWindow().handle();
+        checkAndFireKey(window, configManager.getConfig().getCommandKeybindPets(), "pets");
+        checkAndFireKey(window, configManager.getConfig().getCommandKeybindEquipment(), "equipment");
+        checkAndFireKey(window, configManager.getConfig().getCommandKeybindWardrobe(), "wardrobe");
+    }
+
+    private void checkAndFireKey(long window, int keyCode, String command) {
+        if (keyCode < 0) return;
+        boolean down = GLFW.glfwGetKey(window, keyCode) == GLFW.GLFW_PRESS;
+        if (down && !pressedLastTick.contains(keyCode)) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.player != null) {
+                mc.player.connection.sendCommand(command);
+            }
+        }
+        if (down) pressedLastTick.add(keyCode);
+        else pressedLastTick.remove(keyCode);
+    }
+
+    private void handleChatCommand(String raw) {
+        String cmd = chatCommandService.handleMessage(raw, configManager.getConfig());
+        if (cmd != null) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.player != null) {
+                mc.player.connection.sendCommand(cmd);
+            }
+        }
+    }
+
+    private void handleTickTimerMessage(String raw) {
+        tickTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
+        purplePadTimerService.handleChatMessage(raw, configManager.getConfig());
     }
 
     public void openConfigScreen(Screen parent) {
@@ -269,28 +411,71 @@ public final class HorizonClient implements ClientModInitializer {
         return dungeonStateService;
     }
 
-    public DungeonMapService getDungeonMapService() {
-        return dungeonMapService;
-    }
-
-    public DungeonRoomDetector getDungeonRoomDetector() {
-        return dungeonRoomDetector;
+    public TeammateGlowService getTeammateGlowService() {
+        return teammateGlowService;
     }
 
     public ChatTabManager getChatTabManager() {
         return chatTabManager;
     }
 
-    public DungeonSolverOverlay getDungeonSolverOverlay() {
-        return dungeonSolverOverlay;
+    private void resetDungeonServices() {
+        dungeonStateService.onWorldChange();
+        StarredMobService.onWorldChange();
+        teammateGlowService.onWorldChange();
+        dungeonMapService.reset();
+        tickTimerService.reset();
+        purplePadTimerService.reset();
+        simonSaysService.reset();
+        arrowAlignService.reset();
+        sharpShooterService.reset();
+        terminalSolverService.reset();
+        bloodCamperService.reset();
+        dungeonScoreService.reset();
+        dragonService.reset();
+        relicTimerService.reset();
+    }
+
+    public void onDragonParticle(int x, int z) {
+        dragonService.onDragonParticle(x, z);
+    }
+
+    public void onMapItemData(byte[] colors, Iterable<MapDecoration> decorations, int centerX, int centerZ, byte scale) {
+        if (dungeonStateService.isInDungeon()) {
+            // Only accept map data with player markers (dungeon map), skip TicTacToe/quiz maps
+            boolean hasMarkers = decorations != null && decorations.iterator().hasNext();
+            if (hasMarkers) {
+                dungeonMapService.onMapData(colors, decorations, centerX, centerZ, scale);
+            }
+        }
+    }
+
+    public void onTeleportMaze(double newX, double newZ, double oldX, double oldZ, float yaw) {
+        puzzleSolverService.onTeleport(newX, newZ, oldX, oldZ, yaw);
+    }
+
+    public void onBlockInteract(BlockPos pos) {
+        simonSaysService.onBlockInteract(pos, configManager.getConfig());
+        puzzleSolverService.onBlockInteract(pos);
+    }
+
+    public void onBlockUpdate(BlockPos pos, BlockState newState, BlockState oldState, Minecraft mc) {
+        puzzleSolverService.onBlockChange(pos, mc);
+        // Simon Says: no phase gate — coordinate checks in the service are specific enough
+        simonSaysService.onBlockUpdate(pos, newState);
+        sharpShooterService.onBlockUpdate(pos, oldState, newState);
+    }
+
+    public void onSimonSaysReset() {
+        simonSaysService.onSectionReset(16);
+    }
+
+    public TerminalSolverService getTerminalSolverService() {
+        return terminalSolverService;
     }
 
     public SystemStatsService getSystemStatsService() {
         return systemStatsService;
-    }
-
-    public TerminalDropService getTerminalDropService() {
-        return terminalDropService;
     }
 
     public InventoryButtonService getInventoryButtonService() {
@@ -299,6 +484,10 @@ public final class HorizonClient implements ClientModInitializer {
 
     public InventoryButtonOverlay getInventoryButtonOverlay() {
         return inventoryButtonOverlay;
+    }
+
+    public SlotBindService getSlotBindService() {
+        return slotBindService;
     }
 
     private int openProfileScreen(String player) {
@@ -331,6 +520,37 @@ public final class HorizonClient implements ClientModInitializer {
         return parent instanceof ChatScreen ? null : parent;
     }
 
+    private void renderStarredMobHighlights(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext ctx) {
+        if (!dungeonStateService.isInDungeon()) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.level == null) return;
+        var config = configManager.getConfig();
+
+        boolean showStarred = config.isHighlightStarredMobsEnabled() && !config.isStarredMobGlowThroughWalls();
+        boolean showBats = config.isHighlightBatsEnabled();
+        boolean showFels = config.isHighlightFelsEnabled();
+        if (!showStarred && !showBats && !showFels) return;
+
+        int starColor = (config.getStarredMobColor() & 0x00FFFFFF) | 0x60000000;
+        int batColor  = (config.getBatHighlightColor() & 0x00FFFFFF) | 0x60000000;
+        int felColor  = (config.getFelHighlightColor() & 0x00FFFFFF) | 0x60000000;
+
+        for (net.minecraft.world.entity.Entity e : mc.level.entitiesForRendering()) {
+            if (e instanceof net.minecraft.client.player.LocalPlayer) continue;
+            if (e instanceof net.minecraft.world.entity.decoration.ArmorStand) continue;
+
+            net.minecraft.world.phys.AABB bb = e.getBoundingBox();
+            if (showStarred && StarredMobService.isStarredMob(e)) {
+                de.horizon.feature.dungeon.puzzle.DungeonRenderUtil.drawBox(ctx, bb, starColor, 2, false);
+            } else if (showBats && StarredMobService.isDungeonBat(e)) {
+                de.horizon.feature.dungeon.puzzle.DungeonRenderUtil.drawBox(ctx, bb, batColor, 2, false);
+            } else if (showFels && StarredMobService.isFel(e)) {
+                de.horizon.feature.dungeon.puzzle.DungeonRenderUtil.drawBox(ctx, bb, felColor, 2, false);
+            }
+        }
+    }
+
     private void renderHud(GuiGraphicsExtractor drawContext, net.minecraft.client.DeltaTracker tickCounter) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.options.hideGui || client.player == null) {
@@ -349,7 +569,6 @@ public final class HorizonClient implements ClientModInitializer {
             }
             element.render(drawContext, client, configManager.getOrCreatePosition(element.id(), element.defaultX(), element.defaultY()), false);
         }
-        dungeonSolverOverlay.renderHudOverlay(drawContext, client, configManager.getConfig());
         if (configManager.getConfig().isCustomScoreboardEnabled()) {
             hypixelSidebarOverlay.render(drawContext, client);
         }
@@ -381,17 +600,102 @@ public final class HorizonClient implements ClientModInitializer {
                 return;
             }
 
-            ScreenEvents.afterExtract(screen).register((currentScreen, context, mouseX, mouseY, delta) ->
-            {
+            // Detect terminal screen opens and set custom mode flag
+            if (configManager.getConfig().isTerminalSolverEnabled()) {
+                terminalSolverService.onScreenOpen(handledScreen);
+            }
+            terminalSolverService.updateCustomModeFlag(configManager.getConfig());
+
+            ScreenEvents.afterExtract(screen).register((currentScreen, context, mouseX, mouseY, delta) -> {
                 if ("YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())) {
                     youtubeMusicInventoryOverlay.render(handledScreen, context, mouseX, mouseY);
                 } else {
                     spotifyInventoryOverlay.render(handledScreen, context, mouseX, mouseY);
                 }
                 partyFinderOverlay.render(handledScreen, context);
-                dungeonSolverOverlay.render(handledScreen, context, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
-            }
-            );
+                // Leap Menu overlay
+                if (leapMenuOverlay.isLeapScreen(handledScreen)) {
+                    leapMenuOverlay.render(handledScreen, context, mouseX, mouseY, configManager.getConfig());
+                }
+                // Terminal solver rendering
+                if (configManager.getConfig().isTerminalSolverEnabled()) {
+                    terminalSolverService.onScreenTick(handledScreen);
+                    terminalSolverService.render(handledScreen, context, configManager.getConfig());
+                }
+                // Slot Bind visual feedback
+                var sbAccessor = (AbstractContainerScreenAccessor)(Object) handledScreen;
+                int sbKey = configManager.getConfig().getSlotBindKey();
+                Minecraft sbMc = Minecraft.getInstance();
+                boolean showActive = sbKey >= 0 && sbMc != null
+                    && org.lwjgl.glfw.GLFW.glfwGetKey(sbMc.getWindow().handle(), sbKey) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+                slotBindService.renderOverlay(context, handledScreen, sbAccessor.getLeftPos(), sbAccessor.getTopPos(),
+                    mouseX, mouseY, configManager.getConfig(), showActive);
+            });
+            ScreenMouseEvents.allowMouseClick(screen).register((currentScreen, click) -> {
+                // Leap Menu: intercept clicks on the Spirit Leap screen
+                if (leapMenuOverlay.isLeapScreen(handledScreen) && configManager.getConfig().isLeapMenuEnabled()) {
+                    int slotIdx = leapMenuOverlay.getClickedSlot(handledScreen, (int) click.x(), (int) click.y(), configManager.getConfig());
+                    if (slotIdx >= 0) {
+                        Minecraft mc = Minecraft.getInstance();
+                        if (mc != null && mc.player != null) {
+                            mc.gameMode.handleContainerInput(
+                                handledScreen.getMenu().containerId, slotIdx, 0, ContainerInput.PICKUP, mc.player);
+                        }
+                        return false; // cancel vanilla click
+                    }
+                }
+                // Terminal solver: block wrong clicks when solver is active
+                if (configManager.getConfig().isTerminalSolverEnabled()
+                    && terminalSolverService.getCurrentType() != TerminalSolverService.TerminalType.NONE
+                    && terminalSolverService.getCurrentType() != TerminalSolverService.TerminalType.MELODY) {
+                    // Custom mode: map click via custom grid
+                    if (TerminalSolverService.isCustomModeRendering()) {
+                        int customSlot = terminalSolverService.getCustomModeSlotIndex(click.x(), click.y());
+                        if (customSlot < 0) return false; // click outside grid → block
+                        boolean isLeft = click.button() == 0;
+                        if (terminalSolverService.shouldBlockClick(customSlot, isLeft)) return false;
+                        terminalSolverService.onSlotClicked(customSlot);
+                        // Send container click for this slot
+                        Minecraft mc2 = Minecraft.getInstance();
+                        if (mc2 != null && mc2.player != null && mc2.gameMode != null) {
+                            mc2.gameMode.handleContainerInput(
+                                handledScreen.getMenu().containerId, customSlot,
+                                isLeft ? 0 : 1, ContainerInput.PICKUP, mc2.player);
+                        }
+                        return false; // consume click
+                    }
+                    // Normal mode: check vanilla slot positions
+                    var accessor = (AbstractContainerScreenAccessor)(Object) handledScreen;
+                    for (var s : handledScreen.getMenu().slots) {
+                        int sx = accessor.getLeftPos() + s.x;
+                        int sy = accessor.getTopPos() + s.y;
+                        if (click.x() >= sx && click.x() < sx + 16 && click.y() >= sy && click.y() < sy + 16) {
+                            boolean isLeft = click.button() == 0;
+                            if (terminalSolverService.shouldBlockClick(s.index, isLeft)) return false;
+                            terminalSolverService.onSlotClicked(s.index);
+                            break;
+                        }
+                    }
+                }
+                // Slot Binds: intercept shift-clicks in player inventory
+                if (click.button() == 0 && currentScreen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen) {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc != null && (click.modifiers() & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0) {
+                        var accessor = (AbstractContainerScreenAccessor)(Object) handledScreen;
+                        for (var s : handledScreen.getMenu().slots) {
+                            int sx = accessor.getLeftPos() + s.x;
+                            int sy = accessor.getTopPos() + s.y;
+                            if (click.x() >= sx && click.x() < sx + 16 && click.y() >= sy && click.y() < sy + 16) {
+                                if (slotBindService.handleShiftClick(handledScreen.getMenu(), s.index, configManager.getConfig(), mc)) {
+                                    return false; // cancel vanilla click
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                return true;
+            });
             ScreenMouseEvents.afterMouseClick(screen).register((currentScreen, click, doubled) -> {
                 if ("YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())) {
                     youtubeMusicInventoryOverlay.mouseClicked(click.x(), click.y(), click.button());
@@ -411,11 +715,49 @@ public final class HorizonClient implements ClientModInitializer {
                     ? youtubeMusicInventoryOverlay.mouseReleased(click.x(), click.y(), click.button())
                     : spotifyInventoryOverlay.mouseReleased(click.x(), click.y(), click.button())
             );
-            net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents.afterKeyPress(screen).register((currentScreen, input) -> {
+            // allowKeyPress fires before vanilla processing → can cancel hotbar-swap for wardrobe
+            ScreenKeyboardEvents.allowKeyPress(screen).register((currentScreen, input) -> {
+                // Terminal solver custom mode: drop key acts as left click on hovered solver slot
+                if (TerminalSolverService.isCustomModeRendering()) {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc != null && mc.options.keyDrop.matches(input)) {
+                        double mouseX = mc.mouseHandler.getScaledXPos(mc.getWindow());
+                        double mouseY = mc.mouseHandler.getScaledYPos(mc.getWindow());
+                        int customSlot = terminalSolverService.getCustomModeSlotIndex(mouseX, mouseY);
+                        if (customSlot >= 0 && !terminalSolverService.shouldBlockClick(customSlot, true)) {
+                            terminalSolverService.onSlotClicked(customSlot);
+                            if (mc.gameMode != null && mc.player != null) {
+                                mc.gameMode.handleContainerInput(
+                                    handledScreen.getMenu().containerId, customSlot, 0,
+                                    ContainerInput.PICKUP, mc.player);
+                            }
+                        }
+                        return false; // block default drop behavior
+                    }
+                }
+                if (wardrobeKeybindService.handleKeyPress(handledScreen, input.key(), configManager.getConfig())) {
+                    return false; // cancel vanilla (prevents hotbar slot swap)
+                }
+                return true;
+            });
+            ScreenKeyboardEvents.afterKeyPress(screen).register((currentScreen, input) -> {
                 if ("YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())) {
                     youtubeMusicInventoryOverlay.keyPressed(input.key());
                 } else {
                     spotifyInventoryOverlay.keyPressed(input.key());
+                }
+                // Slot bind key
+                int sbKey = configManager.getConfig().getSlotBindKey();
+                if (sbKey >= 0 && input.key() == sbKey) {
+                    var accessor = (AbstractContainerScreenAccessor)(Object) handledScreen;
+                    var hoveredSlot = accessor.getHoveredSlot();
+                    if (hoveredSlot != null) {
+                        Minecraft mc2 = Minecraft.getInstance();
+                        String msg = slotBindService.handleBindKeyPress(hoveredSlot.index, configManager.getConfig(), mc2);
+                        if (msg != null && mc2 != null && mc2.gui != null) {
+                            mc2.gui.setOverlayMessage(net.minecraft.network.chat.Component.literal(msg), false);
+                        }
+                    }
                 }
             });
         });
