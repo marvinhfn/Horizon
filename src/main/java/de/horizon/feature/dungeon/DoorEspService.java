@@ -1,8 +1,6 @@
 package de.horizon.feature.dungeon;
 
-import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
-import de.horizon.feature.dungeon.map.DungeonMapService;
 import de.horizon.feature.dungeon.puzzle.DungeonRenderUtil;
 import de.horizon.feature.dungeon.room.DungeonRoomDetector;
 import de.horizon.feature.dungeon.room.RoomType;
@@ -158,34 +156,12 @@ public final class DoorEspService {
         } else if (state.is(Blocks.RED_TERRACOTTA)) {
             everSeenDoorPositions.add(gapKey);
             doors.add(new DungeonDoor(gapX, gapZ, true, false));
-        } else if (!fairyVisited && !everSeenDoorPositions.contains(gapKey) && isPassageOnMap(gapX, gapZ)) {
-            // Map confirms a connection here, never a door, and fairy not yet visited
+        } else if (!fairyVisited && everSeenDoorPositions.contains(gapKey)) {
             RoomType adjType = roomDetector.getRoomTypeAt(mc, nx, nz);
             if (adjType == RoomType.FAIRY) {
                 doors.add(new DungeonDoor(gapX, gapZ, false, true));
             }
         }
-    }
-
-    /**
-     * Checks the dungeon map pixel data to verify a real passage exists at this position.
-     * The map shows passages as non-zero (colored) pixels and walls as zero (empty).
-     */
-    private static boolean isPassageOnMap(int worldX, int worldZ) {
-        HorizonClient horizon = HorizonClient.getInstance();
-        if (horizon == null) return false;
-        DungeonMapService mapService = horizon.getDungeonMapService();
-        if (mapService == null || !mapService.hasData()) return false;
-
-        byte[] colors = mapService.getMapColors();
-        if (colors == null) return false;
-
-        int scaleSize = 1 << mapService.getScale();
-        int pixelX = (worldX - mapService.getCenterX()) / scaleSize + 64;
-        int pixelZ = (worldZ - mapService.getCenterZ()) / scaleSize + 64;
-
-        if (pixelX < 0 || pixelX >= 128 || pixelZ < 0 || pixelZ >= 128) return false;
-        return colors[pixelZ * 128 + pixelX] != 0;
     }
 
     private static long cellKey(int x, int z) {
