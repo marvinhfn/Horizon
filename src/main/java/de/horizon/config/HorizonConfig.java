@@ -304,6 +304,13 @@ public final class HorizonConfig {
     public boolean isRelicTimerEnabled() { return dungeon.relicTimerEnabled; }
     public void setRelicTimerEnabled(boolean v) { dungeon.relicTimerEnabled = v; }
 
+    public boolean isMimicDetectionEnabled() { return dungeon.mimicDetectionEnabled; }
+    public void setMimicDetectionEnabled(boolean v) { dungeon.mimicDetectionEnabled = v; }
+    public boolean isMimicMessageEnabled() { return dungeon.mimicMessageEnabled; }
+    public void setMimicMessageEnabled(boolean v) { dungeon.mimicMessageEnabled = v; }
+    public boolean isPrinceMessageEnabled() { return dungeon.princeMessageEnabled; }
+    public void setPrinceMessageEnabled(boolean v) { dungeon.princeMessageEnabled = v; }
+
     public boolean isSpiritBearTimerEnabled() { return dungeon.spiritBearTimerEnabled; }
     public void setSpiritBearTimerEnabled(boolean v) { dungeon.spiritBearTimerEnabled = v; }
     public boolean isSpiritBearHighlightEnabled() { return dungeon.spiritBearHighlightEnabled; }

@@ -13,6 +13,7 @@ import de.horizon.feature.chat.SpamHider;
 import de.horizon.feature.dungeon.BloodCamperService;
 import de.horizon.feature.dungeon.DungeonAlertService;
 import de.horizon.feature.dungeon.DungeonScoreService;
+import de.horizon.feature.dungeon.MimicService;
 import de.horizon.feature.dungeon.DoorEspService;
 import de.horizon.feature.dungeon.StarredMobService;
 import de.horizon.feature.dungeon.TeammateGlowService;
@@ -138,6 +139,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final DungeonScoreService dungeonScoreService = new DungeonScoreService();
     private final DragonService dragonService = new DragonService();
     private final RelicTimerService relicTimerService = new RelicTimerService();
+    private final MimicService mimicService = new MimicService();
     private final SpiritBearService spiritBearService = new SpiritBearService();
     private final DungeonMapService dungeonMapService = new DungeonMapService();
     private final DoorEspService doorEspService = new DoorEspService();
@@ -205,6 +207,7 @@ public final class HorizonClient implements ClientModInitializer {
             dragonService.handleChatMessage(raw, dungeonStateService);
             relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
             doorEspService.handleChatMessage(raw);
+            mimicService.handleChatMessage(raw, configManager.getConfig());
             spiritBearService.handleChatMessage(raw, dungeonStateService);
             // Quiz answer coloring: replace option messages with colored versions
             if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
@@ -234,6 +237,7 @@ public final class HorizonClient implements ClientModInitializer {
             dragonService.handleChatMessage(raw, dungeonStateService);
             relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
             doorEspService.handleChatMessage(raw);
+            mimicService.handleChatMessage(raw, configManager.getConfig());
             spiritBearService.handleChatMessage(raw, dungeonStateService);
             if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
                 var colored = puzzleSolverService.colorQuizOption(raw);
@@ -486,6 +490,11 @@ public final class HorizonClient implements ClientModInitializer {
         dragonService.reset();
         relicTimerService.reset();
         spiritBearService.reset();
+        mimicService.reset();
+    }
+
+    public void onMimicKill() {
+        mimicService.onBabyZombieDeath(dungeonStateService, configManager.getConfig());
     }
 
     public void onDragonParticle(int x, int z) {

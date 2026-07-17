@@ -655,7 +655,11 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawMobColorSwatchRow(context, viewport.x, y, "Berserk", config().getClassColorBerserk(), 4);
                 y = drawMobColorSwatchRow(context, viewport.x, y, "Healer", config().getClassColorHealer(), 5);
                 y = drawMobColorSwatchRow(context, viewport.x, y, "Mage", config().getClassColorMage(), 6);
-                drawMobColorSwatchRow(context, viewport.x, y, "Tank", config().getClassColorTank(), 7);
+                y = drawMobColorSwatchRow(context, viewport.x, y, "Tank", config().getClassColorTank(), 7);
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Mimic & Prince", "Mimic & Prince"));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Mimic Erkennung", "Mimic Detection"), config().isMimicDetectionEnabled(), Lang.t("Erkennt Mimic-Kill per Tod-Event (F6+).", "Detects mimic kill via death event (F6+)."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Mimic Nachricht", "Mimic Message"), config().isMimicMessageEnabled(), Lang.t("Sendet 'Mimic killed!' in den Party-Chat.", "Sends 'Mimic killed!' to party chat."));
+                drawToggleRow(context, viewport.x, y, Lang.t("Prince Nachricht", "Prince Message"), config().isPrinceMessageEnabled(), Lang.t("Sendet 'Prince killed!' in den Party-Chat.", "Sends 'Prince killed!' to party chat."));
             }
             case DOORS -> {
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Wither Doors", "Wither Doors"));
@@ -1955,6 +1959,28 @@ public final class HorizonConfigScreen extends Screen {
             }
             y += rowH;
         }
+        // "Mimic & Prince" section title
+        y += 24;
+        // Mimic Detection toggle
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMimicDetectionEnabled(!config().isMimicDetectionEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Erkennt Mimic-Kill per Tod-Event (F6+).", "Detects mimic kill via death event (F6+)."));
+        // Mimic Message toggle
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMimicMessageEnabled(!config().isMimicMessageEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Sendet 'Mimic killed!' in den Party-Chat.", "Sends 'Mimic killed!' to party chat."));
+        // Prince Message toggle
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setPrinceMessageEnabled(!config().isPrinceMessageEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
         return false;
     }
 
@@ -2656,6 +2682,9 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Highlight Bats", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "bats fledermaeuse highlight dungeon");
         addSearchResult(results, query, "Highlight Fels", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "fels enderman invisible highlight dungeon");
         addSearchResult(results, query, "Teammate Glow", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "teammate glow dungeon party class archer berserk healer mage tank");
+        addSearchResult(results, query, "Mimic Detection", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "mimic detection kill zombie baby dungeon f6 f7");
+        addSearchResult(results, query, "Mimic Message", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "mimic party chat message killed dungeon");
+        addSearchResult(results, query, "Prince Message", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "prince party chat message killed dungeon bonus score");
         addSearchResult(results, query, "Wither Door ESP", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "wither door esp highlight dungeon");
         addSearchResult(results, query, "Blood Door ESP", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "blood door esp highlight dungeon");
         addSearchResult(results, query, "Door Key Highlight", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "door key highlight wither blood tracer dungeon");
@@ -2915,7 +2944,11 @@ public final class HorizonConfigScreen extends Screen {
                     + mobsColorSwatchHeight(4)
                     + mobsColorSwatchHeight(5)
                     + mobsColorSwatchHeight(6)
-                    + mobsColorSwatchHeight(7);
+                    + mobsColorSwatchHeight(7)
+                    + 24 // "Mimic & Prince" section title
+                    + toggleRowHeight(Lang.t("Erkennt Mimic-Kill per Tod-Event (F6+).", "Detects mimic kill via death event (F6+)."))
+                    + toggleRowHeight(Lang.t("Sendet 'Mimic killed!' in den Party-Chat.", "Sends 'Mimic killed!' to party chat."))
+                    + toggleRowHeight(Lang.t("Sendet 'Prince killed!' in den Party-Chat.", "Sends 'Prince killed!' to party chat."));
                 yield mobsH;
             }
             case DOORS -> toggleRowHeight(Lang.t("Wither-Tueren im Dungeon hervorheben.", "Highlight wither doors in dungeons."))

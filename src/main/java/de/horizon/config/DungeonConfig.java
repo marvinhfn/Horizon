@@ -123,6 +123,11 @@ public final class DungeonConfig {
     boolean spiritBearHighlightEnabled = true;
     int spiritBearHighlightColor = 0xFF00FFAA;  // aqua-green
 
+    // Mimic Detection
+    boolean mimicDetectionEnabled = true;
+    boolean mimicMessageEnabled = true;
+    boolean princeMessageEnabled = true;
+
     // Terminal Solver
     float terminalGuiScale = 1.0f;
 }

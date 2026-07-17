@@ -6,12 +6,14 @@ import net.minecraft.client.gui.components.DebugScreenOverlay;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundTickingStatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -118,5 +120,21 @@ public abstract class ClientPlayNetworkHandlerMixin {
         packet.runUpdates((pos, state) -> {
             client.onBlockUpdate(pos, state, null, mc);
         });
+    }
+
+    @Inject(method = "handleEntityEvent", at = @At("HEAD"))
+    private void horizon$onEntityEvent(ClientboundEntityEventPacket packet, CallbackInfo ci) {
+        if (packet.getEventId() != 3) return;
+        HorizonClient client = HorizonClient.getInstance();
+        if (client == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.level == null) return;
+        var entity = packet.getEntity(mc.level);
+        if (entity instanceof Zombie zombie) {
+            de.horizon.HorizonMod.LOGGER.info("[Mimic] Zombie death event: isBaby={}", zombie.isBaby());
+            if (zombie.isBaby()) {
+                client.onMimicKill();
+            }
+        }
     }
 }
