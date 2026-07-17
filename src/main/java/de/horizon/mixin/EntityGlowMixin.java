@@ -4,6 +4,7 @@ import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.dungeon.StarredMobService;
 import de.horizon.feature.dungeon.TeammateGlowService;
+import de.horizon.feature.dungeon.boss.SpiritBearService;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -45,6 +46,12 @@ public class EntityGlowMixin {
             return;
         }
 
+        // Spirit Bear glow
+        if (config.isSpiritBearHighlightEnabled() && SpiritBearService.isSpiritBear(self)) {
+            cir.setReturnValue(true);
+            return;
+        }
+
         // Teammate glow
         if (self instanceof LocalPlayer) return;
         if (config.isTeammateGlowEnabled()) {
@@ -82,6 +89,12 @@ public class EntityGlowMixin {
         // Fel color
         if (config.isHighlightFelsEnabled() && StarredMobService.isFel(self)) {
             cir.setReturnValue(config.getFelHighlightColor() & 0x00FFFFFF);
+            return;
+        }
+
+        // Spirit Bear color
+        if (config.isSpiritBearHighlightEnabled() && SpiritBearService.isSpiritBear(self)) {
+            cir.setReturnValue(config.getSpiritBearHighlightColor() & 0x00FFFFFF);
             return;
         }
 

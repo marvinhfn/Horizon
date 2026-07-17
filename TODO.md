@@ -12,6 +12,7 @@
 - Fuege jedes Paket in die entsprechenden Reiter im Konfigurationsmenu ein. Erstelle sinvolle Unterreiter bei Bedarf.
 - Ueberschreiben statt ueberspringen: Bestehende Horizon-Features, die mit einem Migrationspaket ueberlappen, werden ueberschrieben und neu implementiert — nicht uebersprungen.
 - Herkunft: Im gesamten Horizon-Projekt duerfen keine Namen der Quellprojekte vorkommen. Alle Bezeichner, Kommentare, Logs und Config-Texte muessen so formuliert sein, als waeren die Funktionen von Beginn an Teil von Horizon.
+- Kommando "naechstes Paket Bug:XXX": Wenn der Nutzer `naechstes Paket Bug:XXX` schreibt, wird das aktuelle Testing-Paket auf `[x]` gesetzt, committed und gepusht. Der Text nach `Bug:` wird als neuer Eintrag in die Bug-Fixes-Liste aufgenommen. Danach wird das naechste offene Arbeitspaket begonnen.
 
 ## Legende
 
@@ -43,11 +44,17 @@
 
 ---
 
+## Bug Fixes
+
+- [ ] Fairy Door ESP: Wird nicht angezeigt oder an invaliden Stellen
+
+---
+
 ## Phase 1 — Dungeon Visuals & Mob Features
 
 - [x] Paket P1-01: Starred Mob ESP & Teammate Glow (StarMobESP mit Box/Outline/Glow-Modi, class-based Player Glow nach Dungeon-Klasse mit konfigurierbaren Farben, Entity Glow Mixin erweitern, Config Dungeon > Mobs Unterreiter)
 - [x] Paket P1-02: Blood Door & Wither Door ESP (Wither-Door und Blood-Door als farbige Box/Outline rendern, Door-Key-Highlight wenn Spieler Schluessel im Inventar hat, Config Dungeon > Doors Unterreiter)
-- [ ] Paket P1-04: F4/M4 Spirit Bear Timer & Highlight (Spirit Bear Spawn-Timer HUD, Entity-Highlight per Glow, Config in Dungeon > Floor Specials)
+- [x] Paket P1-04: F4/M4 Spirit Bear Timer & Highlight (Spirit Bear Spawn-Timer HUD, Entity-Highlight per Glow, Config in Dungeon > Floor Specials)
 - [ ] Paket P1-05: Mimic Detection & Message (Mimic-Kill-Erkennung per Chat + Entity-Scan, Prince-Nachricht ins Party-Chat, Config Toggles in Dungeon > Mobs)
 
 ## Phase 2 — Dungeon Map & Secrets

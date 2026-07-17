@@ -29,9 +29,11 @@ import de.horizon.feature.dungeon.boss.PurplePadTimerService;
 import de.horizon.feature.dungeon.boss.DragonService;
 import de.horizon.feature.dungeon.boss.RelicTimerService;
 import de.horizon.feature.dungeon.boss.SharpShooterService;
+import de.horizon.feature.dungeon.boss.SpiritBearService;
 import de.horizon.feature.dungeon.map.DungeonMapService;
 import de.horizon.hud.DungeonMapHudElement;
 import de.horizon.hud.DungeonScoreHudElement;
+import de.horizon.hud.SpiritBearTimerHudElement;
 import de.horizon.feature.inventory.SlotBindService;
 import de.horizon.feature.misc.EtherwarpHelperService;
 import de.horizon.feature.misc.PingService;
@@ -136,6 +138,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final DungeonScoreService dungeonScoreService = new DungeonScoreService();
     private final DragonService dragonService = new DragonService();
     private final RelicTimerService relicTimerService = new RelicTimerService();
+    private final SpiritBearService spiritBearService = new SpiritBearService();
     private final DungeonMapService dungeonMapService = new DungeonMapService();
     private final DoorEspService doorEspService = new DoorEspService();
     private final TeammateGlowService teammateGlowService = new TeammateGlowService();
@@ -165,6 +168,7 @@ public final class HorizonClient implements ClientModInitializer {
         hudRegistry.register(new DungeonMapHudElement(dungeonMapService, dungeonStateService));
         hudRegistry.register(new DungeonScoreHudElement(dungeonScoreService, dungeonStateService));
         hudRegistry.register(new RelicTimerHudElement(relicTimerService));
+        hudRegistry.register(new SpiritBearTimerHudElement(spiritBearService));
         openConfigKeyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.horizon.open_config",
             InputConstants.Type.KEYSYM,
@@ -201,6 +205,7 @@ public final class HorizonClient implements ClientModInitializer {
             dragonService.handleChatMessage(raw, dungeonStateService);
             relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
             doorEspService.handleChatMessage(raw);
+            spiritBearService.handleChatMessage(raw, dungeonStateService);
             // Quiz answer coloring: replace option messages with colored versions
             if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
                 var colored = puzzleSolverService.colorQuizOption(raw);
@@ -229,6 +234,7 @@ public final class HorizonClient implements ClientModInitializer {
             dragonService.handleChatMessage(raw, dungeonStateService);
             relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
             doorEspService.handleChatMessage(raw);
+            spiritBearService.handleChatMessage(raw, dungeonStateService);
             if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
                 var colored = puzzleSolverService.colorQuizOption(raw);
                 if (colored != null) {
@@ -342,6 +348,7 @@ public final class HorizonClient implements ClientModInitializer {
         dungeonScoreService.tick(client, dungeonStateService);
         dragonService.tick(client, dungeonStateService, configManager.getConfig());
         relicTimerService.tick();
+        spiritBearService.tick(client, configManager.getConfig());
         teammateGlowService.tick(client, dungeonStateService.isInDungeon());
         if (dungeonStateService.isInDungeon()) {
             StarredMobService.tick(client);
@@ -478,6 +485,7 @@ public final class HorizonClient implements ClientModInitializer {
         dungeonScoreService.reset();
         dragonService.reset();
         relicTimerService.reset();
+        spiritBearService.reset();
     }
 
     public void onDragonParticle(int x, int z) {
@@ -505,9 +513,9 @@ public final class HorizonClient implements ClientModInitializer {
 
     public void onBlockUpdate(BlockPos pos, BlockState newState, BlockState oldState, Minecraft mc) {
         puzzleSolverService.onBlockChange(pos, mc);
-        // Simon Says: no phase gate — coordinate checks in the service are specific enough
         simonSaysService.onBlockUpdate(pos, newState);
         sharpShooterService.onBlockUpdate(pos, oldState, newState);
+        spiritBearService.onBlockUpdate(pos, newState, oldState);
     }
 
     public void onSimonSaysReset() {

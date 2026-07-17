@@ -730,6 +730,12 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawSectionTitle(context, viewport.x, y, "M7 Relic Timer");
                 drawToggleRow(context, viewport.x, y, "Relic Timer", config().isRelicTimerEnabled(), Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."));
             }
+            case FLOOR_SPECIALS -> {
+                y = drawSectionTitle(context, viewport.x, y, "F4 / M4 Spirit Bear");
+                y = drawToggleRow(context, viewport.x, y, "Spirit Bear Timer", config().isSpiritBearTimerEnabled(), Lang.t("Fortschritt und Countdown bis zum Spirit Bear Spawn.", "Progress and countdown until Spirit Bear spawn."));
+                y = drawToggleRow(context, viewport.x, y, "Spirit Bear Highlight", config().isSpiritBearHighlightEnabled(), Lang.t("Spirit Bear per Glow hervorheben.", "Highlight Spirit Bear with glow."));
+                drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Spirit Bear Farbe", "Spirit Bear Color"), config().getSpiritBearHighlightColor(), 10);
+            }
         }
     }
 
@@ -1508,6 +1514,7 @@ public final class HorizonConfigScreen extends Screen {
             case 7 -> config().getClassColorTank();
             case 8 -> config().getWitherDoorColor();
             case 9 -> config().getBloodDoorColor();
+            case 10 -> config().getSpiritBearHighlightColor();
             default -> 0xFFFFFF;
         };
     }
@@ -1524,6 +1531,7 @@ public final class HorizonConfigScreen extends Screen {
             case 7 -> config().setClassColorTank(color);
             case 8 -> config().setWitherDoorColor(color);
             case 9 -> config().setBloodDoorColor(color);
+            case 10 -> config().setSpiritBearHighlightColor(color);
         }
         return color;
     }
@@ -1792,6 +1800,29 @@ public final class HorizonConfigScreen extends Screen {
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setRelicTimerEnabled(!config().isRelicTimerEnabled());
                     horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                yield false;
+            }
+            case FLOOR_SPECIALS -> {
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setSpiritBearTimerEnabled(!config().isSpiritBearTimerEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Fortschritt und Countdown bis zum Spirit Bear Spawn.", "Progress and countdown until Spirit Bear spawn."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setSpiritBearHighlightEnabled(!config().isSpiritBearHighlightEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Spirit Bear per Glow hervorheben.", "Highlight Spirit Bear with glow."));
+                int sbRowH = activeMobColorIndex == 10 ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+                if (rowRect(viewport.x, y, sbRowH).contains(mouseX, mouseY)) {
+                    if (activeMobColorIndex == 10) {
+                        if (handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 10, this::getMobColor, this::setMobColor)) yield true;
+                    }
+                    activeMobColorIndex = activeMobColorIndex == 10 ? -1 : 10;
                     yield true;
                 }
                 yield false;
@@ -2628,6 +2659,8 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Wither Door ESP", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "wither door esp highlight dungeon");
         addSearchResult(results, query, "Blood Door ESP", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "blood door esp highlight dungeon");
         addSearchResult(results, query, "Door Key Highlight", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "door key highlight wither blood tracer dungeon");
+        addSearchResult(results, query, "Spirit Bear Timer", "Dungeons / Specials", Tab.DUNGEON, DungeonSection.FLOOR_SPECIALS, "spirit bear timer f4 m4 boss spawn dungeon");
+        addSearchResult(results, query, "Spirit Bear Highlight", "Dungeons / Specials", Tab.DUNGEON, DungeonSection.FLOOR_SPECIALS, "spirit bear highlight glow f4 m4 dungeon");
         addSearchResult(results, query, "Bridge verstecken", "Chat / General", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
         addSearchResult(results, query, "Bridge Bot Name", "Chat / General", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
         addSearchResult(results, query, "Nachrichten kopieren", "Chat / General", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
@@ -2940,6 +2973,9 @@ public final class HorizonConfigScreen extends Screen {
                 + toggleRowHeight(Lang.t("Zeigt empfohlene Kill-Reihenfolge.", "Shows recommended kill order."))
                 + 24 // "M7 Relic Timer" section title
                 + toggleRowHeight(Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."));
+            case FLOOR_SPECIALS -> toggleRowHeight(Lang.t("Fortschritt und Countdown bis zum Spirit Bear Spawn.", "Progress and countdown until Spirit Bear spawn."))
+                + toggleRowHeight(Lang.t("Spirit Bear per Glow hervorheben.", "Highlight Spirit Bear with glow."))
+                + mobsColorSwatchHeight(10);
         };
     }
 
@@ -3248,7 +3284,8 @@ public final class HorizonConfigScreen extends Screen {
         MAP("Map"),
         PUZZLE_SOLVER("Puzzles"),
         TERMINAL_SOLVER("Terminal"),
-        BOSS("Boss");
+        BOSS("Boss"),
+        FLOOR_SPECIALS("Specials");
 
         private final String label;
 

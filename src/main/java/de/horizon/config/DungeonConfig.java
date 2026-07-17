@@ -118,6 +118,11 @@ public final class DungeonConfig {
     // Relic Timer
     boolean relicTimerEnabled = true;
 
+    // Spirit Bear (F4/M4)
+    boolean spiritBearTimerEnabled = true;
+    boolean spiritBearHighlightEnabled = true;
+    int spiritBearHighlightColor = 0xFF00FFAA;  // aqua-green
+
     // Terminal Solver
     float terminalGuiScale = 1.0f;
 }
