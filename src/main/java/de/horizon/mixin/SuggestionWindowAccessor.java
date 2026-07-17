@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(targets = "net.minecraft.client.gui.components.CommandSuggestions$SuggestionsList")
 public interface SuggestionWindowAccessor {
 
-    @Accessor("area")
+    @Accessor("rect")
     Rect2i getArea();
 
-    @Accessor("area")
+    @Accessor("rect")
     void setArea(Rect2i area);
 }

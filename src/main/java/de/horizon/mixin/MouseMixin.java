@@ -11,15 +11,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MouseHandler.class)
 public class MouseMixin {
 
-    @Shadow private double cursorDeltaX;
-    @Shadow private double cursorDeltaY;
+    @Shadow private double accumulatedDX;
+    @Shadow private double accumulatedDY;
 
-    @Inject(method = "updateMouse", at = @At("HEAD"))
+    @Inject(method = "turnPlayer", at = @At("HEAD"))
     private void horizon$lockMouse(double timeDelta, CallbackInfo ci) {
         HorizonClient client = HorizonClient.getInstance();
         if (client != null && client.getInventoryButtonService().isMouseLocked()) {
-            this.cursorDeltaX = 0;
-            this.cursorDeltaY = 0;
+            this.accumulatedDX = 0;
+            this.accumulatedDY = 0;
         }
     }
 }

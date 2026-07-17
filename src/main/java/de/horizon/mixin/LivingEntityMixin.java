@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin {
 
-    @Inject(method = "getHandSwingDuration", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getCurrentSwingDuration", at = @At("RETURN"), cancellable = true)
     private void horizon$modifySwingDuration(CallbackInfoReturnable<Integer> cir) {
         if (!((Object) this instanceof LocalPlayer)) return;
         HorizonClient horizon = HorizonClient.getInstance();

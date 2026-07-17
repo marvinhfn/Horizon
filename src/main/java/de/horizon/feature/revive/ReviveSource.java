@@ -9,7 +9,7 @@ public enum ReviveSource {
         "second wind activated! your spirit mask saved your life!"
     )),
     BONZO_MASK("bonzo_mask", "Bonzo Mask", List.of(
-        "your bonzo's mask saved your life"
+        "bonzo's mask saved your life"
     )),
     PHOENIX_PET("phoenix_pet", "Phoenix Pet", List.of(
         "your phoenix pet saved your life",

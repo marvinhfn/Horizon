@@ -101,8 +101,6 @@ public final class HorizonConfig {
 
     public boolean isHighlightStarredMobsEnabled() { return dungeon.highlightStarredMobs; }
     public void setHighlightStarredMobsEnabled(boolean v) { dungeon.highlightStarredMobs = v; }
-    public boolean isStarredMobGlowThroughWalls() { return dungeon.starredMobGlowThroughWalls; }
-    public void setStarredMobGlowThroughWalls(boolean v) { dungeon.starredMobGlowThroughWalls = v; }
     public int getStarredMobColor() { return dungeon.starredMobColor; }
     public void setStarredMobColor(int v) { dungeon.starredMobColor = v; }
     public boolean isHighlightBatsEnabled() { return dungeon.highlightBats; }
@@ -149,6 +147,17 @@ public final class HorizonConfig {
     public boolean isRagAxeNotificationEnabled() { return dungeon.ragAxeNotificationEnabled; }
     public void setRagAxeNotificationEnabled(boolean v) { dungeon.ragAxeNotificationEnabled = v; }
 
+    public boolean isWitherDoorEspEnabled() { return dungeon.witherDoorEspEnabled; }
+    public void setWitherDoorEspEnabled(boolean v) { dungeon.witherDoorEspEnabled = v; }
+    public int getWitherDoorColor() { return dungeon.witherDoorColor; }
+    public void setWitherDoorColor(int v) { dungeon.witherDoorColor = v; }
+    public boolean isBloodDoorEspEnabled() { return dungeon.bloodDoorEspEnabled; }
+    public void setBloodDoorEspEnabled(boolean v) { dungeon.bloodDoorEspEnabled = v; }
+    public int getBloodDoorColor() { return dungeon.bloodDoorColor; }
+    public void setBloodDoorColor(int v) { dungeon.bloodDoorColor = v; }
+    public boolean isDoorKeyHighlightEnabled() { return dungeon.doorKeyHighlightEnabled; }
+    public void setDoorKeyHighlightEnabled(boolean v) { dungeon.doorKeyHighlightEnabled = v; }
+
     public boolean isLeapMenuEnabled() { return dungeon.leapMenuEnabled; }
     public void setLeapMenuEnabled(boolean v) { dungeon.leapMenuEnabled = v; }
 
@@ -192,6 +201,9 @@ public final class HorizonConfig {
 
     public int getSlotBindKey() { return dungeon.slotBindKey; }
     public void setSlotBindKey(int v) { dungeon.slotBindKey = v; }
+
+    public boolean isCommandShortcutsEnabled() { return dungeon.commandShortcutsEnabled; }
+    public void setCommandShortcutsEnabled(boolean v) { dungeon.commandShortcutsEnabled = v; }
 
     public boolean isChatCommandsEnabled() { return dungeon.chatCommandsEnabled; }
     public void setChatCommandsEnabled(boolean v) { dungeon.chatCommandsEnabled = v; }

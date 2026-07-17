@@ -14,14 +14,21 @@
     "LivingEntityMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientPlayerEntityMixin",
-    "ClientPlayerInteractionManagerMixin",
+    "AbstractContainerScreenAccessor",
+    "ArmorStandRendererMixin",
+    "EntityGlowMixin",
     "HandledScreenMixin",
     "KeyBindingAccessor",
     "MouseMixin",
+    "OutlineBufferSourceMixin",
+    "MultiPlayerGameModeMixin",
     "ParticleManagerMixin",
+    "ScreenEffectRendererMixin",
     "SuggestionWindowAccessor",
     "SuggestionWindowMixin",
-    "WindowMixin"
+    "WindowAccessor",
+    "WindowMixin",
+    "FeatureRenderDispatcherMixin"
   ],
   "injectors": {
     "defaultRequire": 1

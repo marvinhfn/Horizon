@@ -9,7 +9,6 @@ public final class DungeonConfig {
     boolean dungeonRareRoomAlertsEnabled = true;
     boolean hideNonStarredMobs = false;
     boolean highlightStarredMobs = false;
-    boolean starredMobGlowThroughWalls = true;
     int starredMobColor = 0xFFFFFF00;  // yellow
     boolean highlightBats = true;
     int batHighlightColor = 0xFF00FF00;  // green
@@ -23,10 +22,17 @@ public final class DungeonConfig {
     int classColorTank    = 0xFF00AA00;  // Dark Green
     boolean ragAxeNotificationEnabled = true;
 
+    // Door ESP
+    boolean witherDoorEspEnabled = true;
+    int witherDoorColor = 0xFF1A1A1A;   // near-black (coal)
+    boolean bloodDoorEspEnabled = true;
+    int bloodDoorColor = 0xFFCC0000;    // dark red
+    boolean doorKeyHighlightEnabled = true;
+
     // Leap Menu
     boolean leapMenuEnabled = true;
     boolean leapMenuAnnounce = false;
-    int leapMenuSortMode = 0; // 0=Odin, 1=A-Z Class, 2=A-Z Name
+    int leapMenuSortMode = 0; // 0=Quadrant, 1=A-Z Class, 2=A-Z Name
 
     // Etherwarp Helper
     boolean etherwarpEnabled = true;
@@ -52,6 +58,9 @@ public final class DungeonConfig {
     boolean chatCommandsGuild = true;
     boolean chatCommandsPrivate = false;
     java.util.Set<String> chatCommandsDisabled = new java.util.HashSet<>();
+
+    // Command Shortcuts (/f1-/f7, /m1-/m7, /d, /dh)
+    boolean commandShortcutsEnabled = true;
 
     // Command Keybinds (GLFW key codes, -1 = none)
     int commandKeybindPets = -1;

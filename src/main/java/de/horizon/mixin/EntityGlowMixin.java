@@ -26,9 +26,9 @@ public class EntityGlowMixin {
 
         HorizonConfig config = horizon.getConfigManager().getConfig();
 
-        // Starred mob glow (through walls)
+        // Starred mob glow
         if (!(self instanceof LocalPlayer) && config.isHighlightStarredMobsEnabled()
-            && config.isStarredMobGlowThroughWalls() && StarredMobService.isStarredMob(self)) {
+            && StarredMobService.isStarredMob(self)) {
             cir.setReturnValue(true);
             return;
         }
@@ -68,7 +68,7 @@ public class EntityGlowMixin {
 
         // Starred mob color
         if (!(self instanceof LocalPlayer) && config.isHighlightStarredMobsEnabled()
-            && config.isStarredMobGlowThroughWalls() && StarredMobService.isStarredMob(self)) {
+            && StarredMobService.isStarredMob(self)) {
             cir.setReturnValue(config.getStarredMobColor() & 0x00FFFFFF);
             return;
         }

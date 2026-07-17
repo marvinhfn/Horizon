@@ -13,6 +13,7 @@ import de.horizon.feature.chat.SpamHider;
 import de.horizon.feature.dungeon.BloodCamperService;
 import de.horizon.feature.dungeon.DungeonAlertService;
 import de.horizon.feature.dungeon.DungeonScoreService;
+import de.horizon.feature.dungeon.DoorEspService;
 import de.horizon.feature.dungeon.StarredMobService;
 import de.horizon.feature.dungeon.TeammateGlowService;
 import de.horizon.feature.dungeon.LeapMenuOverlay;
@@ -136,6 +137,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final DragonService dragonService = new DragonService();
     private final RelicTimerService relicTimerService = new RelicTimerService();
     private final DungeonMapService dungeonMapService = new DungeonMapService();
+    private final DoorEspService doorEspService = new DoorEspService();
     private final TeammateGlowService teammateGlowService = new TeammateGlowService();
     private boolean quizColoringSending = false;
     private KeyMapping openConfigKeyBinding;
@@ -179,6 +181,7 @@ public final class HorizonClient implements ClientModInitializer {
             sharpShooterService.renderWorld(context, configManager.getConfig());
             bloodCamperService.renderWorld(context, Minecraft.getInstance(), configManager.getConfig().isBloodCamperEnabled());
             dragonService.renderWorld(context, configManager.getConfig());
+            doorEspService.renderWorld(context, configManager.getConfig(), dungeonStateService.isInDungeon(), dungeonStateService.isInBoss());
             renderStarredMobHighlights(context);
         });
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
@@ -197,6 +200,7 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonScoreService.handleChatMessage(raw);
             dragonService.handleChatMessage(raw, dungeonStateService);
             relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
+            doorEspService.handleChatMessage(raw);
             // Quiz answer coloring: replace option messages with colored versions
             if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
                 var colored = puzzleSolverService.colorQuizOption(raw);
@@ -224,6 +228,7 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonScoreService.handleChatMessage(raw);
             dragonService.handleChatMessage(raw, dungeonStateService);
             relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
+            doorEspService.handleChatMessage(raw);
             if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
                 var colored = puzzleSolverService.colorQuizOption(raw);
                 if (colored != null) {
@@ -281,7 +286,40 @@ public final class HorizonClient implements ClientModInitializer {
             openProfileScreen(trimmed.substring(3), normalizedParent);
             return true;
         }
+        // Command shortcuts (/f1-/f7, /m1-/m7, /d, /dh)
+        String shortcutCommand = resolveCommandShortcut(lower);
+        if (shortcutCommand != null) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.player != null) {
+                mc.player.connection.sendCommand(shortcutCommand);
+            }
+            return true;
+        }
         return false;
+    }
+
+    private static final String[] FLOOR_NAMES = {
+        "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN"
+    };
+
+    private String resolveCommandShortcut(String lower) {
+        if (!configManager.getConfig().isCommandShortcutsEnabled()) return null;
+        if (lower.equals("d") || lower.equals("dh")) {
+            return "warp dungeon_hub";
+        }
+        if (lower.length() == 2) {
+            char prefix = lower.charAt(0);
+            char digit = lower.charAt(1);
+            if (digit >= '1' && digit <= '7') {
+                int floor = digit - '1';
+                if (prefix == 'f') {
+                    return "joininstance CATACOMBS_FLOOR_" + FLOOR_NAMES[floor];
+                } else if (prefix == 'm') {
+                    return "joininstance MASTER_CATACOMBS_FLOOR_" + FLOOR_NAMES[floor];
+                }
+            }
+        }
+        return null;
     }
 
     private void onClientTick(Minecraft client) {
@@ -308,6 +346,7 @@ public final class HorizonClient implements ClientModInitializer {
         if (dungeonStateService.isInDungeon()) {
             StarredMobService.tick(client);
             bloodCamperService.tick(client);
+            doorEspService.tick(client, true, dungeonStateService.isInBoss(), dungeonRoomDetector);
         }
         pingService.tick(client);
         reviveTracker.tick();
@@ -411,6 +450,10 @@ public final class HorizonClient implements ClientModInitializer {
         return dungeonStateService;
     }
 
+    public DungeonMapService getDungeonMapService() {
+        return dungeonMapService;
+    }
+
     public TeammateGlowService getTeammateGlowService() {
         return teammateGlowService;
     }
@@ -423,6 +466,7 @@ public final class HorizonClient implements ClientModInitializer {
         dungeonStateService.onWorldChange();
         StarredMobService.onWorldChange();
         teammateGlowService.onWorldChange();
+        doorEspService.reset();
         dungeonMapService.reset();
         tickTimerService.reset();
         purplePadTimerService.reset();
@@ -527,12 +571,10 @@ public final class HorizonClient implements ClientModInitializer {
         if (mc == null || mc.level == null) return;
         var config = configManager.getConfig();
 
-        boolean showStarred = config.isHighlightStarredMobsEnabled() && !config.isStarredMobGlowThroughWalls();
         boolean showBats = config.isHighlightBatsEnabled();
         boolean showFels = config.isHighlightFelsEnabled();
-        if (!showStarred && !showBats && !showFels) return;
+        if (!showBats && !showFels) return;
 
-        int starColor = (config.getStarredMobColor() & 0x00FFFFFF) | 0x60000000;
         int batColor  = (config.getBatHighlightColor() & 0x00FFFFFF) | 0x60000000;
         int felColor  = (config.getFelHighlightColor() & 0x00FFFFFF) | 0x60000000;
 
@@ -541,9 +583,7 @@ public final class HorizonClient implements ClientModInitializer {
             if (e instanceof net.minecraft.world.entity.decoration.ArmorStand) continue;
 
             net.minecraft.world.phys.AABB bb = e.getBoundingBox();
-            if (showStarred && StarredMobService.isStarredMob(e)) {
-                de.horizon.feature.dungeon.puzzle.DungeonRenderUtil.drawBox(ctx, bb, starColor, 2, false);
-            } else if (showBats && StarredMobService.isDungeonBat(e)) {
+            if (showBats && StarredMobService.isDungeonBat(e)) {
                 de.horizon.feature.dungeon.puzzle.DungeonRenderUtil.drawBox(ctx, bb, batColor, 2, false);
             } else if (showFels && StarredMobService.isFel(e)) {
                 de.horizon.feature.dungeon.puzzle.DungeonRenderUtil.drawBox(ctx, bb, felColor, 2, false);
