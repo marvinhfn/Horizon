@@ -482,6 +482,8 @@ public final class HorizonConfig {
 
     // ── PARTICLE ──────────────────────────────────────────────────────────────
 
+    public boolean isBreakParticlesEnabled() { return particle.breakParticlesEnabled; }
+    public void setBreakParticlesEnabled(boolean v) { particle.breakParticlesEnabled = v; }
     public Map<String, Boolean> getParticleStates() { return particle.particleStates; }
 
     // ── INVENTORY BUTTONS ─────────────────────────────────────────────────────

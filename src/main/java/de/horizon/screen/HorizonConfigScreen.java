@@ -733,8 +733,11 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
+    private static final String BREAK_PARTICLES_DESC = Lang.t("Block-Abbauen-Partikel anzeigen.", "Show block breaking particles.");
+
     private void renderParticleText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y;
+        y = drawToggleRow(context, viewport.x, y, "Break Particles", config().isBreakParticlesEnabled(), BREAK_PARTICLES_DESC);
         drawFieldRow(context, viewport.x, y, Lang.t("Particle Suche", "Particle Search"), particleSearchInput, inputFocus == InputFocus.PARTICLE_SEARCH, Lang.t("Liste filtern.", "Filter list."));
         y += fieldRowHeight(Lang.t("Liste filtern.", "Filter list."));
         int baseY = y - particleScrollOffset;
@@ -2018,13 +2021,21 @@ public final class HorizonConfigScreen extends Screen {
 
     private boolean handleParticleClick(double mouseX, double mouseY, Rect frame) {
         Rect viewport = contentViewportRect(frame);
-        if (rowRect(viewport.x, viewport.y).contains(mouseX, mouseY)) {
+        int y = viewport.y;
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setBreakParticlesEnabled(!config().isBreakParticlesEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(BREAK_PARTICLES_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             inputFocus = InputFocus.PARTICLE_SEARCH;
             return true;
         }
-        int y = viewport.y + fieldRowHeight(Lang.t("Liste filtern.", "Filter list.")) - particleScrollOffset;
+        y += fieldRowHeight(Lang.t("Liste filtern.", "Filter list."));
+        y -= particleScrollOffset;
         for (String particleId : filteredParticleIds()) {
-            if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            if (rowRect(viewport.x, y, 14).contains(mouseX, mouseY)) {
                 particleFilterService.toggle(particleId);
                 return true;
             }
@@ -2602,6 +2613,7 @@ public final class HorizonConfigScreen extends Screen {
         for (ReviveSource source : ReviveSource.values()) {
             addSearchResult(results, query, source.displayName(), "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, source.displayName() + " revive");
         }
+        addSearchResult(results, query, "Break Particles", "Particle", Tab.PARTICLE, null, "break particles block abbauen partikel");
         addSearchResult(results, query, "Particle Suche", "Particle", Tab.PARTICLE, null, "particle suche filter");
         addSearchResult(results, query, "Zeit HUD", "Misc", Tab.MISC, null, "zeit hud clock");
         addSearchResult(results, query, "FPS / TPS / Ping", "Misc", Tab.MISC, null, "fps tps ping performance");
@@ -2932,7 +2944,7 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private int particleContentHeight() {
-        return fieldRowHeight(Lang.t("Liste filtern.", "Filter list.")) + Math.max(0, filteredParticleIds().size() * 14);
+        return toggleRowHeight(BREAK_PARTICLES_DESC) + fieldRowHeight(Lang.t("Liste filtern.", "Filter list.")) + Math.max(0, filteredParticleIds().size() * 14);
     }
 
     private int miscContentHeight() {
