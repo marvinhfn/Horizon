@@ -47,7 +47,6 @@
 
 - [x] Paket P1-01: Starred Mob ESP & Teammate Glow (StarMobESP mit Box/Outline/Glow-Modi, class-based Player Glow nach Dungeon-Klasse mit konfigurierbaren Farben, Entity Glow Mixin erweitern, Config Dungeon > Mobs Unterreiter)
 - [x] Paket P1-02: Blood Door & Wither Door ESP (Wither-Door und Blood-Door als farbige Box/Outline rendern, Door-Key-Highlight wenn Spieler Schluessel im Inventar hat, Config Dungeon > Doors Unterreiter)
-- [ ] Paket P1-03: Hidden Mob Reveal (versteckte Dungeon-Mobs sichtbar machen, z.B. Fels, Shadow Assassin, Bat entfernen bei bestimmten Raum-Typen, Config Toggle in Dungeon > Mobs)
 - [ ] Paket P1-04: F4/M4 Spirit Bear Timer & Highlight (Spirit Bear Spawn-Timer HUD, Entity-Highlight per Glow, Config in Dungeon > Floor Specials)
 - [ ] Paket P1-05: Mimic Detection & Message (Mimic-Kill-Erkennung per Chat + Entity-Scan, Prince-Nachricht ins Party-Chat, Config Toggles in Dungeon > Mobs)
 
