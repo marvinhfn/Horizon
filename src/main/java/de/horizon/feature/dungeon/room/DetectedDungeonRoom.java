@@ -10,6 +10,7 @@ public record DetectedDungeonRoom(
     RoomType type,
     BlockPos origin,
     Direction rotation,
+    int rotationDeg,
     int confidence,
     long detectedAtTick
 ) {

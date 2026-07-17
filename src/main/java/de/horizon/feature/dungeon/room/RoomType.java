@@ -6,5 +6,6 @@ public enum RoomType {
     BLOOD,
     FAIRY,
     BOSS,
+    ENTRANCE,
     UNKNOWN
 }
