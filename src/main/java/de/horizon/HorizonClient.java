@@ -571,21 +571,17 @@ public final class HorizonClient implements ClientModInitializer {
         if (mc == null || mc.level == null) return;
         var config = configManager.getConfig();
 
-        boolean showBats = config.isHighlightBatsEnabled();
         boolean showFels = config.isHighlightFelsEnabled();
-        if (!showBats && !showFels) return;
+        if (!showFels) return;
 
-        int batColor  = (config.getBatHighlightColor() & 0x00FFFFFF) | 0x60000000;
         int felColor  = (config.getFelHighlightColor() & 0x00FFFFFF) | 0x60000000;
 
         for (net.minecraft.world.entity.Entity e : mc.level.entitiesForRendering()) {
             if (e instanceof net.minecraft.client.player.LocalPlayer) continue;
             if (e instanceof net.minecraft.world.entity.decoration.ArmorStand) continue;
 
-            net.minecraft.world.phys.AABB bb = e.getBoundingBox();
-            if (showBats && StarredMobService.isDungeonBat(e)) {
-                de.horizon.feature.dungeon.puzzle.DungeonRenderUtil.drawBox(ctx, bb, batColor, 2, false);
-            } else if (showFels && StarredMobService.isFel(e)) {
+            if (StarredMobService.isFel(e)) {
+                net.minecraft.world.phys.AABB bb = e.getBoundingBox();
                 de.horizon.feature.dungeon.puzzle.DungeonRenderUtil.drawBox(ctx, bb, felColor, 2, false);
             }
         }
