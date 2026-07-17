@@ -56,6 +56,9 @@ public abstract class ChatScreenMixin extends Screen {
         if (!client.executeLocalCommand(chatText, this)) {
             return;
         }
+        if (this.minecraft != null) {
+            this.minecraft.gui.getChat().addRecentChat(chatText);
+        }
         if (input != null) {
             input.setValue("");
         }
