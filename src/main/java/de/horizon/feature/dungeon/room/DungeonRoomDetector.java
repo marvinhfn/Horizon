@@ -163,6 +163,28 @@ public final class DungeonRoomDetector {
     }
 
     /**
+     * Returns the highest non-air block Y in the column at (x, z), or -1 for a
+     * pure void column. Used to detect whether a room is present regardless of
+     * its floor height. Mirrors the internal room-existence scan.
+     */
+    public int highestBlockY(Minecraft client, int x, int z) {
+        if (client == null || client.level == null) return -1;
+        if (!isChunkLoaded(client, x, z)) return -1;
+        return getHighestY(client, x, z);
+    }
+
+    /**
+     * Returns the room template name at the given room center coordinates, or an
+     * empty string when the ceiling hash is unknown / the chunk is not loaded.
+     */
+    public String getRoomNameAt(Minecraft client, int centerX, int centerZ) {
+        if (client == null || client.level == null) return "";
+        if (!isChunkLoaded(client, centerX, centerZ)) return "";
+        RoomTemplate template = CORE_TO_ROOM.get(hashCeiling(client, centerX, centerZ));
+        return template != null ? template.name() : "";
+    }
+
+    /**
      * Returns the room center coordinates for all cells of the room at the player's position.
      * For 1x1 rooms returns a single entry, for 1x2/2x2/L-shaped rooms returns multiple.
      * Each entry is an int[2] = {centerX, centerZ}.

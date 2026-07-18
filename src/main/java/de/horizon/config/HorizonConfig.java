@@ -262,6 +262,10 @@ public final class HorizonConfig {
 
     public boolean isDungeonMapEnabled() { return dungeon.dungeonMapEnabled; }
     public void setDungeonMapEnabled(boolean v) { dungeon.dungeonMapEnabled = v; }
+    public boolean isMapShowRoomNames() { return dungeon.mapShowRoomNames; }
+    public void setMapShowRoomNames(boolean v) { dungeon.mapShowRoomNames = v; }
+    public boolean isMapShowCheckmarks() { return dungeon.mapShowCheckmarks; }
+    public void setMapShowCheckmarks(boolean v) { dungeon.mapShowCheckmarks = v; }
 
     public int getMapColorBackground() { return dungeon.mapColorBackground; }
     public void setMapColorBackground(int v) { dungeon.mapColorBackground = v; }
@@ -279,6 +283,12 @@ public final class HorizonConfig {
     public void setMapColorBlood(int v) { dungeon.mapColorBlood = v; }
     public int getMapColorRare()     { return dungeon.mapColorRare; }
     public void setMapColorRare(int v) { dungeon.mapColorRare = v; }
+    public int getMapColorNameUncleared() { return dungeon.mapColorNameUncleared; }
+    public void setMapColorNameUncleared(int v) { dungeon.mapColorNameUncleared = v; }
+    public int getMapColorNameCleared() { return dungeon.mapColorNameCleared; }
+    public void setMapColorNameCleared(int v) { dungeon.mapColorNameCleared = v; }
+    public int getMapColorNameSecrets() { return dungeon.mapColorNameSecrets; }
+    public void setMapColorNameSecrets(int v) { dungeon.mapColorNameSecrets = v; }
 
     public boolean isBloodCamperEnabled() { return dungeon.bloodCamperEnabled; }
     public void setBloodCamperEnabled(boolean v) { dungeon.bloodCamperEnabled = v; }

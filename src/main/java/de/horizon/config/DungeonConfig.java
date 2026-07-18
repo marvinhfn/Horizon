@@ -89,6 +89,8 @@ public final class DungeonConfig {
 
     // Dungeon Map
     boolean dungeonMapEnabled = false;
+    boolean mapShowRoomNames = false;
+    boolean mapShowCheckmarks = true;
 
     // Dungeon Map Colors (ARGB hex)
     int mapColorBackground = 0xCC000000; // semi-transparent black
@@ -99,6 +101,11 @@ public final class DungeonConfig {
     int mapColorMiniboss  = 0xFFFFFF00; // yellow
     int mapColorBlood     = 0xFFFF0000; // red
     int mapColorRare      = 0xFF00FFFF; // cyan
+
+    // Dungeon Map room-name colours by state (ARGB hex)
+    int mapColorNameUncleared = 0xFFAAAAAA; // discovered, not cleared
+    int mapColorNameCleared   = 0xFFFFFFFF; // white check (starred mobs cleared)
+    int mapColorNameSecrets   = 0xFF55FF55; // green check (all secrets found)
 
     // Blood Camper
     boolean bloodCamperEnabled = true;

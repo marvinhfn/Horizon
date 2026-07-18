@@ -112,6 +112,15 @@ public final class HorizonConfigScreen extends Screen {
     private int activeMapColorIndex = -1;
     private int activeMobColorIndex = -1;
     private boolean colorPickerDragging = false;
+    // Active color-picker context, captured on click and reused while dragging so
+    // the drag never has to re-derive the (fragile) row layout.
+    private java.util.function.IntUnaryOperator activeColorGetter;
+    private java.util.function.BiConsumer<Integer, Integer> activeColorSetter;
+    private int activeColorIndex = -1;
+    private int colorPickerPickerX = -1;
+    private int colorPickerRowY = -1;
+    private int colorPickerArea = -1; // 0 = hue bar, 1 = SV field
+    private boolean hudColorPickerExpanded = false;
     private boolean fishingCreatureListExpanded = false;
     private boolean chatCommandListExpanded = false;
 
@@ -684,6 +693,8 @@ public final class HorizonConfigScreen extends Screen {
             case MAP -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeon Map");
                 y = drawToggleRow(context, viewport.x, y, "Dungeon Map", config().isDungeonMapEnabled(), Lang.t("Minimap im Dungeon. Groesse per HUD-Layout aenderbar.", "Dungeon minimap. Scale adjustable via HUD layout."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Raumnamen", "Room Names"), config().isMapShowRoomNames(), Lang.t("Zeigt Raumnamen auf der Karte.", "Shows room names on the map."));
+                y = drawToggleRow(context, viewport.x, y, "Checkmarks", config().isMapShowCheckmarks(), Lang.t("Haken fuer erkundete Raeume.", "Checkmarks for explored rooms."));
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Kartenfarben", "Map Colors"));
                 y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Hintergrund", "Background"), config().getMapColorBackground());
                 y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Normal", "Normal"), config().getMapColorNormal());
@@ -693,6 +704,10 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawColorSwatchRow(context, viewport.x, y, "Miniboss", config().getMapColorMiniboss());
                 y = drawColorSwatchRow(context, viewport.x, y, "Blood", config().getMapColorBlood());
                 y = drawColorSwatchRow(context, viewport.x, y, "Rare", config().getMapColorRare());
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Raumnamen-Farben", "Room Name Colors"));
+                y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Ungecleart", "Uncleared"), config().getMapColorNameUncleared());
+                y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Gecleart", "Cleared"), config().getMapColorNameCleared());
+                y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Secrets gefunden", "Secrets Done"), config().getMapColorNameSecrets());
                 y = drawSectionTitle(context, viewport.x, y, "Leap Menu");
                 y = drawToggleRow(context, viewport.x, y, "Leap Menu", config().isLeapMenuEnabled(), Lang.t("Eigenes Quadranten-GUI fuer Spirit Leap.", "Custom quadrant GUI for Spirit Leap."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Ansage im Party-Chat", "Announce in Party Chat"), config().isLeapMenuAnnounce(), Lang.t("Leap-Ziel im Party-Chat ankuendigen.", "Announce leap destination in party chat."));
@@ -1357,6 +1372,9 @@ public final class HorizonConfigScreen extends Screen {
             int color = 0xFF000000 | Integer.parseInt(HUD_COLOR_SWATCHES[index].substring(1), 16);
             context.fill(swatch.x, swatch.y, swatch.right(), swatch.bottom(), color);
         }
+        if (hudColorPickerExpanded) {
+            drawColorPickerFields(context, x + 4, hudColorPickerHueY(y), parsePreviewColor());
+        }
         return y + rowHeight;
     }
 
@@ -1376,10 +1394,25 @@ public final class HorizonConfigScreen extends Screen {
     private static final int COLOR_PICKER_WIDTH = 200;
     private static final int HUE_BAR_HEIGHT = 12;
     private static final int SV_FIELD_HEIGHT = 80;
-    private static final int COLOR_PICKER_EXPANDED_HEIGHT = COLOR_SWATCH_ROW_HEIGHT + HUE_BAR_HEIGHT + 4 + SV_FIELD_HEIGHT + 4;
+    private static final int ALPHA_BAR_HEIGHT = 12;
+    private static final int COLOR_PICKER_EXPANDED_HEIGHT = COLOR_SWATCH_ROW_HEIGHT + HUE_BAR_HEIGHT + 4 + SV_FIELD_HEIGHT + 4 + ALPHA_BAR_HEIGHT + 4;
 
     private static final int HUE_STEP = 2;
     private static final int SV_STEP = 4;
+
+    /** Draws a colour preview that reflects the stored alpha over a checkerboard. */
+    private void drawColorPreviewSwatch(GuiGraphicsExtractor context, int sx, int sy, int size, int color) {
+        int cell = size / 2;
+        context.fill(sx, sy, sx + cell, sy + cell, 0xFFBBBBBB);
+        context.fill(sx + cell, sy, sx + size, sy + cell, 0xFF666666);
+        context.fill(sx, sy + cell, sx + cell, sy + size, 0xFF666666);
+        context.fill(sx + cell, sy + cell, sx + size, sy + size, 0xFFBBBBBB);
+        context.fill(sx, sy, sx + size, sy + size, color); // actual colour incl. alpha on top
+    }
+
+    private static String colorLabelHex(int color) {
+        return String.format("#%08X", color); // ARGB so the alpha is visible
+    }
 
     private int drawColorSwatchRow(GuiGraphicsExtractor context, int x, int y, String label, int currentColor) {
         boolean expanded = activeMapColorIndex >= 0 && isMatchingMapColorRow(label);
@@ -1387,9 +1420,8 @@ public final class HorizonConfigScreen extends Screen {
         drawSettingCard(context, x, y, rowHeight, currentColor | 0xFF000000, false);
         int swatchX = x + 4;
         int swatchY = y + CARD_PADDING_TOP;
-        context.fill(swatchX, swatchY, swatchX + 12, swatchY + 12, currentColor | 0xFF000000);
-        String hex = String.format("#%06X", currentColor & 0x00FFFFFF);
-        drawTextLine(context, swatchX + 16, swatchY, label + ": " + hex, TEXT);
+        drawColorPreviewSwatch(context, swatchX, swatchY, 12, currentColor);
+        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), TEXT);
         if (expanded) {
             drawColorPickerFields(context, x + 4, y + CARD_PADDING_TOP + LINE_HEIGHT + 4, currentColor);
         }
@@ -1402,9 +1434,8 @@ public final class HorizonConfigScreen extends Screen {
         drawSettingCard(context, x, y, rowHeight, currentColor | 0xFF000000, false);
         int swatchX = x + 4;
         int swatchY = y + CARD_PADDING_TOP;
-        context.fill(swatchX, swatchY, swatchX + 12, swatchY + 12, currentColor | 0xFF000000);
-        String hex = String.format("#%06X", currentColor & 0x00FFFFFF);
-        drawTextLine(context, swatchX + 16, swatchY, label + ": " + hex, TEXT);
+        drawColorPreviewSwatch(context, swatchX, swatchY, 12, currentColor);
+        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), TEXT);
         if (expanded) {
             drawColorPickerFields(context, x + 4, y + CARD_PADDING_TOP + LINE_HEIGHT + 4, currentColor);
         }
@@ -1436,10 +1467,29 @@ public final class HorizonConfigScreen extends Screen {
         int crossY = svY + (int)((1f - hsb[2]) * SV_FIELD_HEIGHT);
         context.fill(crossX - 2, crossY, crossX + 2, crossY + 1, 0xFFFFFFFF);
         context.fill(crossX, crossY - 2, crossX + 1, crossY + 2, 0xFFFFFFFF);
+
+        // Alpha bar (transparency): checkerboard behind a left→right transparent→opaque gradient.
+        int alphaY = svY + SV_FIELD_HEIGHT + 4;
+        int rgb = currentColor & 0x00FFFFFF;
+        for (int i = 0; i < COLOR_PICKER_WIDTH; i += SV_STEP) {
+            // Checkerboard so transparency is visible.
+            boolean checkTop = ((i / SV_STEP) & 1) == 0;
+            context.fill(pickerX + i, alphaY, pickerX + i + SV_STEP, alphaY + ALPHA_BAR_HEIGHT / 2,
+                    checkTop ? 0xFFBBBBBB : 0xFF666666);
+            context.fill(pickerX + i, alphaY + ALPHA_BAR_HEIGHT / 2, pickerX + i + SV_STEP, alphaY + ALPHA_BAR_HEIGHT,
+                    checkTop ? 0xFF666666 : 0xFFBBBBBB);
+            int a = (int)(255f * i / COLOR_PICKER_WIDTH);
+            context.fill(pickerX + i, alphaY, pickerX + i + SV_STEP, alphaY + ALPHA_BAR_HEIGHT, (a << 24) | rgb);
+        }
+        int alpha = (currentColor >>> 24) & 0xFF;
+        int alphaX = pickerX + (int)(alpha / 255f * COLOR_PICKER_WIDTH);
+        context.fill(alphaX - 1, alphaY - 1, alphaX + 1, alphaY + ALPHA_BAR_HEIGHT + 1, 0xFFFFFFFF);
+        context.fill(alphaX, alphaY, alphaX + 1, alphaY + ALPHA_BAR_HEIGHT, 0xFF000000);
     }
 
     private boolean isMatchingMapColorRow(String label) {
-        String[] labels = { Lang.t("Hintergrund", "Background"), Lang.t("Normal", "Normal"), "Puzzle", "Trap", Lang.t("Eingang", "Entrance"), "Miniboss", "Blood", "Rare" };
+        String[] labels = { Lang.t("Hintergrund", "Background"), Lang.t("Normal", "Normal"), "Puzzle", "Trap", Lang.t("Eingang", "Entrance"), "Miniboss", "Blood", "Rare",
+                Lang.t("Ungecleart", "Uncleared"), Lang.t("Gecleart", "Cleared"), Lang.t("Secrets gefunden", "Secrets Done") };
         return activeMapColorIndex >= 0 && activeMapColorIndex < labels.length && labels[activeMapColorIndex].equals(label);
     }
 
@@ -1453,6 +1503,9 @@ public final class HorizonConfigScreen extends Screen {
             case 5 -> config().getMapColorMiniboss();
             case 6 -> config().getMapColorBlood();
             case 7 -> config().getMapColorRare();
+            case 8 -> config().getMapColorNameUncleared();
+            case 9 -> config().getMapColorNameCleared();
+            case 10 -> config().getMapColorNameSecrets();
             default -> 0xFFFFFF;
         };
     }
@@ -1467,6 +1520,9 @@ public final class HorizonConfigScreen extends Screen {
             case 5 -> config().setMapColorMiniboss(color);
             case 6 -> config().setMapColorBlood(color);
             case 7 -> config().setMapColorRare(color);
+            case 8 -> config().setMapColorNameUncleared(color);
+            case 9 -> config().setMapColorNameCleared(color);
+            case 10 -> config().setMapColorNameSecrets(color);
         }
     }
 
@@ -1478,32 +1534,62 @@ public final class HorizonConfigScreen extends Screen {
                                                    java.util.function.IntUnaryOperator getter, java.util.function.BiConsumer<Integer, Integer> setter) {
         int hueY = rowY + CARD_PADDING_TOP + LINE_HEIGHT + 4;
         int svY = hueY + HUE_BAR_HEIGHT + 4;
-        int currentColor = getter.applyAsInt(colorIndex);
-        float[] hsb = new float[3];
-        java.awt.Color.RGBtoHSB((currentColor >> 16) & 0xFF, (currentColor >> 8) & 0xFF, currentColor & 0xFF, hsb);
+        int alphaY = svY + SV_FIELD_HEIGHT + 4;
+        boolean inHue = mouseX >= pickerX && mouseX < pickerX + COLOR_PICKER_WIDTH
+                && mouseY >= hueY && mouseY < hueY + HUE_BAR_HEIGHT;
+        boolean inSv = mouseX >= pickerX && mouseX < pickerX + COLOR_PICKER_WIDTH
+                && mouseY >= svY && mouseY < svY + SV_FIELD_HEIGHT;
+        boolean inAlpha = mouseX >= pickerX && mouseX < pickerX + COLOR_PICKER_WIDTH
+                && mouseY >= alphaY && mouseY < alphaY + ALPHA_BAR_HEIGHT;
+        if (!inHue && !inSv && !inAlpha) return false;
 
-        // Check hue bar click
-        if (mouseX >= pickerX && mouseX < pickerX + COLOR_PICKER_WIDTH
-                && mouseY >= hueY && mouseY < hueY + HUE_BAR_HEIGHT) {
-            float hue = (float)(mouseX - pickerX) / COLOR_PICKER_WIDTH;
-            int rgb = java.awt.Color.HSBtoRGB(hue, hsb[1], hsb[2]) & 0x00FFFFFF;
-            setter.accept(colorIndex, rgb);
+        // Capture the picker rect + target so dragging can reuse it without
+        // re-deriving the row layout, and lock the drag to the area we started in.
+        colorPickerDragging = true;
+        colorPickerPickerX = pickerX;
+        colorPickerRowY = rowY;
+        colorPickerArea = inHue ? 0 : inSv ? 1 : 2;
+        activeColorGetter = getter;
+        activeColorSetter = setter;
+        activeColorIndex = colorIndex;
+        applyColorPicker(mouseX, mouseY);
+        return true;
+    }
+
+    /** Applies the current mouse position to the active color picker (click + drag). */
+    private void applyColorPicker(double mouseX, double mouseY) {
+        if (activeColorGetter == null || activeColorSetter == null || colorPickerRowY < 0) return;
+        int pickerX = colorPickerPickerX;
+        int hueY = colorPickerRowY + CARD_PADDING_TOP + LINE_HEIGHT + 4;
+        int svY = hueY + HUE_BAR_HEIGHT + 4;
+
+        int current = activeColorGetter.applyAsInt(activeColorIndex);
+        int alpha = current & 0xFF000000;
+        float[] hsb = new float[3];
+        java.awt.Color.RGBtoHSB((current >> 16) & 0xFF, (current >> 8) & 0xFF, current & 0xFF, hsb);
+
+        float fx = (float) clampUnit((mouseX - pickerX) / (double) COLOR_PICKER_WIDTH);
+        if (colorPickerArea == 2) {
+            // Alpha bar: mouse X → new alpha, keep RGB unchanged.
+            int a = (int) (fx * 255f);
+            activeColorSetter.accept(activeColorIndex, (a << 24) | (current & 0x00FFFFFF));
             horizonClient.getConfigManager().save();
-            colorPickerDragging = true;
-            return true;
+            return;
         }
-        // Check SV field click
-        if (mouseX >= pickerX && mouseX < pickerX + COLOR_PICKER_WIDTH
-                && mouseY >= svY && mouseY < svY + SV_FIELD_HEIGHT) {
-            float sat = (float)(mouseX - pickerX) / COLOR_PICKER_WIDTH;
-            float val = 1f - (float)(mouseY - svY) / SV_FIELD_HEIGHT;
-            int rgb = java.awt.Color.HSBtoRGB(hsb[0], sat, val) & 0x00FFFFFF;
-            setter.accept(colorIndex, rgb);
-            horizonClient.getConfigManager().save();
-            colorPickerDragging = true;
-            return true;
+        if (alpha == 0) alpha = 0xFF000000; // never implicitly store a fully transparent colour while editing hue/SV
+        int rgb;
+        if (colorPickerArea == 0) {
+            rgb = java.awt.Color.HSBtoRGB(fx, hsb[1], hsb[2]) & 0x00FFFFFF;
+        } else {
+            float val = 1f - (float) clampUnit((mouseY - svY) / (double) SV_FIELD_HEIGHT);
+            rgb = java.awt.Color.HSBtoRGB(hsb[0], fx, val) & 0x00FFFFFF;
         }
-        return false;
+        activeColorSetter.accept(activeColorIndex, alpha | rgb);
+        horizonClient.getConfigManager().save();
+    }
+
+    private static double clampUnit(double v) {
+        return v < 0 ? 0 : (v > 1 ? 1 : v);
     }
 
     private int getMobColor(int index) {
@@ -1545,56 +1631,8 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private void handleColorPickerDrag(double mouseX, double mouseY) {
-        Rect frame = frame();
-        Rect viewport = contentViewportRect(frame);
-
-        if (activeMapColorIndex >= 0 && activeMapColorIndex < 8) {
-            int y = viewport.y - contentScrollOffset + 24;
-            y += toggleRowHeight(Lang.t("Minimap im Dungeon. Groesse per HUD-Layout aenderbar.", "Dungeon minimap. Scale adjustable via HUD layout."));
-            y += 24; // "Room Colors" section title
-            for (int ci = 0; ci < activeMapColorIndex; ci++) {
-                y += COLOR_SWATCH_ROW_HEIGHT;
-            }
-            handleColorPickerClick(mouseX, mouseY, viewport.x + 4, y, activeMapColorIndex);
-        } else if (activeMobColorIndex >= 0 && activeMobColorIndex < 8) {
-            int y = viewport.y - contentScrollOffset + 24;
-            // Starred Mobs section: 4 rows before first color swatch
-            y += toggleRowHeight(Lang.t("Blendet Nametags aller Mobs ohne Stern im Namen aus.", "Hides nametags of all mobs without a star in their name."));
-            y += toggleRowHeight(Lang.t("Box/Glow fuer Mobs mit Stern im Namen.", "Box/Glow for mobs with a star in their name."));
-            y += toggleRowHeight(Lang.t("Box, Outline, Beides oder Glow.", "Box, Outline, Both or Glow."));
-            y += toggleRowHeight(Lang.t("Highlight durch Waende sichtbar.", "Highlight visible through walls."));
-            // Color swatch 0 (starred mob)
-            if (activeMobColorIndex == 0) {
-                handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 0, this::getMobColor, this::setMobColor);
-                return;
-            }
-            y += mobsColorSwatchHeight(0);
-            y += 24; // "Other Mobs" section title
-            y += toggleRowHeight(Lang.t("Fledermaeuse im Dungeon markieren.", "Highlight bats in dungeons."));
-            // Color swatch 1 (bat)
-            if (activeMobColorIndex == 1) {
-                handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 1, this::getMobColor, this::setMobColor);
-                return;
-            }
-            y += mobsColorSwatchHeight(1);
-            y += toggleRowHeight(Lang.t("Unsichtbare Fels (Endermen) im Dungeon markieren.", "Highlight invisible Fels (Endermen) in dungeons."));
-            // Color swatch 2 (fel)
-            if (activeMobColorIndex == 2) {
-                handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 2, this::getMobColor, this::setMobColor);
-                return;
-            }
-            y += mobsColorSwatchHeight(2);
-            y += 24; // "Teammates" section title
-            y += toggleRowHeight(Lang.t("Dungeon-Teamkameraden per Glow markieren.", "Highlight dungeon teammates with glow."));
-            // Class color swatches (indices 3-7)
-            for (int ci = 3; ci <= 7; ci++) {
-                if (activeMobColorIndex == ci) {
-                    handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, ci, this::getMobColor, this::setMobColor);
-                    return;
-                }
-                y += mobsColorSwatchHeight(ci);
-            }
-        }
+        // Reuse the picker rect + target captured on click — no fragile re-layout.
+        applyColorPicker(mouseX, mouseY);
     }
 
     private void drawSettingCard(GuiGraphicsExtractor context, int x, int y, int height, int markerColor, boolean focused) {
@@ -1630,6 +1668,12 @@ public final class HorizonConfigScreen extends Screen {
         Rect colorArea = rowRect(viewport.x, y, hudColorRowHeight());
         if (colorArea.contains(mouseX, mouseY)) {
             int previewY = hudColorPreviewY(y);
+            // Clicking the preview swatch toggles the full colour picker.
+            if (hudColorPreviewRect(viewport.x, previewY).contains(mouseX, mouseY)) {
+                hudColorPickerExpanded = !hudColorPickerExpanded;
+                inputFocus = InputFocus.NONE;
+                return true;
+            }
             for (int index = 0; index < HUD_COLOR_SWATCHES.length; index++) {
                 Rect swatch = hudColorSwatchRect(viewport.x, previewY, index);
                 if (swatch.contains(mouseX, mouseY)) {
@@ -1637,6 +1681,16 @@ public final class HorizonConfigScreen extends Screen {
                     refreshHudAccentColorInput();
                     inputFocus = InputFocus.NONE;
                     horizonClient.getConfigManager().save();
+                    return true;
+                }
+            }
+            // Route clicks into the expanded picker (hue bar / SV field).
+            if (hudColorPickerExpanded) {
+                int hueY = hudColorPickerHueY(y);
+                int virtualRowY = hueY - (CARD_PADDING_TOP + LINE_HEIGHT + 4);
+                if (handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, virtualRowY, 0,
+                        this::getHudColorInt, this::setHudColorInt)) {
+                    inputFocus = InputFocus.NONE;
                     return true;
                 }
             }
@@ -2039,9 +2093,22 @@ public final class HorizonConfigScreen extends Screen {
             return true;
         }
         y += toggleRowHeight(Lang.t("Minimap im Dungeon. Groesse per HUD-Layout aenderbar.", "Dungeon minimap. Scale adjustable via HUD layout."));
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMapShowRoomNames(!config().isMapShowRoomNames());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Zeigt Raumnamen auf der Karte.", "Shows room names on the map."));
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMapShowCheckmarks(!config().isMapShowCheckmarks());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Haken fuer erkundete Raeume.", "Checkmarks for explored rooms."));
         y += 24; // "Map Colors" section title
-        // 8 color rows (background + 7 room types)
-        for (int ci = 0; ci < 8; ci++) {
+        // 8 map colour rows (background + 7 room types), then a section title, then 3 name-colour rows.
+        for (int ci = 0; ci < 11; ci++) {
+            if (ci == 8) y += 24; // "Room Name Colors" section title
             int rowH = activeMapColorIndex == ci ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
             if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
                 if (activeMapColorIndex == ci) {
@@ -2813,6 +2880,21 @@ public final class HorizonConfigScreen extends Screen {
         return 0xFF000000 | Integer.parseInt(value.substring(1), 16);
     }
 
+    // Adapter so the shared int-ARGB color picker can drive the string-hex HUD accent colour.
+    private int getHudColorInt(int ignored) {
+        return parsePreviewColor();
+    }
+
+    private void setHudColorInt(int ignored, int color) {
+        config().setHudAccentColor(String.format("#%06X", color & 0xFFFFFF));
+        refreshHudAccentColorInput();
+    }
+
+    /** Y at which the HUD colour picker's hue bar is drawn (below preview + palette). */
+    private int hudColorPickerHueY(int rowY) {
+        return hudColorPreviewY(rowY) + 40 + 8;
+    }
+
     private int toggleRowHeight(String description) {
         return toggleCardHeight(description);
     }
@@ -2833,6 +2915,8 @@ public final class HorizonConfigScreen extends Screen {
         int descLines = wrappedLines(Lang.t("Preview und Palette. Hexwert bleibt weiter editierbar.", "Preview and palette. Hex value remains editable."), CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10).size();
         int previewY = CARD_PADDING_TOP + LINE_HEIGHT + descLines * LINE_HEIGHT + 6;
         int contentHeight = previewY + 22 + 18;
+        // Picker sits 8px below the palette; body = hue bar + gap + SV field + gap + alpha bar.
+        if (hudColorPickerExpanded) contentHeight += 8 + HUE_BAR_HEIGHT + 4 + SV_FIELD_HEIGHT + 4 + ALPHA_BAR_HEIGHT + 4;
         return contentHeight + CARD_PADDING_BOTTOM + CARD_GAP;
     }
 
@@ -2971,8 +3055,11 @@ public final class HorizonConfigScreen extends Screen {
             case MAP -> {
                 // "Dungeon Map" section title already counted in base 24
                 int mapH = toggleRowHeight(Lang.t("Minimap im Dungeon. Groesse per HUD-Layout aenderbar.", "Dungeon minimap. Scale adjustable via HUD layout."))
+                    + toggleRowHeight(Lang.t("Zeigt Raumnamen auf der Karte.", "Shows room names on the map."))
+                    + toggleRowHeight(Lang.t("Haken fuer erkundete Raeume.", "Checkmarks for explored rooms."))
                     + 24; // "Map Colors" section title
-                for (int ci = 0; ci < 8; ci++) {
+                for (int ci = 0; ci < 11; ci++) {
+                    if (ci == 8) mapH += 24; // "Room Name Colors" section title
                     mapH += activeMapColorIndex == ci ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
                 }
                 mapH += 24 // "Leap Menu" section title

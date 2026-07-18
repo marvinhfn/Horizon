@@ -358,6 +358,9 @@ public final class HorizonClient implements ClientModInitializer {
             StarredMobService.tick(client);
             bloodCamperService.tick(client);
             doorEspService.tick(client, true, dungeonStateService.isInBoss(), dungeonRoomDetector);
+            if (!dungeonStateService.isInBoss()) {
+                dungeonMapService.scan(client, dungeonRoomDetector, dungeonStateService.getCurrentFloor());
+            }
         }
         pingService.tick(client);
         reviveTracker.tick();

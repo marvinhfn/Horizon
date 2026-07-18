@@ -4,6 +4,9 @@ build/
 run/
 out/
 net/
+com/
+mappings/
+remappedSrc/
 *.iml
 CLAUDE.md
 CLAUDE.local.md
