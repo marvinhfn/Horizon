@@ -42,6 +42,7 @@ public final class DungeonRoomDetector {
 
     private static final int SCAN_INTERVAL_TICKS = 8;
     private static final Map<Integer, RoomTemplate> CORE_TO_ROOM = loadRooms();
+    private static final Map<String, Integer> SECRETS_BY_NAME = loadSecretCounts();
 
     // Rotation markers: blue terracotta at corner positions relative to room center
     // Index 0 = 0°, 1 = 90°, 2 = 180°, 3 = 270°
@@ -417,6 +418,28 @@ public final class DungeonRoomDetector {
             }
         } catch (IOException | RuntimeException ignored) {}
         return result;
+    }
+
+    /** Maps room names (lower-case) to their total secret count from the room database. */
+    private static Map<String, Integer> loadSecretCounts() {
+        Map<String, Integer> result = new HashMap<>();
+        try (InputStream stream = DungeonRoomDetector.class.getResourceAsStream("/assets/horizon/dungeons/rooms.json")) {
+            if (stream == null) return result;
+            JsonArray rooms = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonArray();
+            for (JsonElement element : rooms) {
+                if (!element.isJsonObject()) continue;
+                JsonObject room = element.getAsJsonObject();
+                if (!room.has("name") || !room.has("secrets")) continue;
+                result.put(room.get("name").getAsString().toLowerCase(Locale.ROOT), room.get("secrets").getAsInt());
+            }
+        } catch (IOException | RuntimeException ignored) {}
+        return result;
+    }
+
+    /** Total secrets a room contains, or -1 when the room name is unknown. */
+    public int getSecretCountForRoom(String roomName) {
+        if (roomName == null || roomName.isEmpty()) return -1;
+        return SECRETS_BY_NAME.getOrDefault(roomName.toLowerCase(Locale.ROOT), -1);
     }
 
     private static RoomType roomType(String rawType) {

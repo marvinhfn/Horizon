@@ -266,6 +266,12 @@ public final class HorizonConfig {
     public void setMapShowRoomNames(boolean v) { dungeon.mapShowRoomNames = v; }
     public boolean isMapShowCheckmarks() { return dungeon.mapShowCheckmarks; }
     public void setMapShowCheckmarks(boolean v) { dungeon.mapShowCheckmarks = v; }
+    public boolean isMapShowPlayerHeads() { return dungeon.mapShowPlayerHeads; }
+    public void setMapShowPlayerHeads(boolean v) { dungeon.mapShowPlayerHeads = v; }
+    public boolean isMapShowPlayerNames() { return dungeon.mapShowPlayerNames; }
+    public void setMapShowPlayerNames(boolean v) { dungeon.mapShowPlayerNames = v; }
+    public boolean isMapShowSecretCount() { return dungeon.mapShowSecretCount; }
+    public void setMapShowSecretCount(boolean v) { dungeon.mapShowSecretCount = v; }
 
     public int getMapColorBackground() { return dungeon.mapColorBackground; }
     public void setMapColorBackground(int v) { dungeon.mapColorBackground = v; }

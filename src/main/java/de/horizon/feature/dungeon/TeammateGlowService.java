@@ -47,6 +47,7 @@ public final class TeammateGlowService {
     public record Teammate(String name, UUID uuid, DungeonClass dungeonClass, boolean dead) {}
 
     private final Map<UUID, Teammate> teammates = new HashMap<>();
+    private DungeonClass selfClass;
     private long lastScanTick = -1;
 
     public void tick(Minecraft mc, boolean inDungeon) {
@@ -63,6 +64,7 @@ public final class TeammateGlowService {
         if (currentTick % 20 != 0 && !teammates.isEmpty()) return;
 
         teammates.clear();
+        selfClass = null;
         String selfName = mc.player.getName().getString();
         Collection<PlayerInfo> playerInfos = mc.getConnection().getListedOnlinePlayers();
 
@@ -76,10 +78,14 @@ public final class TeammateGlowService {
 
             String name = m.group(2);
             String classStr = m.group(3);
-            if (name.equalsIgnoreCase(selfName)) continue;
-
             boolean dead = "DEAD".equalsIgnoreCase(classStr);
             DungeonClass dc = dead ? null : DungeonClass.fromName(classStr);
+
+            // Remember the local player's own class separately (kept out of the glow map).
+            if (name.equalsIgnoreCase(selfName)) {
+                selfClass = dc;
+                continue;
+            }
 
             teammates.put(info.getProfile().id(), new Teammate(name, info.getProfile().id(), dc, dead));
         }
@@ -87,8 +93,12 @@ public final class TeammateGlowService {
 
     public void onWorldChange() {
         teammates.clear();
+        selfClass = null;
         lastScanTick = -1;
     }
+
+    /** The local player's own dungeon class, or null when unknown. */
+    public DungeonClass getSelfClass() { return selfClass; }
 
     /**
      * Returns the glow color for a teammate entity, or -1 if not a teammate.

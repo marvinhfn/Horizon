@@ -175,6 +175,11 @@ public final class DungeonMapService {
         }
         room.setMapColorId(corner);
         room.setState(state);
+        // Attach the room's total secret count from the database (kept once known).
+        if (room.secretsTotal() < 0) {
+            int total = detector.getSecretCountForRoom(room.name());
+            if (total >= 0) room.setSecrets(room.secretsFound(), total);
+        }
     }
 
     /** A between-cell is a door (narrow, side pixel empty) or a same-room separator (side pixel filled). */

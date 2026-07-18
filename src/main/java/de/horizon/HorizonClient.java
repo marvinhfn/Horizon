@@ -167,7 +167,7 @@ public final class HorizonClient implements ClientModInitializer {
         hudRegistry.register(new SystemStatsHudElement());
         hudRegistry.register(new TickTimerHudElement(tickTimerService, dungeonStateService));
         hudRegistry.register(new PurplePadTimerHudElement(purplePadTimerService));
-        hudRegistry.register(new DungeonMapHudElement(dungeonMapService, dungeonStateService));
+        hudRegistry.register(new DungeonMapHudElement(dungeonMapService, dungeonStateService, teammateGlowService));
         hudRegistry.register(new DungeonScoreHudElement(dungeonScoreService, dungeonStateService));
         hudRegistry.register(new RelicTimerHudElement(relicTimerService));
         hudRegistry.register(new SpiritBearTimerHudElement(spiritBearService));

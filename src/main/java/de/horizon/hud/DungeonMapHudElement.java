@@ -48,10 +48,13 @@ public final class DungeonMapHudElement implements HudElement {
 
     private final DungeonMapService mapService;
     private final DungeonStateService dungeonStateService;
+    private final de.horizon.feature.dungeon.TeammateGlowService teammateGlowService;
 
-    public DungeonMapHudElement(DungeonMapService mapService, DungeonStateService dungeonStateService) {
+    public DungeonMapHudElement(DungeonMapService mapService, DungeonStateService dungeonStateService,
+                               de.horizon.feature.dungeon.TeammateGlowService teammateGlowService) {
         this.mapService = mapService;
         this.dungeonStateService = dungeonStateService;
+        this.teammateGlowService = teammateGlowService;
     }
 
     @Override public String id() { return ID; }
@@ -100,10 +103,15 @@ public final class DungeonMapHudElement implements HudElement {
 
         renderTiles(ctx, info, config);
         renderUnknownRooms(ctx, mc, info);
+        if (config != null && config.isMapShowSecretCount() && mc != null) {
+            renderSecretCounts(ctx, mc, info);
+        }
         if (config != null && config.isMapShowRoomNames() && mc != null) {
             renderNames(ctx, mc, info, config);
         }
-        renderPlayers(ctx, mc);
+        if (config == null || config.isMapShowPlayerHeads()) {
+            renderPlayers(ctx, mc, config);
+        }
 
         ctx.pose().popMatrix();
         ctx.pose().popMatrix();
@@ -254,6 +262,15 @@ public final class DungeonMapHudElement implements HudElement {
             right = Math.max(right, xo + w);
             bottom = Math.max(bottom, yo + h);
         }
+
+        // For non-rectangular rooms (L/T shapes) place the name on the longest
+        // horizontal arm instead of the full bounding box, so it does not jut into
+        // the enclosed empty corner. Actual rooms sit on even/even grid cells.
+        int[] arm = horizontalArm(cells);
+        if (arm != null) {
+            left = arm[0]; right = arm[1]; top = arm[2]; bottom = arm[3];
+        }
+
         float cx = (left + right) / 2f;
         float cy = (top + bottom) / 2f;
         float boxW = (right - left) - 1f;       // small padding so text never touches the edge
@@ -280,12 +297,78 @@ public final class DungeonMapHudElement implements HudElement {
         }
     }
 
+    /**
+     * For a non-rectangular room, returns the pixel box {left,right,top,bottom} of the
+     * row with the most room cells (the long horizontal arm). Returns null for
+     * rectangular rooms (1x1, 1xN, 2x2), which keep their centred bounding box.
+     */
+    private static int[] horizontalArm(List<int[]> cells) {
+        // Group actual room cells (even/even grid) by their room row.
+        java.util.Map<Integer, int[]> rows = new java.util.HashMap<>(); // row -> {count, minCol, maxCol}
+        for (int[] c : cells) {
+            if ((c[0] & 1) != 0 || (c[1] & 1) != 0) continue; // skip separators/doors
+            int row = c[1] >> 1, col = c[0] >> 1;
+            int[] r = rows.computeIfAbsent(row, k -> new int[]{0, Integer.MAX_VALUE, Integer.MIN_VALUE});
+            r[0]++;
+            r[1] = Math.min(r[1], col);
+            r[2] = Math.max(r[2], col);
+        }
+        if (rows.size() < 2) return null; // single row → rectangular, nothing to do
+
+        int maxCount = 0, minCount = Integer.MAX_VALUE, bestRow = -1;
+        for (var e : rows.entrySet()) {
+            int count = e.getValue()[0];
+            minCount = Math.min(minCount, count);
+            if (count > maxCount) { maxCount = count; bestRow = e.getKey(); }
+        }
+        if (maxCount == minCount) return null; // rectangular (2x2, vertical 1xN) → centre
+
+        int[] r = rows.get(bestRow);
+        int left = r[1] * CELL;
+        int right = r[2] * CELL + ROOM_SIZE;
+        int top = bestRow * CELL;
+        int bottom = top + ROOM_SIZE;
+        return new int[]{ left, right, top, bottom };
+    }
+
+    // ── Secret counts ──────────────────────────────────────────────────────────
+
+    /** Small total-secret number in the top-left corner of each entered, known room. */
+    private void renderSecretCounts(GuiGraphicsExtractor ctx, Minecraft mc, DungeonInfo info) {
+        boolean[][] visited = new boolean[11][11];
+        for (int x = 0; x <= 10; x++) {
+            for (int z = 0; z <= 10; z++) {
+                DungeonTile tile = info.get(x, z);
+                if (!(tile instanceof DungeonRoom) || visited[x][z]) continue;
+
+                List<int[]> cells = new ArrayList<>();
+                DungeonRoom main = floodRoom(info, visited, x, z, cells);
+                if (main == null || main.type() == RoomType.ENTRANCE) continue;
+                if (main.secretsTotal() <= 0 || !isRoomEntered(main.state())) continue;
+
+                int left = Integer.MAX_VALUE, top = Integer.MAX_VALUE;
+                for (int[] c : cells) {
+                    left = Math.min(left, (c[0] >> 1) * CELL);
+                    top = Math.min(top, (c[1] >> 1) * CELL);
+                }
+                String label = String.valueOf(main.secretsTotal());
+                ctx.pose().pushMatrix();
+                ctx.pose().translate(left + 1.5f, top + 1.5f);
+                ctx.pose().scale(0.5f, 0.5f);
+                ctx.text(mc.font, label, 1, 1, 0xFF000000);
+                ctx.text(mc.font, label, 0, 0, 0xFFFFFF55);
+                ctx.pose().popMatrix();
+            }
+        }
+    }
+
     // ── Player heads ─────────────────────────────────────────────────────────
 
-    private void renderPlayers(GuiGraphicsExtractor ctx, Minecraft mc) {
+    private void renderPlayers(GuiGraphicsExtractor ctx, Minecraft mc, HorizonConfig config) {
         if (mc == null || mc.level == null) return;
         var connection = mc.getConnection();
         if (connection == null) return;
+        boolean showNames = config != null && config.isMapShowPlayerNames();
         List<AbstractClientPlayer> players = new ArrayList<>(mc.level.players());
         for (AbstractClientPlayer player : players) {
             // Only real players — dungeon mobs are player-type NPCs with version-2
@@ -297,18 +380,47 @@ public final class DungeonMapHudElement implements HudElement {
 
             Identifier skin = player.getSkin().body().texturePath();
             float yaw = player.getYRot();
+            int classColor = classColor(player, config);
 
             ctx.pose().pushMatrix();
             ctx.pose().translate(px[0], px[1]);
             ctx.pose().rotate((float) Math.toRadians(yaw + 180f));
             if (skin != null) {
                 ctx.pose().scale(1.4f, 1.4f);
+                // Class-coloured ring behind the head so team roles stay readable.
+                ctx.fill(-5, -5, 5, 5, classColor);
                 ctx.blit(RenderPipelines.GUI_TEXTURED, skin, -4, -4, 8f, 8f, 8, 8, 64, 64);
             } else {
-                ctx.fill(-2, -2, 2, 2, 0xFFFFFF00);
+                // Fallback marker uses the dungeon class colour instead of a fixed square.
+                ctx.fill(-3, -3, 3, 3, 0xFF000000);
+                ctx.fill(-2, -2, 2, 2, classColor);
             }
             ctx.pose().popMatrix();
+
+            if (showNames) {
+                String name = player.getName().getString();
+                float half = mc.font.width(name) * 0.5f * 0.5f;
+                ctx.pose().pushMatrix();
+                ctx.pose().translate(px[0] - half, px[1] + 5);
+                ctx.pose().scale(0.5f, 0.5f);
+                ctx.text(mc.font, name, 0, 0, 0xFFFFFFFF);
+                ctx.pose().popMatrix();
+            }
         }
+    }
+
+    /** Dungeon-class colour for a player (from the teammate service), white when unknown. */
+    private int classColor(AbstractClientPlayer player, HorizonConfig config) {
+        if (teammateGlowService != null && config != null) {
+            // The local player is kept out of the teammate map; use the parsed self class.
+            de.horizon.feature.dungeon.TeammateGlowService.DungeonClass dc =
+                player instanceof net.minecraft.client.player.LocalPlayer
+                    ? teammateGlowService.getSelfClass()
+                    : (teammateGlowService.getTeammate(player) != null
+                        ? teammateGlowService.getTeammate(player).dungeonClass() : null);
+            if (dc != null) return config.getClassColor(dc) | 0xFF000000;
+        }
+        return 0xFFFFFFFF;
     }
 
     private static float[] worldToPixel(double worldX, double worldZ) {

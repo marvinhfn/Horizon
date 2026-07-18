@@ -91,6 +91,9 @@ public final class DungeonConfig {
     boolean dungeonMapEnabled = false;
     boolean mapShowRoomNames = false;
     boolean mapShowCheckmarks = true;
+    boolean mapShowPlayerHeads = true;
+    boolean mapShowPlayerNames = false;
+    boolean mapShowSecretCount = true;
 
     // Dungeon Map Colors (ARGB hex)
     int mapColorBackground = 0xCC000000; // semi-transparent black

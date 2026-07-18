@@ -60,7 +60,7 @@
 ## Phase 2 — Dungeon Map & Secrets
 
 - [x] Paket P2-01: Fancy Dungeon Map Grundsystem (vollstaendige Map mit Room-Scanning, Door-Erkennung, Room-State-Tracking, Room-Name-Overlay, Checkmarks fuer cleared/explored, eigener Map-Renderer mit DungeonInfo-Datenstruktur, Room/Door/Tile Klassen, Config Dungeon > Map)
-- [ ] Paket P2-02: Fancy Map Player Heads & Decorations (Spielerkoepfe statt Marker, Klassen-Farben als Fallback, Room-Labels, Wither-Door/Blood-Door auf Map, Secret-Count pro Raum, Config Optionen)
+- [x] Paket P2-02: Fancy Map Player Heads & Decorations (Spielerkoepfe statt Marker, Klassen-Farben als Fallback, Room-Labels, Wither-Door/Blood-Door auf Map, Secret-Count pro Raum, Config Optionen)
 - [ ] Paket P2-03: Score Calculator & HUD (Score-Berechnung aus Map-Daten: Skill/Explore/Speed/Bonus mit Secrets-Tracking, Score-Title bei S/S+, Score-Sound, Config Dungeon > Score)
 - [ ] Paket P2-04: Secret Waypoints Grundsystem (Secret-Positionen aus externer Datenbasis laden, Waypoints fuer Chest/Wither Essence/Bat/Item/Lever/Redstone, Room-Rotation beruecksichtigen, Config Dungeon > Secrets)
 - [ ] Paket P2-05: Secret Hitboxes & Tracker (visuelle Hitbox-Overlays fuer interagierbare Secrets, Player-Secrets-Tracker pro Spieler, Cleared-State pro Raum, Config Dungeon > Secrets)

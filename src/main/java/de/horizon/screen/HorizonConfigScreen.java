@@ -695,6 +695,9 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawToggleRow(context, viewport.x, y, "Dungeon Map", config().isDungeonMapEnabled(), Lang.t("Minimap im Dungeon. Groesse per HUD-Layout aenderbar.", "Dungeon minimap. Scale adjustable via HUD layout."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Raumnamen", "Room Names"), config().isMapShowRoomNames(), Lang.t("Zeigt Raumnamen auf der Karte.", "Shows room names on the map."));
                 y = drawToggleRow(context, viewport.x, y, "Checkmarks", config().isMapShowCheckmarks(), Lang.t("Haken fuer erkundete Raeume.", "Checkmarks for explored rooms."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Spielerkoepfe", "Player Heads"), config().isMapShowPlayerHeads(), Lang.t("Spielerkoepfe mit Klassenfarbe auf der Karte.", "Player heads with class colour on the map."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Spielernamen", "Player Names"), config().isMapShowPlayerNames(), Lang.t("Namen unter den Spielerkoepfen.", "Names below the player heads."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Secret-Anzahl", "Secret Count"), config().isMapShowSecretCount(), Lang.t("Gesamtzahl der Secrets pro Raum.", "Total secret count per room."));
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Kartenfarben", "Map Colors"));
                 y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Hintergrund", "Background"), config().getMapColorBackground());
                 y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Normal", "Normal"), config().getMapColorNormal());
@@ -2105,6 +2108,24 @@ public final class HorizonConfigScreen extends Screen {
             return true;
         }
         y += toggleRowHeight(Lang.t("Haken fuer erkundete Raeume.", "Checkmarks for explored rooms."));
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMapShowPlayerHeads(!config().isMapShowPlayerHeads());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Spielerkoepfe mit Klassenfarbe auf der Karte.", "Player heads with class colour on the map."));
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMapShowPlayerNames(!config().isMapShowPlayerNames());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Namen unter den Spielerkoepfen.", "Names below the player heads."));
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMapShowSecretCount(!config().isMapShowSecretCount());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Gesamtzahl der Secrets pro Raum.", "Total secret count per room."));
         y += 24; // "Map Colors" section title
         // 8 map colour rows (background + 7 room types), then a section title, then 3 name-colour rows.
         for (int ci = 0; ci < 11; ci++) {
@@ -3057,6 +3078,9 @@ public final class HorizonConfigScreen extends Screen {
                 int mapH = toggleRowHeight(Lang.t("Minimap im Dungeon. Groesse per HUD-Layout aenderbar.", "Dungeon minimap. Scale adjustable via HUD layout."))
                     + toggleRowHeight(Lang.t("Zeigt Raumnamen auf der Karte.", "Shows room names on the map."))
                     + toggleRowHeight(Lang.t("Haken fuer erkundete Raeume.", "Checkmarks for explored rooms."))
+                    + toggleRowHeight(Lang.t("Spielerkoepfe mit Klassenfarbe auf der Karte.", "Player heads with class colour on the map."))
+                    + toggleRowHeight(Lang.t("Namen unter den Spielerkoepfen.", "Names below the player heads."))
+                    + toggleRowHeight(Lang.t("Gesamtzahl der Secrets pro Raum.", "Total secret count per room."))
                     + 24; // "Map Colors" section title
                 for (int ci = 0; ci < 11; ci++) {
                     if (ci == 8) mapH += 24; // "Room Name Colors" section title
