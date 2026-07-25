@@ -201,7 +201,7 @@ public final class HorizonClient implements ClientModInitializer {
             safeRender("dragon", () -> dragonService.renderWorld(context, configManager.getConfig()));
             safeRender("doorEsp", () -> doorEspService.renderWorld(context, configManager.getConfig(), dungeonStateService.isInDungeon(), dungeonStateService.isInBoss()));
             safeRender("secretWaypoint", () -> secretWaypointService.renderWorld(context, configManager.getConfig(), dungeonRoomDetector, dungeonStateService.isInDungeon(), dungeonStateService.isInBoss()));
-            safeRender("terminalWaypoint", () -> terminalWaypointService.renderWorld(context, configManager.getConfig(), dungeonStateService.isInBoss()));
+            safeRender("terminalWaypoint", () -> terminalWaypointService.renderWorld(context, configManager.getConfig()));
             safeRender("starredMobs", () -> renderStarredMobHighlights(context));
         });
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
@@ -278,6 +278,8 @@ public final class HorizonClient implements ClientModInitializer {
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, Minecraft.getInstance() == null ? null : Minecraft.getInstance().screen));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
             dispatcher.register(ClientCommands.literal("horizon")
+                .then(ClientCommands.literal("lookcords")
+                    .executes(context -> { toggleLookCoords(); return 1; }))
                 .executes(context -> {
                     openConfigScreen(null);
                     return 1;
@@ -373,7 +375,7 @@ public final class HorizonClient implements ClientModInitializer {
         simonSaysService.tick(client, dungeonStateService, configManager.getConfig());
         arrowAlignService.tick(client, dungeonStateService, configManager.getConfig());
         sharpShooterService.tick(client, configManager.getConfig());
-        terminalWaypointService.tick(client, configManager.getConfig(), dungeonStateService.isInBoss());
+        terminalWaypointService.tick(client, configManager.getConfig(), dungeonStateService.isInDungeon());
         dungeonScoreService.tick(client, dungeonStateService);
         dragonService.tick(client, dungeonStateService, configManager.getConfig());
         relicTimerService.tick();
@@ -555,8 +557,39 @@ public final class HorizonClient implements ClientModInitializer {
         puzzleSolverService.onTeleport(newX, newZ, oldX, oldZ, yaw);
     }
 
+    /** Toggled by {@code /horizon lookcords}: print the coordinates of each right-clicked block. */
+    private boolean lookCoordsEnabled = false;
+    private BlockPos lastLookCoordsPos = null;
+    private long lastLookCoordsTime = 0L;
+
+    private void toggleLookCoords() {
+        lookCoordsEnabled = !lookCoordsEnabled;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("[HRZN] ")
+            .withStyle(ChatFormatting.AQUA)
+            .append(net.minecraft.network.chat.Component.literal(
+                lookCoordsEnabled ? "LookCoords aktiviert — rechtsklicke einen Block." : "LookCoords deaktiviert.")
+                .withStyle(ChatFormatting.WHITE)));
+    }
+
     /** @return true if the block interaction should be cancelled (Simon Says block-wrong-clicks). */
     public boolean onBlockInteract(BlockPos pos) {
+        if (lookCoordsEnabled && pos != null) {
+            long now = System.currentTimeMillis();
+            // useItemOn can fire for both hands on one click — dedupe same pos within 200ms.
+            if (!pos.equals(lastLookCoordsPos) || now - lastLookCoordsTime > 200) {
+                lastLookCoordsPos = pos.immutable();
+                lastLookCoordsTime = now;
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player != null) {
+                    mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("[HRZN] ")
+                        .withStyle(ChatFormatting.AQUA)
+                        .append(net.minecraft.network.chat.Component.literal(
+                            pos.getX() + "/" + pos.getY() + "/" + pos.getZ()).withStyle(ChatFormatting.WHITE)));
+                }
+            }
+        }
         boolean block = simonSaysService.onBlockInteract(pos, configManager.getConfig());
         puzzleSolverService.onBlockInteract(pos);
         return block;

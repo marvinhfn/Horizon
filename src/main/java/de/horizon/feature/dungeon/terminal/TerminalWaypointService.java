@@ -7,153 +7,199 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Terminal hitboxes &amp; titles (F7 P3). Records the world position of each terminal the
- * first time its GUI is opened, draws a highlighted box + label there for the rest of the
- * run, and shows the terminal type as an on-screen title on open and on approach.
+ * Terminal / device / lever waypoints for F7 P3, at fixed positions per section (S1–S4). Only the
+ * section the player is currently in is shown. Individual waypoints disappear when their hologram is
+ * no longer "inactive" (terminals: "Inactive Terminal", levers: "Not Activated", devices: "Inactive
+ * Device"); a whole section is also cleared when its chat counter reaches its max (e.g. 7/7, S2 8/8).
  */
 public final class TerminalWaypointService {
 
-    private static final double PROXIMITY = 6.0;      // blocks: show approach title within this range
-    private static final long TITLE_COOLDOWN_MS = 4000; // ms between repeated approach titles per terminal
+    private static final Pattern FORMATTING = Pattern.compile("(?i)§[0-9a-fk-or]");
+    private static final Pattern COUNT = Pattern.compile("\\((\\d+)/(\\d+)\\)");
+    private static final double STAGE_RANGE_SQ = 60 * 60;  // show a section only within this range
+    private static final double MATCH_SQ = 12.25;          // hologram↔position match radius (3.5)
+    private static final double CONFIRM_SQ = 30 * 30;      // trust "hologram gone" only within this
+    private static final int SCAN_INTERVAL = 5;
 
-    // Discovered terminals for the current run: position -> type.
-    private final Map<BlockPos, TerminalSolverService.TerminalType> terminals = new LinkedHashMap<>();
-    // Terminals already completed this run — no longer highlighted.
-    private final java.util.Set<BlockPos> done = new java.util.HashSet<>();
+    private enum Kind {
+        TERMINAL(0x55FFFF, "Terminal"), DEVICE(0xFFAA00, "Device"), LEVER(0x55FF55, "Lever");
+        final int color;
+        final String label;
+        Kind(int color, String label) { this.color = color; this.label = label; }
 
-    private BlockPos lastTitledPos = null;
-    private long lastTitleTime = 0L;
-
-    /**
-     * Called when a terminal screen opens. Records the terminal's world position (the block
-     * the player was looking at) and shows its type as a title.
-     */
-    public void onTerminalOpen(TerminalSolverService.TerminalType type, HorizonConfig config) {
-        if (type == TerminalSolverService.TerminalType.NONE) return;
-
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null) return;
-
-        if (config.isTerminalWaypointsEnabled() && mc.hitResult instanceof BlockHitResult bhr
-                && mc.hitResult.getType() == HitResult.Type.BLOCK) {
-            terminals.put(bhr.getBlockPos().immutable(), type);
-        }
-
-        if (config.isTerminalTitleEnabled()) {
-            showTitle(mc, type);
-            lastTitledPos = null; // avoid an immediate duplicate approach-title
-            lastTitleTime = System.currentTimeMillis();
+        boolean isInactiveText(String name) {
+            return switch (this) {
+                case LEVER -> name.contains("not activated");
+                case TERMINAL -> name.contains("inactive") && name.contains("terminal");
+                case DEVICE -> name.contains("inactive") && name.contains("device");
+            };
         }
     }
 
-    /** Approach detection: shows a title when the player nears a known terminal. */
-    public void tick(Minecraft mc, HorizonConfig config, boolean inBoss) {
-        if (!config.isTerminalTitleEnabled() || !inBoss || mc == null || mc.player == null) return;
-        if (terminals.isEmpty()) return;
+    private record Wp(Kind kind, BlockPos pos) {}
 
-        Vec3 eye = mc.player.position();
-        BlockPos nearest = null;
-        double nearestSq = PROXIMITY * PROXIMITY;
-        TerminalSolverService.TerminalType nearestType = TerminalSolverService.TerminalType.NONE;
+    private static Wp t(int x, int y, int z) { return new Wp(Kind.TERMINAL, new BlockPos(x, y, z)); }
+    private static Wp d(int x, int y, int z) { return new Wp(Kind.DEVICE, new BlockPos(x, y, z)); }
+    private static Wp l(int x, int y, int z) { return new Wp(Kind.LEVER, new BlockPos(x, y, z)); }
 
-        for (Map.Entry<BlockPos, TerminalSolverService.TerminalType> e : terminals.entrySet()) {
-            BlockPos p = e.getKey();
-            double dsq = eye.distanceToSqr(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5);
-            if (dsq < nearestSq) {
-                nearestSq = dsq;
-                nearest = p;
-                nearestType = e.getValue();
-            }
+    // Fixed positions per section (from the block the player looked at). Section total = size().
+    private static final List<List<Wp>> STAGES = List.of(
+        List.of( // S1 (7)
+            t(111, 113, 73), t(111, 119, 79), t(89, 112, 92), t(89, 122, 101),
+            d(110, 121, 91), l(94, 124, 113), l(106, 124, 113)),
+        List.of( // S2 (8)
+            t(68, 109, 121), t(59, 120, 122), t(47, 109, 121), t(39, 108, 143), t(40, 124, 122),
+            d(60, 131, 142), l(23, 132, 138), l(27, 124, 127)),
+        List.of( // S3 (7)
+            t(-3, 109, 112), t(-3, 119, 93), t(19, 123, 93), t(-3, 109, 77),
+            d(-2, 119, 74), l(2, 122, 55), l(14, 122, 55)),
+        List.of( // S4 (7)
+            t(41, 109, 29), t(44, 121, 29), t(67, 109, 29), t(72, 115, 48),
+            d(63, 127, 35), l(86, 128, 46), l(84, 121, 34))
+    );
+
+    private final Set<BlockPos> done = new HashSet<>();
+    private final Set<BlockPos> everSeenInactive = new HashSet<>();
+    private final Map<BlockPos, Integer> missed = new HashMap<>();
+    private int activeStage = -1;
+    private int scanCooldown = 0;
+
+    /** Kept for the type title on open (positions are fixed now, no recording). */
+    public void onTerminalOpen(TerminalSolverService.TerminalType type, HorizonConfig config) {
+        if (type == TerminalSolverService.TerminalType.NONE || !config.isTerminalTitleEnabled()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null && mc.gui != null) {
+            mc.gui.setTitle(Component.literal(type.label()).withStyle(ChatFormatting.AQUA));
+            mc.gui.setSubtitle(Component.literal("Terminal").withStyle(ChatFormatting.GRAY));
+            mc.gui.setTimes(2, 30, 8);
         }
+    }
 
-        long now = System.currentTimeMillis();
-        if (nearest == null) {
-            lastTitledPos = null;
+    public void tick(Minecraft mc, HorizonConfig config, boolean inDungeon) {
+        if (mc == null || mc.player == null || mc.level == null
+                || !config.isTerminalWaypointsEnabled() || !inDungeon) {
+            activeStage = -1;
             return;
         }
-        if (nearest.equals(lastTitledPos) && now - lastTitleTime < TITLE_COOLDOWN_MS) return;
 
-        showTitle(mc, nearestType);
-        lastTitledPos = nearest;
-        lastTitleTime = now;
+        Vec3 p = mc.player.position();
+        int best = -1;
+        double bestSq = STAGE_RANGE_SQ;
+        for (int s = 0; s < STAGES.size(); s++) {
+            double dsq = stageMinDistSq(p, STAGES.get(s));
+            if (dsq < bestSq) { bestSq = dsq; best = s; }
+        }
+        activeStage = best;
+        if (best < 0) return;
+
+        if (--scanCooldown <= 0) {
+            scanCooldown = SCAN_INTERVAL;
+            scanHolograms(mc, p);
+        }
     }
 
     /**
-     * Marks a terminal complete when Hypixel announces the local player activated a terminal — you
-     * are standing on it at that moment, so the nearest recorded terminal is the one just finished.
+     * Match each still-inactive hologram to its fixed position; once a position that was seen
+     * inactive no longer has one (while the player is near enough for it to be loaded), it's done.
      */
-    public void handleChatMessage(String raw, Minecraft mc) {
-        if (mc == null || mc.player == null || terminals.isEmpty()) return;
-        String lower = raw.toLowerCase();
-        if (!lower.contains("activated a terminal")) return;
-        String self = mc.player.getName().getString().toLowerCase();
-        if (!lower.contains(self)) return; // only MY completions — teammates finish their own
-
-        Vec3 pos = mc.player.position();
-        BlockPos nearest = null;
-        double nearestSq = 64.0; // within 8 blocks
-        for (BlockPos p : terminals.keySet()) {
-            if (done.contains(p)) continue;
-            double dsq = pos.distanceToSqr(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5);
-            if (dsq < nearestSq) { nearestSq = dsq; nearest = p; }
+    private void scanHolograms(Minecraft mc, Vec3 p) {
+        Set<BlockPos> inactiveNow = new HashSet<>();
+        for (Entity e : mc.level.entitiesForRendering()) {
+            if (!e.hasCustomName()) continue;
+            String name = FORMATTING.matcher(e.getCustomName().getString()).replaceAll("").toLowerCase();
+            for (List<Wp> stage : STAGES) {
+                for (Wp w : stage) {
+                    if (!w.kind().isInactiveText(name)) continue;
+                    double dx = e.getX() - (w.pos().getX() + 0.5);
+                    double dy = e.getY() - (w.pos().getY() + 0.5);
+                    double dz = e.getZ() - (w.pos().getZ() + 0.5);
+                    if (dx * dx + dy * dy + dz * dz <= MATCH_SQ) {
+                        inactiveNow.add(w.pos());
+                        everSeenInactive.add(w.pos());
+                    }
+                }
+            }
         }
-        if (nearest != null) done.add(nearest);
+        for (List<Wp> stage : STAGES) {
+            for (Wp w : stage) {
+                BlockPos pos = w.pos();
+                if (done.contains(pos)) continue;
+                if (inactiveNow.contains(pos)) { missed.put(pos, 0); continue; }
+                if (!everSeenInactive.contains(pos)) continue;
+                if (p.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > CONFIRM_SQ) continue;
+                if (missed.merge(pos, 1, Integer::sum) >= 2) done.add(pos);
+            }
+        }
     }
 
-    public void renderWorld(LevelRenderContext ctx, HorizonConfig config, boolean inBoss) {
-        if (!config.isTerminalWaypointsEnabled() || !inBoss || terminals.isEmpty()) return;
+    /** A section is fully cleared once its shared counter reaches its max (7/7, S2 8/8). */
+    public void handleChatMessage(String raw, Minecraft mc) {
+        if (activeStage < 0) return;
+        String low = FORMATTING.matcher(raw).replaceAll("").toLowerCase();
+        if (!low.contains("activated a terminal") && !low.contains("activated a lever")
+                && !low.contains("completed a device")) return;
+
+        // Each section has exactly ONE device, so "completed a device!" unambiguously clears it —
+        // its hologram sits farther from the block than the terminal/lever ones, so the distance
+        // match can miss it.
+        if (low.contains("completed a device")) {
+            for (Wp w : STAGES.get(activeStage)) if (w.kind() == Kind.DEVICE) done.add(w.pos());
+        }
+
+        Matcher m = COUNT.matcher(low);
+        if (!m.find()) return;
+        try {
+            int x = Integer.parseInt(m.group(1));
+            int y = Integer.parseInt(m.group(2));
+            if (x >= y) for (Wp w : STAGES.get(activeStage)) done.add(w.pos());
+        } catch (NumberFormatException ignored) {}
+    }
+
+    public void renderWorld(LevelRenderContext ctx, HorizonConfig config) {
+        if (!config.isTerminalWaypointsEnabled() || activeStage < 0) return;
 
         List<DungeonRenderUtil.BoxSpec> boxes = new ArrayList<>();
         List<DungeonRenderUtil.StringSpec> labels = new ArrayList<>();
-
-        for (Map.Entry<BlockPos, TerminalSolverService.TerminalType> e : terminals.entrySet()) {
-            BlockPos p = e.getKey();
-            if (done.contains(p)) continue; // only terminals not yet completed
-            int rgb = colorFor(e.getValue());
-            AABB box = new AABB(p.getX(), p.getY(), p.getZ(), p.getX() + 1, p.getY() + 1, p.getZ() + 1);
+        for (Wp w : STAGES.get(activeStage)) {
+            if (done.contains(w.pos())) continue;
+            BlockPos pos = w.pos();
+            int rgb = w.kind().color;
+            AABB box = new AABB(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
             boxes.add(new DungeonRenderUtil.BoxSpec(box, 0x40000000 | rgb, 0xFF000000 | rgb));
-            labels.add(new DungeonRenderUtil.StringSpec(
-                e.getValue().label(), p.getX() + 0.5, p.getY() + 1.4, p.getZ() + 0.5));
+            labels.add(new DungeonRenderUtil.StringSpec(w.kind().label, pos.getX() + 0.5, pos.getY() + 1.4, pos.getZ() + 0.5));
         }
-
         DungeonRenderUtil.drawBoxesBatched(ctx, boxes, true, DungeonRenderUtil.DEFAULT_LINE_WIDTH);
         DungeonRenderUtil.drawStringsBatched(ctx, labels);
     }
 
-    private static void showTitle(Minecraft mc, TerminalSolverService.TerminalType type) {
-        if (mc.gui == null) return;
-        mc.gui.setTitle(Component.literal(type.label()).withStyle(ChatFormatting.AQUA));
-        mc.gui.setSubtitle(Component.literal("Terminal").withStyle(ChatFormatting.GRAY));
-        mc.gui.setTimes(2, 30, 8);
-    }
-
-    private static int colorFor(TerminalSolverService.TerminalType type) {
-        return switch (type) {
-            case PANES -> 0x55FF55;
-            case ORDER -> 0x55FFFF;
-            case SAME_COLOR -> 0xFF55FF;
-            case ITEM_NAME -> 0xFFAA00;
-            case COLOURED_ITEMS -> 0xFFFF55;
-            case MELODY -> 0xAA00FF;
-            default -> 0xFFFFFF;
-        };
+    private static double stageMinDistSq(Vec3 p, List<Wp> stage) {
+        double best = Double.MAX_VALUE;
+        for (Wp w : stage) {
+            double dsq = p.distanceToSqr(w.pos().getX() + 0.5, w.pos().getY() + 0.5, w.pos().getZ() + 0.5);
+            if (dsq < best) best = dsq;
+        }
+        return best;
     }
 
     public void reset() {
-        terminals.clear();
         done.clear();
-        lastTitledPos = null;
-        lastTitleTime = 0L;
+        everSeenInactive.clear();
+        missed.clear();
+        activeStage = -1;
+        scanCooldown = 0;
     }
 }
