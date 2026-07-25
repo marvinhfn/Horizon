@@ -31,7 +31,10 @@ public final class MimicService {
     public void onBabyZombieDeath(DungeonStateService state, HorizonConfig config) {
         if (mimicKilled) return;
         if (!config.isMimicDetectionEnabled()) return;
-        if (!state.isInDungeon() && state.getCurrentFloor() == 0) return;
+        // Mimics only exist on floors 6+ and never inside the boss room. Gating here
+        // (mirrors the reference score mods) prevents a stray baby zombie on a lower
+        // floor from ever flagging a mimic kill and inflating the bonus score.
+        if (state.getCurrentFloor() <= 5) return;
         if (state.isInBoss()) return;
 
         HorizonMod.LOGGER.info("[MimicService] Baby zombie death detected, marking mimic as killed");

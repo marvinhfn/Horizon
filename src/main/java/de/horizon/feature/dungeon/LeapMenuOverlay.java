@@ -73,6 +73,11 @@ public final class LeapMenuOverlay {
 
         refreshFromTablist(mc, config);
 
+        // Full-screen opaque backdrop so nothing of the vanilla chest shows behind the quadrants —
+        // the container contents are already cancelled (HorizonClient.shouldHideVanillaContainer),
+        // this covers the remaining dimmed/blurred vanilla background, like the terminal overlay.
+        ctx.fill(0, 0, screen.width, screen.height, 0xF0121216);
+
         int halfW = screen.width / 2;
         int halfH = screen.height / 2;
 

@@ -47,6 +47,8 @@
 ## Bug Fixes
 
 - [ ] Fairy Door ESP: Wird nicht angezeigt oder an invaliden Stellen
+- [ ] P2-03 Scoreberechnung noch falsch
+- [ ] P2-04 Worldrender bricht manchmal weg
 
 ---
 
@@ -61,8 +63,8 @@
 
 - [x] Paket P2-01: Fancy Dungeon Map Grundsystem (vollstaendige Map mit Room-Scanning, Door-Erkennung, Room-State-Tracking, Room-Name-Overlay, Checkmarks fuer cleared/explored, eigener Map-Renderer mit DungeonInfo-Datenstruktur, Room/Door/Tile Klassen, Config Dungeon > Map)
 - [x] Paket P2-02: Fancy Map Player Heads & Decorations (Spielerkoepfe statt Marker, Klassen-Farben als Fallback, Room-Labels, Wither-Door/Blood-Door auf Map, Secret-Count pro Raum, Config Optionen)
-- [ ] Paket P2-03: Score Calculator & HUD (Score-Berechnung aus Map-Daten: Skill/Explore/Speed/Bonus mit Secrets-Tracking, Score-Title bei S/S+, Score-Sound, Config Dungeon > Score)
-- [ ] Paket P2-04: Secret Waypoints Grundsystem (Secret-Positionen aus externer Datenbasis laden, Waypoints fuer Chest/Wither Essence/Bat/Item/Lever/Redstone, Room-Rotation beruecksichtigen, Config Dungeon > Secrets)
+- [-] Paket P2-03: Score Calculator & HUD (Score-Berechnung aus Map-Daten: Skill/Explore/Speed/Bonus mit Secrets-Tracking, Score-Title bei S/S+, Score-Sound, Config Dungeon > Score)
+- [-] Paket P2-04: Secret Waypoints Grundsystem (Secret-Positionen aus externer Datenbasis laden, Waypoints fuer Chest/Wither Essence/Bat/Item/Lever/Redstone, Room-Rotation beruecksichtigen, Config Dungeon > Secrets)
 - [ ] Paket P2-05: Secret Hitboxes & Tracker (visuelle Hitbox-Overlays fuer interagierbare Secrets, Player-Secrets-Tracker pro Spieler, Cleared-State pro Raum, Config Dungeon > Secrets)
 - [ ] Paket P2-06: Dungeon Waypoint Commands (Custom Waypoints per Chat-Command setzen/loeschen, Waypoint-Sharing per Party-Chat, Config Dungeon > Waypoints)
 
@@ -81,9 +83,9 @@
 - [ ] Paket P4-01: F7/M7 Phase Titles (Phase-Uebergangs-Titel: Maxor/Storm/Goldor/Necron, P3 Terminal-Reformat, Config Dungeon > Boss)
 - [ ] Paket P4-02: Maxor Crystal Waypoints (Crystal-Positionen als Waypoints, Spawn-Timer, Config Dungeon > Boss)
 - [ ] Paket P4-03: Melody Alert & Display (Melody-Terminal erkannt → Alert/Sound, Melody-Fortschritt als HUD, Config Dungeon > Terminal)
-- [ ] Paket P4-04: Terminal Hitboxes & Titles (Terminal-Positionen als Waypoints im Raum, Terminal-Typ als Title bei Approach, Config Dungeon > Terminal)
-- [ ] Paket P4-05: I4 Device Helper (Lights-On-Device Hinweis-Overlay mit Loesungsvorschau, kein Auto-Click, Config Dungeon > Boss)
-- [ ] Paket P4-06: Wither King ESP & Debuff Timer (WitherKing-Entity Highlight, Debuff-Timer/Reticle HUD fuer aktive Debuffs, Config Dungeon > Boss)
+- [x] Paket P4-04: Terminal Hitboxes & Titles (Terminal-Positionen als Waypoints im Raum, Terminal-Typ als Title bei Approach, Config Dungeon > Terminal)
+- [x] Paket P4-05: I4 Device Helper (Lights-On-Device Hinweis-Overlay mit Loesungsvorschau, kein Auto-Click, Config Dungeon > Boss)
+- [x] Paket P4-06: Wither King / M7 Dragons (NoammAddons-Port: WitherDragon-State-Machine SPAWNING/ALIVE/DEAD, Boxen, Leben, Timer, Prioritaet-Tracer, Chin-Block-Death, Config Dungeon > Boss)
 - [ ] Paket P4-07: Livid Solver (korrekten Livid per Farbe/Wool identifizieren, Highlight, Config Dungeon > Boss)
 - [ ] Paket P4-08: Terracotta Timer (Terracotta-Phase Timer HUD, Config Dungeon > Boss)
 
@@ -100,8 +102,8 @@
 - [ ] Paket P6-02: Puzzle Solver Set A (Three Weirdos, Blaze, Creeper Beams, Quiz mit Timer, Config Dungeon > Puzzles mit individuellen Toggles)
 - [ ] Paket P6-03: Puzzle Solver Set B (Tic-Tac-Toe, Ice Path, Ice Fill mit Background-Solve, Config Dungeon > Puzzles)
 - [ ] Paket P6-04: Puzzle Solver Set C (Waterboard mit schnellerem Scanner, Boulder, Teleport Maze, Silverfish, Config Dungeon > Puzzles)
-- [ ] Paket P6-05: Terminal Solver komplett entfernen und neu aufbauen (neue Terminal-Architektur: Order, Coloured Items, Item Name, Same Color, Wrong-Click Blocking, Hide Wrong Items, Config Dungeon > Terminal)
-- [ ] Paket P6-06: Device Solver Set (Simon Says, Arrow Align, Target Practice, Melody Display/Alert, Lights On, Config Dungeon > Devices)
+- [-] Paket P6-05: Terminal Solver komplett entfernen und neu aufbauen (neue Terminal-Architektur: Order, Coloured Items, Item Name, Same Color, Wrong-Click Blocking, Hide Wrong Items, Config Dungeon > Terminal)
+- [x] Paket P6-06: Device Solver Set (Simon Says & Target Practice/I4 bleiben unveraendert; Arrow Align neu geschrieben (self-solve auf gemeinsame Zielrotation, World-Text ueber DungeonRenderUtil); Lights On entfernt (unnoetig/kaputt); Config Dungeon > Boss)
 
 ## Phase 7 — General QOL Features
 

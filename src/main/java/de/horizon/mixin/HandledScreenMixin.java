@@ -1,8 +1,6 @@
 package de.horizon.mixin;
 
 import de.horizon.HorizonClient;
-import de.horizon.feature.dungeon.LeapMenuOverlay;
-import de.horizon.feature.dungeon.terminal.TerminalSolverService;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
@@ -45,7 +43,7 @@ public abstract class HandledScreenMixin {
     }
 
     /**
-     * Cancel the container background texture rendering when terminal custom mode or leap menu is active.
+     * Cancel the container render state when terminal custom mode or leap menu is active.
      */
     @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
     private void horizon$cancelBgForCustomMode(
@@ -57,11 +55,7 @@ public abstract class HandledScreenMixin {
     }
 
     private boolean shouldCancelContainerRendering() {
-        if (TerminalSolverService.isCustomModeRendering()) return true;
         HorizonClient h = HorizonClient.getInstance();
-        if (h != null && h.getConfigManager().getConfig().isLeapMenuEnabled()) {
-            return LeapMenuOverlay.isLeapScreenTitle((AbstractContainerScreen<?>) (Object) this);
-        }
-        return false;
+        return h != null && h.shouldHideVanillaContainer((AbstractContainerScreen<?>) (Object) this);
     }
 }

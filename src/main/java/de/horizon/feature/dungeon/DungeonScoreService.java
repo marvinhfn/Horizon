@@ -1,5 +1,7 @@
 package de.horizon.feature.dungeon;
 
+import de.horizon.config.HorizonConfig;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
@@ -32,16 +34,19 @@ public final class DungeonScoreService {
     private static final Pattern TAB_SECRETS_PCT = Pattern.compile("Secrets Found: ([\\d.]+)%");
     private static final Pattern TAB_SECRETS_COUNT = Pattern.compile("Secrets Found: (\\d+)$");
     private static final Pattern TAB_COMPLETED_ROOMS = Pattern.compile("Completed Rooms: (\\d+)");
-    private static final Pattern TAB_DEATHS = Pattern.compile("Team Deaths: (\\d+)");
     private static final Pattern TAB_CRYPTS = Pattern.compile("Crypts: (\\d+)");
+
+    // Deaths come straight from the tab "Team Deaths: N" line, matching the
+    // reference implementation (the tab value is authoritative and cumulative).
+    private static final Pattern TAB_TEAM_DEATHS = Pattern.compile("Team Deaths: (\\d+)");
     private static final Pattern TAB_PUZZLES_COUNT = Pattern.compile("Puzzles: \\((\\d+)\\)");
     private static final Pattern TAB_PUZZLE_STATUS = Pattern.compile("(.+): \\[(\u2726|\u2714|\u2716)\\]");
 
     // Required secret percentages per floor index [E=0, F1=1, ..., F7=7]
     private static final double[] REQUIRED_PERCENT = { 0.3, 0.3, 0.4, 0.5, 0.6, 0.7, 0.85, 1.0 };
-    // Required speed (seconds) for 100 points
-    private static final int[] SPEED_NORMAL = { 1200, 600, 600, 600, 720, 600, 720, 840 };
-    private static final int[] SPEED_MASTER = { 480, 480, 480, 480, 480, 480, 480, 900 };
+    // Required speed (seconds) for 100 points, indexed by floor [E=0, F1..F7]
+    private static final int[] SPEED_NORMAL = { 600, 600, 600, 600, 720, 600, 720, 840 };
+    private static final int[] SPEED_MASTER = { 480, 480, 480, 480, 480, 480, 600, 840 };
 
     // Parsed state
     private int clearedPercent = 0;
@@ -57,8 +62,18 @@ public final class DungeonScoreService {
     private boolean bloodCleared = false;
     private boolean active = false;
 
-    // Total rooms histogram
-    private final Map<Integer, Integer> totalRoomsHisto = new HashMap<>();
+    // Total-rooms estimate via a histogram of guesses, like the reference: each time
+    // completedRooms or clearedPercent changes we push guess = round(100*rooms/clear)
+    // and take the mode (tie-break to the higher room count). Far more stable than an
+    // instantaneous divide, which is what made the early score jump around.
+    private final Map<Integer, Integer> totalRoomHisto = new LinkedHashMap<>();
+    private int totalRoomsCached = 0;
+    private int lastHistoCompleted = -1;
+    private int lastHistoCleared = -1;
+
+    // Milestone alerts (fired once per run when the total score reaches S / S+).
+    private boolean announcedS = false;
+    private boolean announcedSPlus = false;
 
     public void tick(Minecraft mc, DungeonStateService state) {
         if (mc == null || mc.level == null || !state.isInDungeon()) {
@@ -69,14 +84,67 @@ public final class DungeonScoreService {
 
         parseScoreboard(mc);
         parseTabList(mc);
+        updateTotalRooms();
+        checkScoreMilestones(mc, state);
+    }
+
+    /** Fires a title + sound the first time the run reaches an S (270) or S+ (300) score. */
+    private void checkScoreMilestones(Minecraft mc, DungeonStateService state) {
+        int floor = state.getCurrentFloor();
+        boolean master = state.isMasterMode();
+        boolean inBoss = state.isInBoss();
+        int total = getTotalScore(floor, master, inBoss);
+
+        if (total >= 300 && !announcedSPlus) {
+            announcedSPlus = true;
+            announcedS = true;
+            logScoreBreakdown(floor, master, inBoss, total);
+            announce(mc, "S+", 300);
+        } else if (total >= 270 && !announcedS) {
+            announcedS = true;
+            logScoreBreakdown(floor, master, inBoss, total);
+            announce(mc, "S", 270);
+        }
+    }
+
+    /**
+     * Logs the full score breakdown once per milestone. Lets us reconcile the
+     * estimate against Hypixel's real end-score and spot which bonus input (mimic,
+     * prince, crypts, paul) is off when the totals disagree.
+     */
+    private void logScoreBreakdown(int floor, boolean master, boolean inBoss, int total) {
+        de.horizon.HorizonMod.LOGGER.info(
+            "[DungeonScore] total={} skill={} expl={} speed={} bonus={} "
+                + "(crypts={} mimic={} prince={} paul={}) "
+                + "rooms={}/{} secrets%={} deaths={} puzzles={}/{} time={}s floor={}{}",
+            total, getSkillScore(floor, master, inBoss), getExplorationScore(floor, master, inBoss),
+            getSpeedScore(floor, master), getBonusScore(floor, master),
+            Math.min(crypts, 5), (isMimicKilled() && floor > 5) ? 2 : 0,
+            isPrinceKilled() ? 1 : 0, paulScoreBonus() ? 10 : 0,
+            actualCompletedRooms(inBoss), totalRoomsCached, secretsFoundPercent,
+            deaths, completedPuzzles, totalPuzzles, elapsedSeconds, floor, master ? "(M)" : "");
+    }
+
+    private void announce(Minecraft mc, String grade, int score) {
+        HorizonConfig config = de.horizon.HorizonClient.getInstance() != null
+            ? de.horizon.HorizonClient.getInstance().getConfigManager().getConfig() : null;
+        if (config == null || !config.isDungeonScoreEnabled()) return;
+
+        if (config.isDungeonScoreTitle() && mc.gui != null) {
+            ChatFormatting color = grade.equals("S+") ? ChatFormatting.GOLD : ChatFormatting.GREEN;
+            mc.gui.setTitle(Component.literal(grade + " Score!").withStyle(color, ChatFormatting.BOLD));
+            mc.gui.setSubtitle(Component.literal(score + "+ Punkte").withStyle(ChatFormatting.GRAY));
+            mc.gui.setTimes(5, 40, 10);
+        }
     }
 
     public void handleChatMessage(String rawMessage) {
         if (rawMessage == null) return;
         String plain = FORMATTING.matcher(rawMessage).replaceAll("").strip();
         String lower = plain.toLowerCase(Locale.ROOT);
+        // Deaths are read from the tab (Team Deaths), matching the reference.
         // Mimic kill via party chat (community convention)
-        if (lower.contains("mimic killed!") || plain.contains("$SKYTILS-DUNGEON-SCORE-MIMIC$")) {
+        if (lower.contains("mimic killed!")) {
             mimicKilled = true;
         }
         // Blood cleared
@@ -151,15 +219,15 @@ public final class DungeonScoreService {
                 continue;
             }
 
-            m = TAB_DEATHS.matcher(text);
-            if (m.find()) {
-                deaths = Integer.parseInt(m.group(1));
-                continue;
-            }
-
             m = TAB_CRYPTS.matcher(text);
             if (m.find()) {
                 crypts = Integer.parseInt(m.group(1));
+                continue;
+            }
+
+            m = TAB_TEAM_DEATHS.matcher(text);
+            if (m.find()) {
+                deaths = Integer.parseInt(m.group(1));
                 continue;
             }
 
@@ -184,22 +252,10 @@ public final class DungeonScoreService {
     }
 
     // --- Derived values ---
-
-    private int getTotalSecrets() {
-        if (secretsFound == 0 || secretsFoundPercent == 0.0) return 0;
-        return (int) (100.0 / secretsFoundPercent * secretsFound + 0.5);
-    }
-
-    /** Total rooms estimated via histogram mode of 100*completedRooms/clearedPercent */
-    private int getTotalRooms() {
-        if (clearedPercent == 0 || completedRooms == 0) return 0;
-        int guess = (int) (100.0 * completedRooms / clearedPercent + 0.5);
-        totalRoomsHisto.merge(guess, 1, Integer::sum);
-        return totalRoomsHisto.entrySet().stream()
-            .max(Comparator.comparingInt(e -> e.getValue() * 1000 + e.getKey()))
-            .map(Map.Entry::getKey)
-            .orElse(0);
-    }
+    // The score formula mirrors the reference implementation exactly (derived-state
+    // model): a histogram total-rooms estimate, full room projection (blood + boss
+    // room always counted, so the live score never dips when they clear), count-based
+    // secret score, and the staged speed curve. All components are truncated to int.
 
     private double getRequiredPercent(int floor, boolean master) {
         if (master) return 1.0;
@@ -212,65 +268,124 @@ public final class DungeonScoreService {
         return master ? SPEED_MASTER[floor] : SPEED_NORMAL[floor];
     }
 
-    private boolean isEntrance(int floor, boolean master) {
-        return floor == 0 && !master;
+    /**
+     * Pushes a new total-rooms guess into the histogram whenever completedRooms or
+     * clearedPercent changes, then takes the mode (tie-break to the higher room count).
+     * guess = round(100 * completedRooms / clearedPercent). Matches the reference.
+     */
+    private void updateTotalRooms() {
+        if (completedRooms <= 0 || clearedPercent <= 0) return;
+        // Sample once per genuine change of either input (a room clear or a %-tick),
+        // like the reference's event model — the change-guard keeps polling jitter out.
+        if (completedRooms == lastHistoCompleted && clearedPercent == lastHistoCleared) return;
+        lastHistoCompleted = completedRooms;
+        lastHistoCleared = clearedPercent;
+        int guess = (int) (100.0 * completedRooms / clearedPercent + 0.5);
+        if (guess <= 0) return;
+        totalRoomHisto.merge(guess, 1, Integer::sum);
+        int best = 0;
+        int bestRank = -1;
+        for (Map.Entry<Integer, Integer> e : totalRoomHisto.entrySet()) {
+            int rank = e.getValue() * 1000 + e.getKey();
+            if (rank > bestRank) {
+                bestRank = rank;
+                best = e.getKey();
+            }
+        }
+        totalRoomsCached = best;
     }
 
-    private int applyEntrance(double score, int floor, boolean master) {
-        return (int) (score * (isEntrance(floor, master) ? 0.7 : 1.0));
+    /**
+     * Completed rooms with the blood room and boss room both projected ahead: each is
+     * counted from the start of the run and swaps to a real completed room once cleared
+     * / entered. Because +1 projection and +1 real room cancel exactly at the moment of
+     * transition, the live score stays smooth (no dip). Matches the reference.
+     */
+    private int actualCompletedRooms(boolean inBoss) {
+        return completedRooms + (inBoss ? 0 : 1) + (bloodCleared ? 0 : 1);
     }
 
-    // --- Score components ---
+    /** min(actualCompletedRooms / totalRooms, 1.0), or 0 before any room data exists. */
+    private double actualClearPercent(boolean inBoss) {
+        if (totalRoomsCached <= 0) return 0.0;
+        return Math.min((double) actualCompletedRooms(inBoss) / totalRoomsCached, 1.0);
+    }
+
+    /** Entrance floor scores everything at 0.7 (no master entrance exists). */
+    private double entranceFactor(int floor, boolean master) {
+        return (!master && floor == 0) ? 0.7 : 1.0;
+    }
+
+    /** Raw secret score (0..40): estimate total secrets, require the floor %, ratio × 40. */
+    private double secretScoreRaw(int floor, boolean master) {
+        if (secretsFound == 0 || secretsFoundPercent == 0.0) return 0.0;
+        int totalSecrets = (int) (100.0 / secretsFoundPercent * secretsFound + 0.5);
+        int required = (int) Math.ceil(getRequiredPercent(floor, master) * totalSecrets);
+        if (required == 0) return 0.0;
+        return Math.min((double) secretsFound / required, 1.0) * 40.0;
+    }
+
+    private int deathPenalty() {
+        return deaths == 0 ? 0 : 2 * deaths - 1;
+    }
+
+    private int puzzlePenalty() {
+        return 10 * Math.max(0, totalPuzzles - completedPuzzles);
+    }
+
+    // --- Score components (exact reference formula) ---
 
     public int getSkillScore(int floor, boolean master, boolean inBoss) {
-        int totalRooms = getTotalRooms();
-        int actualCompleted = completedRooms + (inBoss ? 0 : 1);
-        double actualClearPercent = totalRooms > 0 ? Math.min((double) actualCompleted / totalRooms, 1.0) : 0.0;
-
-        int deathPenalty = deaths * 2;
-        int puzzlePenalty = 10 * Math.max(0, totalPuzzles - completedPuzzles);
-        int totalPenalty = deathPenalty + puzzlePenalty;
-
-        double skill = Math.max(20.0 + actualClearPercent * 80.0 - totalPenalty, 20.0);
-        return applyEntrance(skill, floor, master);
+        double penalty = deathPenalty() + puzzlePenalty();
+        double skill = Math.max(20.0 + actualClearPercent(inBoss) * 80.0 - penalty, 20.0);
+        return (int) (skill * entranceFactor(floor, master));
     }
 
     public int getExplorationScore(int floor, boolean master, boolean inBoss) {
-        // Secret score (max 40)
-        int totalSecrets = getTotalSecrets();
-        double reqPct = getRequiredPercent(floor, master);
-        int totalSecretsRequired = totalSecrets > 0 ? (int) Math.ceil(reqPct * totalSecrets) : 0;
-        double actualSecretPercent = totalSecretsRequired > 0
-            ? Math.min((double) secretsFound / totalSecretsRequired, 1.0) : 0.0;
-        double secretScore = actualSecretPercent * 40.0;
-
-        // Room clear score (max 60)
-        int totalRooms = getTotalRooms();
-        int actualCompleted = completedRooms + (inBoss ? 0 : 1);
-        double actualClearPercent = totalRooms > 0 ? Math.min((double) actualCompleted / totalRooms, 1.0) : 0.0;
-        double roomClearScore = actualClearPercent * 60.0;
-
-        return applyEntrance(secretScore, floor, master) + applyEntrance(roomClearScore, floor, master);
+        double ef = entranceFactor(floor, master);
+        int secretScore = (int) (secretScoreRaw(floor, master) * ef);
+        int roomScore = (int) (actualClearPercent(inBoss) * 60.0 * ef);
+        return secretScore + roomScore;
     }
 
     public int getSpeedScore(int floor, boolean master) {
-        int requiredSpeed = getRequiredSpeed(floor, master);
-        int overtime = elapsedSeconds - requiredSpeed;
-
-        double speed;
-        if (overtime < 12) speed = 100.0;
-        else if (overtime < 120) speed = 100.0 - overtime / 12.0;
-        else if (overtime < 360) speed = 91.0 - overtime / 24.0;
-        else if (overtime < 660) speed = 92.0 - overtime / 30.0;
-        else if (overtime < 3090) speed = 86.5 - overtime / 40.0;
-        else speed = 0.0;
-
-        return applyEntrance(Math.max(0, speed), floor, master);
+        int overtime = elapsedSeconds - getRequiredSpeed(floor, master);
+        double s;
+        if (overtime < 12) s = 100.0;
+        else if (overtime < 120) s = 100.0 - overtime / 12.0;
+        else if (overtime < 360) s = 91.0 - overtime / 24.0;
+        else if (overtime < 660) s = 92.0 - overtime / 30.0;
+        else if (overtime < 3090) s = 86.5 - overtime / 40.0;
+        else s = 0.0;
+        return (int) (s * entranceFactor(floor, master));
     }
 
     public int getBonusScore(int floor, boolean master) {
-        double bonus = Math.min(crypts, 5) + (mimicKilled ? 2 : 0);
-        return applyEntrance(bonus, floor, master);
+        int bonus = Math.min(crypts, 5);
+        if (isMimicKilled() && floor > 5) bonus += 2; // mimics only exist on F6/F7 (+ master)
+        if (isPrinceKilled()) bonus += 1;
+        if (paulScoreBonus()) bonus += 10; // Mayor Paul EZPZ perk (auto-detected)
+        return (int) (bonus * entranceFactor(floor, master));
+    }
+
+    /** Mimic kill from either the party-chat convention or the entity-death detector. */
+    private boolean isMimicKilled() {
+        if (mimicKilled) return true;
+        de.horizon.HorizonClient client = de.horizon.HorizonClient.getInstance();
+        return client != null && client.getMimicService() != null
+            && client.getMimicService().isMimicKilled();
+    }
+
+    private boolean isPrinceKilled() {
+        de.horizon.HorizonClient client = de.horizon.HorizonClient.getInstance();
+        return client != null && client.getMimicService() != null
+            && client.getMimicService().isPrinceKilled();
+    }
+
+    private boolean paulScoreBonus() {
+        de.horizon.HorizonClient client = de.horizon.HorizonClient.getInstance();
+        return client != null && client.getMayorService() != null
+            && client.getMayorService().hasDungeonScoreBonus();
     }
 
     public int getTotalScore(int floor, boolean master, boolean inBoss) {
@@ -319,6 +434,11 @@ public final class DungeonScoreService {
         mimicKilled = false;
         bloodCleared = false;
         active = false;
-        totalRoomsHisto.clear();
+        announcedS = false;
+        announcedSPlus = false;
+        totalRoomHisto.clear();
+        totalRoomsCached = 0;
+        lastHistoCompleted = -1;
+        lastHistoCleared = -1;
     }
 }

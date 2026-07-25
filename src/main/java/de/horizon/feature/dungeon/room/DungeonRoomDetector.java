@@ -56,6 +56,26 @@ public final class DungeonRoomDetector {
     private Optional<DetectedDungeonRoom> currentRoom = Optional.empty();
     private long ticks;
     private int scanCooldown;
+    // Debounce: keep the last good room across transient empty scans (a block-hash
+    // mismatch, a door/edge, or an unloaded chunk) so room-gated renders (secrets,
+    // puzzles) don't flicker. Only cleared after sustained failure.
+    private int ticksSinceRoomSeen;
+    // All room-grid cells that belong to the currently held room. While the player
+    // stays within ANY of these cells we do NOT re-scan — otherwise crossing between
+    // the tiles of a multi-tile room (2x2/1x2/L) re-resolves the rotation/origin and
+    // the waypoints visibly rotate as you walk (Supertall bug).
+    private final Set<Long> currentRoomCells = new java.util.HashSet<>();
+    // Once a room is positively identified at a grid cell it is cached there for the
+    // whole run: the dungeon layout never changes, so a later transient mis-scan (wrong
+    // hash at a door/edge, unloaded chunk) can never overwrite it. This is what stops
+    // puzzle/secret/door renders from blinking out while you move around a room — even a
+    // 1x1 like Boulder. Cleared only when leaving the dungeon (new run). Named rooms only
+    // (Unknown/chat-hint rooms stay uncached so they can still upgrade).
+    private final Map<Long, DetectedDungeonRoom> roomCache = new HashMap<>();
+    private static final int ROOM_PERSIST_TICKS = 60;
+    // Unknown room ceiling hashes, logged once each so missing rooms (e.g. Deathmite)
+    // can be captured in-game and added to rooms.json.
+    private final Set<Integer> loggedUnknownCores = new java.util.HashSet<>();
     private String recentQuizHint = "";
     private int recentQuizHintTicks;
     private String recentWeirdosHint = "";
@@ -69,11 +89,69 @@ public final class DungeonRoomDetector {
         if (client == null || client.level == null || client.player == null
                 || dungeonState == null || !dungeonState.isInDungeon() || dungeonState.isInBoss()) {
             currentRoom = Optional.empty();
+            ticksSinceRoomSeen = 0;
+            currentRoomCells.clear();
+            // Only wipe the per-run cache when we actually leave the dungeon (a new run),
+            // not merely on entering the boss — the layout is the same for the whole run.
+            if (dungeonState == null || !dungeonState.isInDungeon()) roomCache.clear();
             return;
         }
+
+        int px = client.player.blockPosition().getX();
+        int pz = client.player.blockPosition().getZ();
+        int cx = (px - CORNER_X) / HALF_COMBINED_SIZE;
+        int cz = (pz - CORNER_Z) / HALF_COMBINED_SIZE;
+        boolean inBounds = cx >= 0 && cx <= 10 && cz >= 0 && cz <= 10;
+        int roomCx = cx & ~1, roomCz = cz & ~1;
+
+        // Fast path: this grid cell was already identified this run → reuse it verbatim.
+        // No re-hash, so the room's name/origin/rotation stay fixed and room-gated renders
+        // never blink out or spin as you walk around (the flicker/rotation bug).
+        if (inBounds) {
+            DetectedDungeonRoom cached = roomCache.get(cellKey(roomCx, roomCz));
+            if (cached != null) {
+                currentRoom = Optional.of(cached);
+                ticksSinceRoomSeen = 0;
+                return;
+            }
+        }
+
         if (scanCooldown-- > 0) return;
         scanCooldown = SCAN_INTERVAL_TICKS;
-        currentRoom = scan(client);
+
+        Optional<DetectedDungeonRoom> scanned = scan(client);
+        if (scanned.isPresent()) {
+            DetectedDungeonRoom room = scanned.get();
+            currentRoom = scanned; // scan() has populated currentRoomCells for this room
+            ticksSinceRoomSeen = 0;
+            // Cache named rooms under every cell they cover so re-entry from any tile is
+            // instant and stable. Unknown/chat-hint rooms stay uncached so they can still
+            // upgrade to a real name (e.g. once a Quiz/Weirdos chat line arrives).
+            if (!"Unknown".equals(room.name())) {
+                for (long ck : currentRoomCells) roomCache.put(ck, room);
+            }
+        } else {
+            // Transient miss: keep the last known room briefly instead of dropping it.
+            ticksSinceRoomSeen += SCAN_INTERVAL_TICKS;
+            if (ticksSinceRoomSeen > ROOM_PERSIST_TICKS) {
+                currentRoom = Optional.empty();
+                currentRoomCells.clear();
+            }
+        }
+    }
+
+    private static long cellKey(int roomCx, int roomCz) {
+        return ((long) roomCx << 32) | (roomCz & 0xFFFFFFFFL);
+    }
+
+    /** Records the room-grid cells covered by the given component world-centres. */
+    private void setCurrentRoomCells(List<int[]> componentCenters) {
+        currentRoomCells.clear();
+        for (int[] c : componentCenters) {
+            int rcx = (c[0] - CORNER_X - HALF_ROOM_SIZE) / HALF_COMBINED_SIZE;
+            int rcz = (c[1] - CORNER_Z - HALF_ROOM_SIZE) / HALF_COMBINED_SIZE;
+            currentRoomCells.add(cellKey(rcx, rcz));
+        }
     }
 
     public void handleChatMessage(String rawMessage) {
@@ -98,6 +176,15 @@ public final class DungeonRoomDetector {
 
     public Optional<DetectedDungeonRoom> currentRoom() {
         return currentRoom;
+    }
+
+    /** Clears all per-run state (room cache included); call on world change / new run. */
+    public void reset() {
+        currentRoom = Optional.empty();
+        currentRoomCells.clear();
+        roomCache.clear();
+        ticksSinceRoomSeen = 0;
+        loggedUnknownCores.clear();
     }
 
     public boolean isCurrentPuzzle(String puzzleName) {
@@ -235,6 +322,9 @@ public final class DungeonRoomDetector {
         int worldCenterX = CORNER_X + HALF_ROOM_SIZE + HALF_COMBINED_SIZE * roomCx;
         int worldCenterZ = CORNER_Z + HALF_ROOM_SIZE + HALF_COMBINED_SIZE * roomCz;
 
+        // Default: this single cell belongs to the room. Multi-tile rooms overwrite below.
+        setCurrentRoomCells(List.of(new int[]{worldCenterX, worldCenterZ}));
+
         if (!isChunkLoaded(client, worldCenterX, worldCenterZ)) return Optional.empty();
 
         int roomHeight = getHighestY(client, worldCenterX, worldCenterZ);
@@ -246,6 +336,7 @@ public final class DungeonRoomDetector {
         if (template != null) {
             // Find all room components (for multi-component rooms like 1x2, L-shape etc.)
             List<int[]> components = findComponents(client, worldCenterX, worldCenterZ, roomHeight, template.cores());
+            setCurrentRoomCells(components);
             RoomScan roomScan = resolveRotation(client, components, roomHeight, template);
             if (roomScan != null) {
                 return Optional.of(new DetectedDungeonRoom(
@@ -268,6 +359,15 @@ public final class DungeonRoomDetector {
             return Optional.of(new DetectedDungeonRoom(recentWeirdosHint, RoomType.PUZZLE,
                 new BlockPos(worldCenterX - HALF_ROOM_SIZE, roomHeight, worldCenterZ - HALF_ROOM_SIZE),
                 Direction.SOUTH, 0, 60, ticks));
+        }
+
+        // Log unknown room ceiling hashes once each so rooms missing from rooms.json
+        // (e.g. Deathmite) can be captured in-game and added. Walk through each tile
+        // of a multi-tile room to collect all of its cores.
+        if (loggedUnknownCores.add(core)) {
+            de.horizon.HorizonMod.LOGGER.info(
+                "[RoomDetector] Unknown room core={} at tile center ({}, {}) — add to rooms.json",
+                core, worldCenterX, worldCenterZ);
         }
 
         // Final fallback: return "Unknown" room with rotation detection (enables puzzle auto-detection)
@@ -373,8 +473,13 @@ public final class DungeonRoomDetector {
                 int cz = comp[1] + CORNER_OFFSETS[i][1];
 
                 if (!isChunkLoaded(client, cx, cz)) continue;
-                BlockState state = client.level.getBlockState(new BlockPos(cx, roomHeight, cz));
-                if (state.is(Blocks.BLUE_TERRACOTTA)) {
+                // The rotation marker is the blue-terracotta block at the ROOF of exactly
+                // one corner. Check only each corner's own topmost block: this is robust
+                // both to tall centre structures (we don't rely on the centre's height,
+                // which broke Slime) and to decorative terracotta elsewhere in the column
+                // (which broke Supertall/Pipes when scanning the whole column).
+                int clayY = cornerMarkerY(client, cx, cz);
+                if (clayY >= 0) {
                     int rotDeg = i * 90;
                     Direction dir = switch (rotDeg) {
                         case 0   -> Direction.SOUTH;
@@ -384,11 +489,22 @@ public final class DungeonRoomDetector {
                         default  -> Direction.SOUTH;
                     };
                     return new RoomScan(template.name(), template.type(),
-                        new BlockPos(cx, roomHeight, cz), dir, rotDeg);
+                        new BlockPos(cx, clayY, cz), dir, rotDeg);
                 }
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the Y of the corner's topmost block if it is the blue-terracotta rotation
+     * marker, else -1. Only the ceiling block is inspected, so decorative terracotta
+     * lower in the column can't cause a false rotation.
+     */
+    private int cornerMarkerY(Minecraft client, int x, int z) {
+        int y = getHighestY(client, x, z);
+        if (y < 0) return -1;
+        return client.level.getBlockState(new BlockPos(x, y, z)).is(Blocks.BLUE_TERRACOTTA) ? y : -1;
     }
 
     private boolean isChunkLoaded(Minecraft client, int x, int z) {

@@ -23,7 +23,7 @@ import java.util.List;
 
 /**
  * Renders the structured dungeon layout ({@link DungeonInfo}) built by
- * {@link DungeonMapService} from world scanning, laid out like the NoammAddons
+ * {@link DungeonMapService} from world scanning, laid out as a
  * dungeon map: rooms as coloured squares, doors as short connectors, multi-cell
  * rooms merged by full-width connectors, plus room-name labels and player heads.
  * Only visible during the dungeon clear phase (not in boss).
@@ -73,7 +73,9 @@ public final class DungeonMapHudElement implements HudElement {
     public void render(GuiGraphicsExtractor ctx, Minecraft mc, HudPosition pos, boolean editMode) {
         DungeonInfo info = mapService.getDungeonInfo();
         if (!editMode) {
-            if (!dungeonStateService.isInDungeon() || dungeonStateService.isInBoss()) return;
+            if (!dungeonStateService.isInDungeon()
+                || dungeonStateService.isInBoss()
+                || dungeonStateService.isBossFightStarted()) return;
             if (info.isEmpty()) return;
         }
 

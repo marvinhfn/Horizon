@@ -28,6 +28,9 @@ public final class DungeonConfig {
     boolean bloodDoorEspEnabled = true;
     int bloodDoorColor = 0xFFCC0000;    // dark red
     boolean doorKeyHighlightEnabled = true;
+    // Door outline colours by key state (defaults = the values DoorEspService used to hardcode).
+    int doorColorHasKey = 0xFF00CC00;   // key collected (green)
+    int doorColorNoKey = 0xFFCC0000;    // no key (red)
 
     // Leap Menu
     boolean leapMenuEnabled = true;
@@ -75,16 +78,43 @@ public final class DungeonConfig {
     boolean puzzleSolverEnabled = true;
     int puzzleSolverStyle = 2; // 0=Filled, 1=Outline, 2=FilledOutline
 
-    // Terminal Solver
+    // Terminal Solver (custom overlay)
     boolean terminalSolverEnabled = false;
     boolean terminalSolverBlockWrongClicks = false;
-    boolean terminalSolverCustomMode = false; // true = fully hide non-relevant slots
+    boolean terminalShowNumbers = true;      // Numbers terminal: draw the click count on each slot
+    int terminalSlotStyle = 0;               // 0=Rect, 1=Bordered-Rect, 2=Button
+    boolean terminalUseHudColor = true;      // derive all solver colours from the HUD accent color (auto offsets)
+    // Terminal overlay colours (ARGB hex; alpha matters)
+    int termColorSolution        = 0x8200FF00; // generic solution (green, a=130)
+    int termColorNumbers1        = 0x8200FF00; // 1st click
+    int termColorNumbers2        = 0x8200C800; // 2nd click
+    int termColorNumbers3        = 0x82009600; // 3rd click
+    int termColorRubixPos        = 0x820072FF; // rubix positive (+)
+    int termColorRubixNeg        = 0x82CD0000; // rubix negative (-)
+    int termColorMelodyColumn    = 0x82FF00FF; // melody target column
+    int termColorMelodyIndicator = 0x82FF7400; // melody current indicator
+    int termColorMelodyWrong     = 0x82FF0000; // melody wrong slots
+    int termColorBackground      = 0x64000000; // menu background (a=100)
+    int termColorBorder          = 0xFFFFFFFF; // menu border
+    int termColorTitle           = 0xFFFFFFFF; // title text
+    int termColorOverlayText     = 0xFFFFFFFF; // slot overlay text
+    // Terminal Waypoints & Titles (in-world)
+    boolean terminalWaypointsEnabled = false;
+    boolean terminalTitleEnabled = false;
 
     // Boss Solver
     boolean simonSaysEnabled = true;
     boolean simonSaysBlockWrongClicks = false;
     boolean arrowAlignEnabled = true;
+    int arrowAlignColorStyle = 0;             // 0=Dynamic (green/orange/red by clicks), 1=Custom
+    int arrowAlignTextColor = 0xFFFFFFFF;     // custom text colour
+    boolean arrowAlignBlockWrongClicks = false;
+    boolean arrowAlignInvertSneak = false;
     boolean sharpShooterEnabled = true;
+    boolean sharpShooterDoneEnabled = true;   // show the "Done" world-text when I4 is complete
+    boolean sharpShooterDoneTitleEnabled = true; // also flash a screen title when I4 completes
+    int sharpShooterDoneColor = 0xFF55FF55;   // "Done" text colour (default green)
+    float sharpShooterDoneScale = 4.0f;       // "Done" text size multiplier (1.0 = old baseline)
     boolean purplePadTimerEnabled = true;
 
     // Dungeon Map
@@ -110,11 +140,30 @@ public final class DungeonConfig {
     int mapColorNameCleared   = 0xFFFFFFFF; // white check (starred mobs cleared)
     int mapColorNameSecrets   = 0xFF55FF55; // green check (all secrets found)
 
+    // Secret Waypoints
+    boolean secretWaypointsEnabled = true;
+    boolean secretShowChest = true;
+    boolean secretShowItem = true;
+    boolean secretShowEssence = true;
+    boolean secretShowBat = true;
+    boolean secretShowRedstone = true;
+    boolean secretShowLever = true;
+    boolean secretWaypointsThroughWalls = true;
+    // Waypoint colours per category (ARGB hex)
+    int secretColorChest    = 0xFFFFAA00;
+    int secretColorItem     = 0xFF55FFFF;
+    int secretColorEssence  = 0xFFAA00AA;
+    int secretColorBat      = 0xFFFF5555;
+    int secretColorRedstone = 0xFFAA0000;
+    int secretColorLever    = 0xFFFFFF55;
+
     // Blood Camper
     boolean bloodCamperEnabled = true;
 
     // Dungeon Score
     boolean dungeonScoreEnabled = true;
+    boolean dungeonScoreTitle = true; // Title bei S / S+ (270 / 300)
+    boolean dungeonScoreShowInBoss = false; // true = Anzeige bleibt im Bosskampf sichtbar; false = verschwindet beim Boss-Start
 
     // M7 Dragons
     boolean dragonEnabled = true;
@@ -122,6 +171,8 @@ public final class DungeonConfig {
     boolean dragonTimer = true;
     boolean dragonSpawnAlert = true;
     boolean dragonPriority = true;
+    boolean dragonHealth = true;     // show each dragon's health above its box
+    boolean dragonTracer = true;     // draw a tracer line to the priority dragon
     String dragonSplitPrio = "ogrbp";   // priority letters: o=orange, g=green, r=red, b=blue, p=purple
     String dragonNoSplitPrio = "robpg";
 

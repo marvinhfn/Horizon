@@ -2,231 +2,182 @@ package de.horizon.feature.dungeon.boss;
 
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.dungeon.DungeonStateService;
+import de.horizon.feature.dungeon.puzzle.DungeonRenderUtil;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.Vec3;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Arrow Align solver for F7 Phase 3 (Goldor).
- * Item frames with arrows at x=-2, y=120-124, z=75-79.
- * Matches the best fitting solution from known patterns and shows clicks needed.
+ * Arrow Align solver (F7 Goldor P3) — arrow-align device solver.
+ *
+ * <p>The device is a fixed 5x5 wall of item frames at corner (-2, 120, 75); the corners hold
+ * red/green wool markers, the rest are arrows. Only the ARROW frames are read. Their rotations are
+ * matched against one of nine known target patterns and the remaining click count (clicks =
+ * {@code (8 - current + target) % 8}) is drawn on each arrow.
+ *
+ * <p>Rendering uses the level-context buffer with {@link Font.DisplayMode#NORMAL} (the only text
+ * path confirmed to render in the AFTER_SOLID_FEATURES pass), positioned on the camera's side of
+ * the wall so the depth-tested text sits in front of the framed arrows.
  */
 public final class ArrowAlignService {
-    // Known solutions — 37 entries each, index = (y-120)<<3 | (z-75), 9 = no frame, 0-7 = target rotation
-    private static final int[][] DEV_SOLUTIONS = {
-        {7,7,9,9,9, 9,9,9,7,9, 3,9,7,9,9, 9,7,9,3,9, 7,9,9,9,7, 9,3,9,7,9, 9,9,9,9,3, 1,1},
-        {9,1,1,1,9, 9,9,9,9,9, 9,9,9,9,9, 9,9,1,1,1, 9,9,9,9,9, 9,9,9,9,9, 9,9,9,1,1, 1,9},
-        {5,5,7,1,1, 9,9,9,3,9, 7,9,3,9,9, 9,3,9,9,9, 3,9,9,9,3, 9,9,9,3,9, 9,9,9,9,9, 9,9},
-        {9,9,7,1,9, 9,9,9,9,1, 1,9,9,9,9, 9,9,9,7,1, 9,9,9,9,9, 1,1,9,9,9, 9,9,9,9,3, 1,9},
-        {9,9,9,9,9, 9,9,9,9,7, 9,7,9,9,9, 9,7,1,9,5, 7,9,9,9,7, 9,9,9,7,9, 9,9,5,5,9, 1,1},
-        {7,1,1,9,9, 9,9,9,7,9, 3,9,9,9,9, 9,9,9,3,9, 9,9,9,9,9, 9,3,9,7,9, 9,9,9,9,3, 1,1},
-        {5,5,7,9,9, 9,9,9,3,9, 7,9,7,9,9, 9,3,9,9,9, 7,9,9,9,3, 9,9,9,7,9, 9,9,3,1,1, 1,1},
-        {7,1,1,9,9, 9,9,9,7,9, 3,9,9,9,9, 9,9,9,9,9, 9,9,9,9,9, 9,7,9,3,9, 9,9,9,9,5, 5,3},
-        {9,1,9,7,9, 9,9,9,9,3, 9,7,9,9,9, 9,9,3,9,7, 9,9,9,9,9, 3,9,7,9,9, 9,9,9,3,1, 1,9},
-    };
 
-    // Valid frame IDs: (dy<<3)|dz for dy=0..4, dz=0..4
-    private static final boolean[] VALID_IDS = new boolean[37];
-    static {
-        for (int dy = 0; dy <= 4; dy++)
-            for (int dz = 0; dz <= 4; dz++)
-                VALID_IDS[(dy << 3) | dz] = true;
+    private static final BlockPos GRID_CORNER = new BlockPos(-2, 120, 75);
+    private static final double RANGE_SQ = 200;      // only run near the fixed device corner
+    private static final long CLICK_LOCK_MS = 1000;  // ignore world updates briefly after a local click
+
+    private final int[] frameRotations = new int[25];
+    private final net.minecraft.world.phys.Vec3[] framePos = new net.minecraft.world.phys.Vec3[25];
+    private final Map<Integer, Long> clickTimestamps = new HashMap<>();
+    private final Map<Integer, Integer> clicksRemaining = new HashMap<>();
+    private int[] solution = null;
+
+    public ArrowAlignService() { java.util.Arrays.fill(frameRotations, -1); }
+
+    // ── Detection / solving ─────────────────────────────────────────────────────
+
+    /** Grid index (0..24) of a frame's block position, or -1 if it's not a device cell. */
+    private static int frameIndex(BlockPos pos) {
+        // Wall at x=-2; a frame's blockPosition may round to either side of the 1-block slab.
+        if (pos.getX() < GRID_CORNER.getX() || pos.getX() > GRID_CORNER.getX() + 1) return -1;
+        int index = (pos.getY() - GRID_CORNER.getY()) + (pos.getZ() - GRID_CORNER.getZ()) * 5;
+        return (index < 0 || index > 24) ? -1 : index;
     }
 
-    private int[] solution = null;
-    private final int[] frameRotations = new int[37];
-    private final int[] clicksNeeded = new int[37];
-    private boolean atDevice = false;
-    private int scanCooldown = 0;
-
-    private static int getFrameId(int y, int z) {
-        int dy = y - 120;
-        int dz = z - 75;
-        if (dy < 0 || dy > 4 || dz < 0 || dz > 4) return -1;
-        return (dy << 3) | dz;
+    /** True if this is an arrow frame on the device grid (used to hide its vanilla name label). */
+    public boolean isDeviceFrame(ItemFrame frame) {
+        return frame != null && frame.getItem().getItem() == Items.ARROW && frameIndex(frame.blockPosition()) >= 0;
     }
 
     public void tick(Minecraft mc, DungeonStateService state, HorizonConfig config) {
-        if (!config.isArrowAlignEnabled()) return;
-        if (!state.isInBoss() || mc.level == null || mc.player == null) {
-            if (atDevice) reset();
+        // Gate ONLY on proximity to the fixed corner. Do not gate on isInDungeon()/phase: those
+        // flicker in the F7 boss and any reset() mid-fight wipes the detected rotations, so the
+        // presence-mask stops matching and the overlay blinks out. The device only exists here.
+        if (!config.isArrowAlignEnabled() || mc.level == null || mc.player == null
+                || mc.player.distanceToSqr(GRID_CORNER.getX(), GRID_CORNER.getY(), GRID_CORNER.getZ()) > RANGE_SQ) {
+            reset();
             return;
         }
 
-        double px = mc.player.getX();
-        double py = mc.player.getY();
-        double pz = mc.player.getZ();
-        atDevice = px >= -10 && px <= 25 && py >= 100 && py <= 145 && pz >= 50 && pz <= 130;
-
-        if (!atDevice) {
-            solution = null;
-            return;
-        }
-
-        // Throttle scanning
-        if (--scanCooldown > 0 && solution != null) {
-            updateRotations(mc);
-            return;
-        }
-        scanCooldown = 5;
-
-        // Scan for item frames
-        int[] frames = new int[37];
-        Arrays.fill(frames, 9);
-        int frameCount = 0;
-
+        long now = System.currentTimeMillis();
+        // Read arrow rotations from every rendered item frame on the grid (a tight AABB missed the
+        // thin item-frame hitboxes). Only ARROW frames — the corner wool markers must be ignored or
+        // the presence-mask never matches a known solution.
         for (Entity e : mc.level.entitiesForRendering()) {
-            if (!(e instanceof ItemFrame frame)) continue;
-            int fx = (int) Math.round(frame.getX());
-            if (fx != -2) continue;
-            int fy = (int) frame.getY();
-            int fz = (int) frame.getZ();
-            int id = getFrameId(fy, fz);
-            if (id == -1 || id >= 37) continue;
-            // Accept arrow items (regular, tipped, spectral)
-            var item = frame.getItem().getItem();
-            if (item != Items.ARROW && item != Items.TIPPED_ARROW && item != Items.SPECTRAL_ARROW) continue;
-            frames[id] = frame.getRotation();
-            frameCount++;
-        }
-
-        if (frameCount == 0) {
-            solution = null;
-            return;
-        }
-
-        // Match against known solutions — find the best match (most frame positions agree)
-        int bestScore = -1;
-        int[] bestSolution = null;
-        for (int[] sol : DEV_SOLUTIONS) {
-            int score = 0;
-            boolean compatible = true;
-            for (int i = 0; i < 37; i++) {
-                if (!VALID_IDS[i]) continue;
-                boolean solHasFrame = sol[i] != 9;
-                boolean hasFrame = frames[i] != 9;
-                if (solHasFrame && hasFrame) {
-                    score += 2; // both agree a frame exists here
-                } else if (!solHasFrame && !hasFrame) {
-                    score += 1; // both agree no frame here
-                } else if (solHasFrame && !hasFrame) {
-                    // Solution expects a frame but we don't see one — might be out of render distance
-                    // Don't penalize, just don't score
-                } else {
-                    // We see a frame but solution says none — bad match
-                    compatible = false;
-                    break;
-                }
-            }
-            if (compatible && score > bestScore) {
-                bestScore = score;
-                bestSolution = sol;
+            if (!(e instanceof ItemFrame frame) || frame.getItem().getItem() != Items.ARROW) continue;
+            int index = frameIndex(frame.blockPosition());
+            if (index < 0) continue;
+            framePos[index] = frame.position(); // exact wall position of the arrow (for label depth)
+            if (now - clickTimestamps.getOrDefault(index, 0L) > CLICK_LOCK_MS) {
+                frameRotations[index] = frame.getRotation();
             }
         }
 
-        if (bestSolution != null && bestScore >= frameCount * 2) {
-            solution = bestSolution;
-            System.arraycopy(frames, 0, frameRotations, 0, 37);
-            recalcClicks();
-        } else if (solution == null) {
-            // No match yet, keep scanning
+        solution = null;
+        clicksRemaining.clear();
+
+        for (int[] arr : POSSIBLE_SOLUTIONS) {
+            boolean matches = true;
+            for (int i = 0; i < 25; i++) {
+                boolean solHas = arr[i] != -1;
+                boolean gotHas = frameRotations[i] != -1;
+                if (solHas != gotHas) { matches = false; break; } // presence-mask must match exactly
+            }
+            if (!matches) continue;
+
+            solution = arr;
+            for (int i = 0; i < 25; i++) {
+                if (frameRotations[i] == -1) continue;
+                int needed = clicks(frameRotations[i], arr[i]);
+                if (needed != 0) clicksRemaining.put(i, needed);
+            }
+            break;
         }
     }
 
-    private void updateRotations(Minecraft mc) {
-        if (mc.level == null) return;
-        boolean changed = false;
-        for (Entity e : mc.level.entitiesForRendering()) {
-            if (!(e instanceof ItemFrame frame)) continue;
-            int fx = (int) Math.round(frame.getX());
-            if (fx != -2) continue;
-            int fy = (int) frame.getY();
-            int fz = (int) frame.getZ();
-            int id = getFrameId(fy, fz);
-            if (id == -1 || id >= 37) continue;
-            var item = frame.getItem().getItem();
-            if (item != Items.ARROW && item != Items.TIPPED_ARROW && item != Items.SPECTRAL_ARROW) continue;
-            int rot = frame.getRotation();
-            if (frameRotations[id] != rot) {
-                frameRotations[id] = rot;
-                changed = true;
-            }
-        }
-        if (changed) recalcClicks();
-    }
-
-    private void recalcClicks() {
-        if (solution == null) return;
-        for (int i = 0; i < 37; i++) {
-            if (solution[i] == 9 || frameRotations[i] == 9) {
-                clicksNeeded[i] = 0;
-            } else {
-                clicksNeeded[i] = (solution[i] - frameRotations[i] + 8) & 7;
-            }
-        }
-    }
-
-    public void renderWorld(LevelRenderContext ctx, HorizonConfig config) {
-        if (!config.isArrowAlignEnabled() || !atDevice || solution == null) return;
+    /**
+     * Entity-interact hook: advances a frame's local rotation for instant feedback and returns true
+     * when a right-click on an already-aligned frame should be cancelled (block-wrong-clicks).
+     */
+    public boolean shouldBlockInteract(Entity entity, HorizonConfig config) {
+        if (!config.isArrowAlignEnabled()) return false;
+        if (!(entity instanceof ItemFrame frame) || frame.getItem().getItem() != Items.ARROW) return false;
+        int index = frameIndex(frame.blockPosition());
+        if (index < 0 || frameRotations[index] == -1) return false;
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null) return;
-        Font font = mc.font;
-        Vec3 cam = ctx.levelState().cameraRenderState.pos;
-        MultiBufferSource.BufferSource buffers = ctx.bufferSource();
+        boolean crouching = mc != null && mc.player != null && mc.player.isCrouching();
+        boolean block = config.isArrowAlignBlockWrongClicks() && (crouching == config.isArrowAlignInvertSneak());
+        // Only block when a solution is actually matched — otherwise (no numbers known) never block,
+        // so the player can still rotate arrows freely instead of being locked out of the device.
+        if (solution != null && !clicksRemaining.containsKey(index) && block) return true;
 
-        float scale = 0.04f;
+        clickTimestamps.put(index, System.currentTimeMillis());
+        frameRotations[index] = (frameRotations[index] + 1) % 8;
+        if (solution != null && clicks(frameRotations[index], solution[index]) == 0) clicksRemaining.remove(index);
+        return false;
+    }
 
-        for (int y = 120; y <= 124; y++) {
-            for (int z = 75; z <= 79; z++) {
-                int id = getFrameId(y, z);
-                if (id < 0 || id >= 37) continue;
-                int clicks = clicksNeeded[id];
-                if (clicks == 0) continue;
+    private static int clicks(int current, int target) {
+        return target == -1 ? 0 : (8 - current + target) % 8;
+    }
 
-                String text = String.valueOf(clicks);
-                float textOffset = -font.width(text) * 0.5f;
+    // ── Rendering ───────────────────────────────────────────────────────────────
 
-                // Render text facing the player (billboard)
-                double dx = -1.5 - cam.x;
-                double dy = y + 0.5 - cam.y;
-                double dz = z + 0.5 - cam.z;
+    public void renderWorld(LevelRenderContext ctx, HorizonConfig config) {
+        if (!config.isArrowAlignEnabled() || clicksRemaining.isEmpty()) return;
 
-                var pose = ctx.poseStack();
-                pose.pushPose();
-                pose.translate((float) dx, (float) dy, (float) dz);
-                // Billboard: face camera
-                pose.last().rotate(ctx.levelState().cameraRenderState.orientation);
-                pose.scale(-scale, -scale, -scale);
+        // Render via DungeonRenderUtil (global buffer + SEE_THROUGH + endBatch) — the same world-text
+        // path the secret waypoints use, which actually renders. (ctx.bufferSource() text does not.)
+        // Depth (x) comes from the frame's ACTUAL entity position, not a guessed block face — the
+        // earlier grid-derived x was off by ~a block. Nudge a hair toward the camera so the label
+        // sits just in front of the arrow. y/z stay grid-derived (those were already correct).
+        Minecraft mc = Minecraft.getInstance();
+        double camX = mc != null ? mc.gameRenderer.getMainCamera().position().x : GRID_CORNER.getX();
 
-                font.drawInBatch(
-                    text, textOffset, -4f,
-                    0xFF55FF55, true,
-                    pose.last().pose(),
-                    buffers,
-                    Font.DisplayMode.SEE_THROUGH,
-                    0x40000000, 0xF000F0
-                );
-
-                pose.popPose();
-            }
+        List<DungeonRenderUtil.ColoredStringSpec> labels = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> e : clicksRemaining.entrySet()) {
+            int index = e.getKey();
+            int count = e.getValue();
+            double frameX = framePos[index] != null ? framePos[index].x : GRID_CORNER.getX() + 0.5;
+            double x = frameX + (camX > frameX ? 0.06 : -0.06);
+            double y = GRID_CORNER.getY() + (index % 5) + 0.5;
+            double z = GRID_CORNER.getZ() + (index / 5) + 0.5;
+            int color = config.getArrowAlignColorStyle() == 1
+                ? config.getArrowAlignTextColor()
+                : (count < 3 ? 0xFF55FF55 : count < 5 ? 0xFFFFAA00 : 0xFFFF5555);
+            labels.add(new DungeonRenderUtil.ColoredStringSpec(String.valueOf(count), x, y, z, color));
         }
-
-        buffers.endBatch();
+        // FACE_WEST → permanently static: straight for a camera looking west (how you view the arrow
+        // wall at x=-2 from the +x side) and it never re-orients as you move.
+        DungeonRenderUtil.drawColoredStringsBatched(ctx, labels, DungeonRenderUtil.FACE_WEST);
     }
 
     public void reset() {
+        java.util.Arrays.fill(frameRotations, -1);
+        java.util.Arrays.fill(framePos, null);
         solution = null;
-        Arrays.fill(frameRotations, 0);
-        Arrays.fill(clicksNeeded, 0);
-        atDevice = false;
-        scanCooldown = 0;
+        clicksRemaining.clear();
+        clickTimestamps.clear();
     }
+
+    // Nine known target patterns (25 frames each; -1 = no frame in that cell).
+    private static final int[][] POSSIBLE_SOLUTIONS = {
+        {7, 7, -1, -1, -1, 1, -1, -1, -1, -1, 1, 3, 3, 3, 3, -1, -1, -1, -1, 1, -1, -1, -1, 7, 1},
+        {-1, -1, 7, 7, 5, -1, 7, 1, -1, 5, -1, -1, -1, -1, -1, -1, 7, 5, -1, 1, -1, -1, 7, 7, 1},
+        {7, 7, -1, -1, -1, 1, -1, -1, -1, -1, 1, 3, -1, 7, 5, -1, -1, -1, -1, 5, -1, -1, -1, 3, 3},
+        {5, 3, 3, 3, -1, 5, -1, -1, -1, -1, 7, 7, -1, -1, -1, 1, -1, -1, -1, -1, 1, 3, 3, 3, -1},
+        {5, 3, 3, 3, 3, 5, -1, -1, -1, 1, 7, 7, -1, -1, 1, -1, -1, -1, -1, 1, -1, 7, 7, 7, 1},
+        {7, 7, 7, 7, -1, 1, -1, -1, -1, -1, 1, 3, 3, 3, 3, -1, -1, -1, -1, 1, -1, 7, 7, 7, 1},
+        {-1, -1, -1, -1, -1, 1, -1, 1, -1, 1, 1, -1, 1, -1, 1, 1, -1, 1, -1, 1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, 1, 3, 3, 3, 3, -1, -1, -1, -1, 1, 7, 7, 7, 7, 1, -1, -1, -1, -1, -1},
+        {-1, -1, -1, -1, -1, -1, 1, -1, 1, -1, 7, 1, 7, 1, 3, 1, -1, 1, -1, 1, -1, -1, -1, -1, -1},
+    };
 }

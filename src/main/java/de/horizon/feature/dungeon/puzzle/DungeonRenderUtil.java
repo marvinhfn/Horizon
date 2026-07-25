@@ -1,15 +1,23 @@
 package de.horizon.feature.dungeon.puzzle;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
 import java.util.List;
@@ -19,7 +27,49 @@ public final class DungeonRenderUtil {
 
     public static final float DEFAULT_LINE_WIDTH = 2.5f;
 
+    // A filled-box pipeline with the depth test disabled (CompareOp.ALWAYS_PASS)
+    // so translucent fills are visible through walls, mirroring the through-wall
+    // line rendering. The vanilla debugFilledBox pipeline is depth-tested.
+    private static final RenderPipeline FILLED_NO_DEPTH_PIPELINE = RenderPipelines.register(RenderPipeline
+        .builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+        .withLocation(Identifier.fromNamespaceAndPath("horizon", "pipeline/filled_no_depth"))
+        .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+        .build());
+    private static final RenderType FILLED_NO_DEPTH = RenderType.create(
+        "horizon_filled_no_depth",
+        RenderSetup.builder(FILLED_NO_DEPTH_PIPELINE).createRenderSetup());
+
     private DungeonRenderUtil() {}
+
+    /** One box for {@link #drawBoxesBatched}: its bounds and fill/outline colours. */
+    public record BoxSpec(AABB box, int fillArgb, int outlineArgb) {}
+
+    /**
+     * Draws many boxes in just two draw batches (one fill, one outline) instead of
+     * two per box. Each immediate {@code endBatch} opens its own GPU render pass, so
+     * batching is essential when rendering more than a handful of boxes per frame.
+     */
+    public static void drawBoxesBatched(LevelRenderContext ctx, List<BoxSpec> boxes, boolean noDepth, float lineWidth) {
+        if (boxes.isEmpty()) return;
+        if (ctx.levelState() == null || ctx.levelState().cameraRenderState == null || ctx.bufferSource() == null) return;
+        PoseStack.Pose pose = ctx.poseStack().last();
+        Vec3 cam = ctx.levelState().cameraRenderState.pos;
+        MultiBufferSource.BufferSource buf = ctx.bufferSource();
+
+        if (noDepth) GlStateManager._depthFunc(GL11.GL_ALWAYS);
+
+        var fillType = noDepth ? FILLED_NO_DEPTH : RenderTypes.debugFilledBox();
+        VertexConsumer fill = buf.getBuffer(fillType);
+        for (BoxSpec spec : boxes) fillBox(pose, fill, spec.box(), cam, spec.fillArgb());
+        buf.endBatch(fillType);
+
+        var lineType = noDepth ? RenderTypes.lines() : RenderTypes.linesTranslucent();
+        VertexConsumer line = buf.getBuffer(lineType);
+        for (BoxSpec spec : boxes) outlineBox(pose, line, spec.box(), cam, spec.outlineArgb(), lineWidth);
+        buf.endBatch(lineType);
+
+        if (noDepth) GlStateManager._depthFunc(GL11.GL_LEQUAL);
+    }
 
     public static void drawBox(LevelRenderContext ctx, AABB box, int argbColor, int style, boolean noDepth) {
         drawBox(ctx, box, argbColor, style, noDepth, DEFAULT_LINE_WIDTH);
@@ -115,25 +165,104 @@ public final class DungeonRenderUtil {
         vc.addVertex(pose,x1,y1,z1).setColor(r,g,b,a).setNormal(pose,dx/len,dy/len,dz/len).setLineWidth(lineWidth);
     }
 
+    /**
+     * Builds the model matrix for a billboarded world-space label using a FRESH
+     * {@link Matrix4f} (not the render-context pose stack). The context pose already carries the
+     * camera/view transform, so reusing it double-transforms the text off-screen — the reason world
+     * text was invisible while boxes rendered. Here the matrix is model-only and the text render
+     * type applies the view/projection itself.
+     */
+    // Permanent, never-changing facings for static wall text. Derived from MC's camera math:
+    // Camera.rotation() == rotationYXZ(π − camYaw·π/180, …), so the frozen euler-yaw for a camera
+    // looking a given cardinal direction is π − thatYaw. The text sits "straight" for a viewer at
+    // exactly that camera yaw and NEVER re-orients, regardless of where the player later stands/looks.
+    public static float yawForCameraFacing(float cameraYawDeg) {
+        return (float) (Math.PI - Math.toRadians(cameraYawDeg));
+    }
+    /** Straight for a viewer whose camera faces SOUTH (yaw 0) — the I4 emerald wall (viewed from −z). */
+    public static final float FACE_SOUTH = (float) Math.PI;              // yawForCameraFacing(0)
+    /** Straight for a viewer whose camera faces WEST (yaw 90) — the arrow-align wall (viewed from +x). */
+    public static final float FACE_WEST = (float) (Math.PI / 2.0);       // yawForCameraFacing(90)
+
+    private static Matrix4f worldTextMatrix(double x, double y, double z) {
+        return worldTextMatrix(x, y, z, 1.0f, null);
+    }
+
+    /**
+     * Builds the world-text model matrix. {@code sizeMul} scales the glyphs (1.0 = the old 0.025
+     * baseline). {@code fixedYawRad}: {@code null} = billboard (faces the camera). Otherwise the text
+     * is fully STATIC at that fixed yaw (no pitch/roll, no tracking) — it never changes orientation.
+     */
+    private static Matrix4f worldTextMatrix(double x, double y, double z, float sizeMul, Float fixedYawRad) {
+        var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Vec3 camPos = camera.position();
+        Matrix4f m = new Matrix4f();
+        m.translate((float)(x - camPos.x), (float)(y - camPos.y), (float)(z - camPos.z));
+        if (fixedYawRad != null) {
+            m.rotate(new org.joml.Quaternionf().rotationYXZ(fixedYawRad, 0f, 0f));
+        } else {
+            m.rotate(camera.rotation());
+        }
+        float s = 0.025f * sizeMul;
+        m.scale(s, -s, s);
+        return m;
+    }
+
     /** Renders a string in 3D world space, billboard-facing the camera. */
     public static void drawString(LevelRenderContext ctx, String text, double x, double y, double z) {
+        drawString(ctx, text, x, y, z, 0xFFFFFFFF, 1.0f, null);
+    }
+
+    /** Renders a string in 3D world space with explicit colour/size; {@code fixedYawRad} non-null = static wall text. */
+    public static void drawString(LevelRenderContext ctx, String text, double x, double y, double z, int color, float sizeMul, Float fixedYawRad) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
         Font font = mc.font;
-        Vec3 cam = ctx.levelState().cameraRenderState.pos;
-        // Use the global render buffers — the level context's bufferSource doesn't support text render types
         MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
-
-        var pose = ctx.poseStack();
-        pose.pushPose();
-        pose.translate((float)(x - cam.x), (float)(y - cam.y), (float)(z - cam.z));
-        pose.mulPose(ctx.levelState().cameraRenderState.orientation);
-        pose.scale(-0.025f, -0.025f, 0.025f);
-
-        float halfWidth = font.width(text) / 2f;
-        font.drawInBatch(text, -halfWidth, 0, 0xFFFFFFFF, true, pose.last().pose(), buf, Font.DisplayMode.SEE_THROUGH, 0x40000000, 0xF000F0);
+        font.drawInBatch(text, -font.width(text) / 2f, 0, color | 0xFF000000, true, worldTextMatrix(x, y, z, sizeMul, fixedYawRad), buf,
+            Font.DisplayMode.SEE_THROUGH, 0x40000000, 0xF000F0);
         buf.endBatch();
+    }
 
-        pose.popPose();
+    /** One label for {@link #drawStringsBatched}. */
+    public record StringSpec(String text, double x, double y, double z) {}
+
+    /** One coloured label for {@link #drawColoredStringsBatched}. */
+    public record ColoredStringSpec(String text, double x, double y, double z, int color) {}
+
+    /** Like {@link #drawStringsBatched} but each label carries its own ARGB colour (billboard). */
+    public static void drawColoredStringsBatched(LevelRenderContext ctx, List<ColoredStringSpec> specs) {
+        drawColoredStringsBatched(ctx, specs, null);
+    }
+
+    /**
+     * Coloured batched labels. {@code fixedYawRad} null = billboard; non-null = fully STATIC wall
+     * text at that fixed yaw — used for the arrow-align numbers on the wall.
+     */
+    public static void drawColoredStringsBatched(LevelRenderContext ctx, List<ColoredStringSpec> specs, Float fixedYawRad) {
+        if (specs.isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) return;
+        Font font = mc.font;
+        MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
+        for (ColoredStringSpec s : specs) {
+            font.drawInBatch(s.text(), -font.width(s.text()) / 2f, 0, s.color() | 0xFF000000, true,
+                worldTextMatrix(s.x(), s.y(), s.z(), 1.0f, fixedYawRad), buf, Font.DisplayMode.SEE_THROUGH, 0x40000000, 0xF000F0);
+        }
+        buf.endBatch(); // single flush for all labels
+    }
+
+    /** Renders several billboarded labels with a single buffer flush (endBatch). */
+    public static void drawStringsBatched(LevelRenderContext ctx, List<StringSpec> specs) {
+        if (specs.isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) return;
+        Font font = mc.font;
+        MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
+        for (StringSpec s : specs) {
+            font.drawInBatch(s.text(), -font.width(s.text()) / 2f, 0, 0xFFFFFFFF, true,
+                worldTextMatrix(s.x(), s.y(), s.z()), buf, Font.DisplayMode.SEE_THROUGH, 0x40000000, 0xF000F0);
+        }
+        buf.endBatch(); // single flush for all labels
     }
 }

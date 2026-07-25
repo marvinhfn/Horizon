@@ -110,12 +110,12 @@ public final class DoorEspService {
      * then checks all boundary positions for closed doors or open fairy passages.
      */
     private void scanRoomBoundary(Minecraft mc, DungeonRoomDetector roomDetector) {
-        doors.clear();
-
         int px = mc.player.blockPosition().getX();
         int pz = mc.player.blockPosition().getZ();
 
         List<int[]> roomCells = roomDetector.getRoomCellsAt(mc, px, pz);
+        // Transient miss (edge/door, unloaded chunk, hash mismatch): keep the last
+        // door set instead of clearing it, so the render doesn't flicker out.
         if (roomCells.isEmpty()) return;
 
         // Track fairy room visits — once visited, stop showing fairy outlines
@@ -131,17 +131,20 @@ public final class DoorEspService {
             cellSet.add(cellKey(cell[0], cell[1]));
         }
 
+        List<DungeonDoor> newDoors = new ArrayList<>();
         for (int[] cell : roomCells) {
             int cx = cell[0], cz = cell[1];
-            checkBoundary(mc, roomDetector, cellSet, cx, cz, cx + 32, cz);
-            checkBoundary(mc, roomDetector, cellSet, cx, cz, cx - 32, cz);
-            checkBoundary(mc, roomDetector, cellSet, cx, cz, cx, cz + 32);
-            checkBoundary(mc, roomDetector, cellSet, cx, cz, cx, cz - 32);
+            checkBoundary(mc, roomDetector, cellSet, newDoors, cx, cz, cx + 32, cz);
+            checkBoundary(mc, roomDetector, cellSet, newDoors, cx, cz, cx - 32, cz);
+            checkBoundary(mc, roomDetector, cellSet, newDoors, cx, cz, cx, cz + 32);
+            checkBoundary(mc, roomDetector, cellSet, newDoors, cx, cz, cx, cz - 32);
         }
+        doors.clear();
+        doors.addAll(newDoors);
     }
 
     private void checkBoundary(Minecraft mc, DungeonRoomDetector roomDetector,
-                               Set<Long> roomCells, int cx, int cz, int nx, int nz) {
+                               Set<Long> roomCells, List<DungeonDoor> out, int cx, int cz, int nx, int nz) {
         if (roomCells.contains(cellKey(nx, nz))) return;
         if (nx < MIN_CENTER || nx > MAX_CENTER || nz < MIN_CENTER || nz > MAX_CENTER) return;
 
@@ -152,14 +155,14 @@ public final class DoorEspService {
         var state = mc.level.getBlockState(new BlockPos(gapX, 69, gapZ));
         if (state.is(Blocks.COAL_BLOCK)) {
             everSeenDoorPositions.add(gapKey);
-            doors.add(new DungeonDoor(gapX, gapZ, false, false));
+            out.add(new DungeonDoor(gapX, gapZ, false, false));
         } else if (state.is(Blocks.RED_TERRACOTTA)) {
             everSeenDoorPositions.add(gapKey);
-            doors.add(new DungeonDoor(gapX, gapZ, true, false));
+            out.add(new DungeonDoor(gapX, gapZ, true, false));
         } else if (!fairyVisited && everSeenDoorPositions.contains(gapKey)) {
             RoomType adjType = roomDetector.getRoomTypeAt(mc, nx, nz);
             if (adjType == RoomType.FAIRY) {
-                doors.add(new DungeonDoor(gapX, gapZ, false, true));
+                out.add(new DungeonDoor(gapX, gapZ, false, true));
             }
         }
     }
@@ -172,7 +175,7 @@ public final class DoorEspService {
         if (!inDungeon || inBoss) return;
         if (!config.isWitherDoorEspEnabled()) return;
 
-        int baseColor = doorKeys > 0 ? COLOR_HAS_KEY : COLOR_NO_KEY;
+        int baseColor = doorKeys > 0 ? config.getDoorColorHasKey() : config.getDoorColorNoKey();
         int fillColor = (baseColor & 0x00FFFFFF) | 0x40000000;
         int outlineColor = baseColor | 0xFF000000;
 

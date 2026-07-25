@@ -36,7 +36,15 @@ public final class DungeonScoreHudElement implements HudElement {
 
     @Override
     public void render(GuiGraphicsExtractor ctx, Minecraft mc, HudPosition pos, boolean editMode) {
-        if (!editMode && (!scoreService.isActive() || !stateService.isInDungeon() || stateService.isInBoss())) return;
+        // Always through the run incl. the blood room. Whether it also stays during the
+        // actual boss fight is configurable (default: hide once the boss starts).
+        if (!editMode) {
+            if (!scoreService.isActive() || !stateService.isInDungeon()) return;
+            de.horizon.HorizonClient client = de.horizon.HorizonClient.getInstance();
+            boolean showInBoss = client != null && client.getConfigManager() != null
+                && client.getConfigManager().getConfig().isDungeonScoreShowInBoss();
+            if (!showInBoss && stateService.isBossFightStarted()) return;
+        }
 
         int x = pos.getX();
         int y = pos.getY();

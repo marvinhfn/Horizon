@@ -111,6 +111,9 @@ public final class HorizonConfigScreen extends Screen {
     private int activeSliderIndex = -1;
     private int activeMapColorIndex = -1;
     private int activeMobColorIndex = -1;
+    private int activeTerminalColorIndex = -1;
+    // Collapsible color "dropdowns" — keys of the currently-expanded groups (collapsed by default).
+    private final java.util.Set<String> openDropdowns = new java.util.HashSet<>();
     private boolean colorPickerDragging = false;
     // Active color-picker context, captured on click and reused while dragging so
     // the drag never has to re-derive the (fragile) row layout.
@@ -202,6 +205,7 @@ public final class HorizonConfigScreen extends Screen {
                     activeDungeonSection = DungeonSection.values()[index];
                     activeMapColorIndex = -1;
                     activeMobColorIndex = -1;
+                    activeTerminalColorIndex = -1;
                     contentScrollOffset = 0;
                     return true;
                 }
@@ -407,7 +411,8 @@ public final class HorizonConfigScreen extends Screen {
         if (click.button() == 0 && activeSliderIndex >= 0 && ((activeTab == Tab.DISPLAY
                 && (activeDisplaySection == DisplaySection.ANIMATIONS || activeDisplaySection == DisplaySection.NO_RENDER
                     || activeDisplaySection == DisplaySection.HELPERS))
-                || (activeTab == Tab.DUNGEON && activeDungeonSection == DungeonSection.TERMINAL_SOLVER))) {
+                || (activeTab == Tab.DUNGEON && (activeDungeonSection == DungeonSection.TERMINAL_SOLVER
+                    || activeDungeonSection == DungeonSection.BOSS)))) {
             Rect viewport = contentViewportRect(frame());
             applySliderValue(activeSliderIndex, click.x(), viewport.x);
             return true;
@@ -643,10 +648,7 @@ public final class HorizonConfigScreen extends Screen {
             case GENERAL -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeons / General");
                 y = drawToggleRow(context, viewport.x, y, "Party Finder Overlay", config().isDungeonPartyFinderOverlayEnabled(), Lang.t("Zeigt beste S+ Zeiten im Party Finder.", "Shows best S+ times in Party Finder."));
-                y = drawToggleRow(context, viewport.x, y, "Rare Room Alerts", config().isDungeonRareRoomAlertsEnabled(), Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
-                y = drawToggleRow(context, viewport.x, y, "Rag Axe Notification", config().isRagAxeNotificationEnabled(), Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."));
-                y = drawSectionTitle(context, viewport.x, y, "Tick Timer");
-                drawToggleRow(context, viewport.x, y, "Damage Tick Timer", config().isTickTimerEnabled(), Lang.t("Countdown bis zum naechsten Goldor-Damage-Tick (F7 P3).", "Countdown to next Goldor damage tick (F7 P3)."));
+                drawToggleRow(context, viewport.x, y, "Rare Room Alerts", config().isDungeonRareRoomAlertsEnabled(), Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
             }
             case MOBS -> {
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Starred Mobs", "Starred Mobs"));
@@ -660,25 +662,18 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Fel Farbe", "Fel Color"), config().getFelHighlightColor(), 2);
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Teamkameraden", "Teammates"));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Teammate Glow", "Teammate Glow"), config().isTeammateGlowEnabled(), Lang.t("Dungeon-Teamkameraden per Glow markieren.", "Highlight dungeon teammates with glow."));
-                y = drawMobColorSwatchRow(context, viewport.x, y, "Archer", config().getClassColorArcher(), 3);
-                y = drawMobColorSwatchRow(context, viewport.x, y, "Berserk", config().getClassColorBerserk(), 4);
-                y = drawMobColorSwatchRow(context, viewport.x, y, "Healer", config().getClassColorHealer(), 5);
-                y = drawMobColorSwatchRow(context, viewport.x, y, "Mage", config().getClassColorMage(), 6);
-                y = drawMobColorSwatchRow(context, viewport.x, y, "Tank", config().getClassColorTank(), 7);
+                y = drawDropdownHeader(context, viewport.x, y, Lang.t("Teamkameraden-Farben", "Teammate Colors"), "teammateColors");
+                if (isDropdownOpen("teammateColors")) {
+                    y = drawMobColorSwatchRow(context, viewport.x, y, "Archer", config().getClassColorArcher(), 3);
+                    y = drawMobColorSwatchRow(context, viewport.x, y, "Berserk", config().getClassColorBerserk(), 4);
+                    y = drawMobColorSwatchRow(context, viewport.x, y, "Healer", config().getClassColorHealer(), 5);
+                    y = drawMobColorSwatchRow(context, viewport.x, y, "Mage", config().getClassColorMage(), 6);
+                    y = drawMobColorSwatchRow(context, viewport.x, y, "Tank", config().getClassColorTank(), 7);
+                }
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Mimic & Prince", "Mimic & Prince"));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Mimic Erkennung", "Mimic Detection"), config().isMimicDetectionEnabled(), Lang.t("Erkennt Mimic-Kill per Tod-Event (F6+).", "Detects mimic kill via death event (F6+)."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Mimic Nachricht", "Mimic Message"), config().isMimicMessageEnabled(), Lang.t("Sendet 'Mimic killed!' in den Party-Chat.", "Sends 'Mimic killed!' to party chat."));
                 drawToggleRow(context, viewport.x, y, Lang.t("Prince Nachricht", "Prince Message"), config().isPrinceMessageEnabled(), Lang.t("Sendet 'Prince killed!' in den Party-Chat.", "Sends 'Prince killed!' to party chat."));
-            }
-            case DOORS -> {
-                y = drawSectionTitle(context, viewport.x, y, Lang.t("Wither Doors", "Wither Doors"));
-                y = drawToggleRow(context, viewport.x, y, Lang.t("Wither Door ESP", "Wither Door ESP"), config().isWitherDoorEspEnabled(), Lang.t("Wither-Tueren im Dungeon hervorheben.", "Highlight wither doors in dungeons."));
-                y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Wither Door Farbe", "Wither Door Color"), config().getWitherDoorColor(), 8);
-                y = drawSectionTitle(context, viewport.x, y, Lang.t("Blood Doors", "Blood Doors"));
-                y = drawToggleRow(context, viewport.x, y, Lang.t("Blood Door ESP", "Blood Door ESP"), config().isBloodDoorEspEnabled(), Lang.t("Blood-Tueren im Dungeon hervorheben.", "Highlight blood doors in dungeons."));
-                y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Blood Door Farbe", "Blood Door Color"), config().getBloodDoorColor(), 9);
-                y = drawSectionTitle(context, viewport.x, y, Lang.t("Schluessel", "Keys"));
-                drawToggleRow(context, viewport.x, y, Lang.t("Schluessel Highlight", "Key Highlight"), config().isDoorKeyHighlightEnabled(), Lang.t("Zeigt Box und Tracer zu Wither/Blood Keys.", "Shows box and tracer to Wither/Blood keys."));
             }
             case REVIVAL -> {
                 y = drawSectionTitle(context, viewport.x, y, "Dungeons / Revive");
@@ -698,15 +693,17 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Spielerkoepfe", "Player Heads"), config().isMapShowPlayerHeads(), Lang.t("Spielerkoepfe mit Klassenfarbe auf der Karte.", "Player heads with class colour on the map."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Spielernamen", "Player Names"), config().isMapShowPlayerNames(), Lang.t("Namen unter den Spielerkoepfen.", "Names below the player heads."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Secret-Anzahl", "Secret Count"), config().isMapShowSecretCount(), Lang.t("Gesamtzahl der Secrets pro Raum.", "Total secret count per room."));
-                y = drawSectionTitle(context, viewport.x, y, Lang.t("Kartenfarben", "Map Colors"));
-                y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Hintergrund", "Background"), config().getMapColorBackground());
-                y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Normal", "Normal"), config().getMapColorNormal());
-                y = drawColorSwatchRow(context, viewport.x, y, "Puzzle", config().getMapColorPuzzle());
-                y = drawColorSwatchRow(context, viewport.x, y, "Trap", config().getMapColorTrap());
-                y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Eingang", "Entrance"), config().getMapColorEntrance());
-                y = drawColorSwatchRow(context, viewport.x, y, "Miniboss", config().getMapColorMiniboss());
-                y = drawColorSwatchRow(context, viewport.x, y, "Blood", config().getMapColorBlood());
-                y = drawColorSwatchRow(context, viewport.x, y, "Rare", config().getMapColorRare());
+                y = drawDropdownHeader(context, viewport.x, y, Lang.t("Kartenfarben", "Map Colors"), "mapColors");
+                if (isDropdownOpen("mapColors")) {
+                    y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Hintergrund", "Background"), config().getMapColorBackground());
+                    y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Normal", "Normal"), config().getMapColorNormal());
+                    y = drawColorSwatchRow(context, viewport.x, y, "Puzzle", config().getMapColorPuzzle());
+                    y = drawColorSwatchRow(context, viewport.x, y, "Trap", config().getMapColorTrap());
+                    y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Eingang", "Entrance"), config().getMapColorEntrance());
+                    y = drawColorSwatchRow(context, viewport.x, y, "Miniboss", config().getMapColorMiniboss());
+                    y = drawColorSwatchRow(context, viewport.x, y, "Blood", config().getMapColorBlood());
+                    y = drawColorSwatchRow(context, viewport.x, y, "Rare", config().getMapColorRare());
+                }
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Raumnamen-Farben", "Room Name Colors"));
                 y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Ungecleart", "Uncleared"), config().getMapColorNameUncleared());
                 y = drawColorSwatchRow(context, viewport.x, y, Lang.t("Gecleart", "Cleared"), config().getMapColorNameCleared());
@@ -718,6 +715,38 @@ public final class HorizonConfigScreen extends Screen {
                 int sortMode = config().getLeapMenuSortMode();
                 drawCycleRow(context, viewport.x, y, Lang.t("Sortierung", "Sort Mode"), sortLabels[Math.min(sortMode, 2)], true, Lang.t("Klasse-Quadrant, Klasse A-Z oder Name A-Z.", "Class quadrant, class A-Z or name A-Z."));
             }
+            case SECRETS -> {
+                y = drawSectionTitle(context, viewport.x, y, "Secret Waypoints");
+                y = drawToggleRow(context, viewport.x, y, "Secret Waypoints", config().isSecretWaypointsEnabled(), Lang.t("Zeigt Secret-Positionen im aktuellen Raum.", "Shows secret positions in the current room."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Durch Waende", "Through Walls"), config().isSecretWaypointsThroughWalls(), Lang.t("Zeigt Waypoints auch durch Bloecke.", "Shows waypoints through blocks."));
+                y = drawDropdownHeader(context, viewport.x, y, "Secret Waypoints Config", "secretConfig");
+                if (isDropdownOpen("secretConfig")) {
+                    y = drawToggleRow(context, viewport.x, y, "Chest", config().isSecretShowChest(), Lang.t("Waypoints fuer Secret-Truhen.", "Waypoints for secret chests."));
+                    y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Chest Farbe", "Chest Color"), config().getSecretColorChest(), 11);
+                    y = drawToggleRow(context, viewport.x, y, "Item", config().isSecretShowItem(), Lang.t("Waypoints fuer Item-Secrets.", "Waypoints for item secrets."));
+                    y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Item Farbe", "Item Color"), config().getSecretColorItem(), 12);
+                    y = drawToggleRow(context, viewport.x, y, "Wither Essence", config().isSecretShowEssence(), Lang.t("Waypoints fuer Wither Essence.", "Waypoints for wither essence."));
+                    y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Wither Essence Farbe", "Wither Essence Color"), config().getSecretColorEssence(), 13);
+                    y = drawToggleRow(context, viewport.x, y, "Bat", config().isSecretShowBat(), Lang.t("Waypoints fuer Bat-Secrets.", "Waypoints for bat secrets."));
+                    y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Bat Farbe", "Bat Color"), config().getSecretColorBat(), 14);
+                    y = drawToggleRow(context, viewport.x, y, "Redstone Key", config().isSecretShowRedstone(), Lang.t("Waypoints fuer Redstone-Key-Secrets.", "Waypoints for redstone key secrets."));
+                    y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Redstone Key Farbe", "Redstone Key Color"), config().getSecretColorRedstone(), 15);
+                    y = drawToggleRow(context, viewport.x, y, "Lever", config().isSecretShowLever(), Lang.t("Waypoints fuer Hebel-Secrets.", "Waypoints for lever secrets."));
+                    y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Lever Farbe", "Lever Color"), config().getSecretColorLever(), 16);
+                }
+                // Doors (moved from the Doors tab)
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Tueren", "Doors"));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Wither Door ESP", "Wither Door ESP"), config().isWitherDoorEspEnabled(), Lang.t("Wither-Tueren im Dungeon hervorheben.", "Highlight wither doors in dungeons."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Blood Door ESP", "Blood Door ESP"), config().isBloodDoorEspEnabled(), Lang.t("Blood-Tueren im Dungeon hervorheben.", "Highlight blood doors in dungeons."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Schluessel Highlight", "Key Highlight"), config().isDoorKeyHighlightEnabled(), Lang.t("Zeigt Box und Tracer zu Wither/Blood Keys.", "Shows box and tracer to Wither/Blood keys."));
+                y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Key aufgesammelt", "Key Collected"), config().getDoorColorHasKey(), 17);
+                y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Key nicht aufgesammelt", "Key Not Collected"), config().getDoorColorNoKey(), 18);
+                // Dungeon Score (moved from the Boss tab)
+                y = drawSectionTitle(context, viewport.x, y, "Dungeon Score");
+                y = drawToggleRow(context, viewport.x, y, "Dungeon Score", config().isDungeonScoreEnabled(), Lang.t("Zeigt geschaetzte Dungeon-Punktzahl als HUD an.", "Shows estimated dungeon score as HUD overlay."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Score-Title", "Score Title"), config().isDungeonScoreTitle(), Lang.t("Title bei Erreichen von S (270) und S+ (300).", "Title when reaching S (270) and S+ (300)."));
+                drawToggleRow(context, viewport.x, y, Lang.t("Score im Boss zeigen", "Show Score in Boss"), config().isDungeonScoreShowInBoss(), Lang.t("Score bleibt im Bosskampf sichtbar (sonst verschwindet er beim Boss-Start).", "Score stays visible during the boss fight (otherwise it hides at boss start)."));
+            }
             case PUZZLE_SOLVER -> {
                 y = drawSectionTitle(context, viewport.x, y, "Puzzle Solver");
                 y = drawToggleRow(context, viewport.x, y, "Puzzle Solver", config().isPuzzleSolverEnabled(), Lang.t("Loesungen fuer Blaze, Boulder, Eis, Quiz, Wasser, Creeper Beams, Three Weirdos.", "Solutions for Blaze, Boulder, Ice Fill, Quiz, Water, Creeper Beams, Three Weirdos."));
@@ -727,32 +756,69 @@ public final class HorizonConfigScreen extends Screen {
                 drawCycleRow(context, viewport.x, y, Lang.t("Stil", "Style"), Lang.t(styleDE[ps], styleEN[ps]), config().isPuzzleSolverEnabled(), Lang.t("Render-Stil der Loesung.", "Render style of the solution."));
             }
             case TERMINAL_SOLVER -> {
+                String[] slotStyleDE = {"Rechteck", "Rahmen", "Button"};
+                String[] slotStyleEN = {"Rect", "Bordered", "Button"};
+                int ss = Math.max(0, Math.min(2, config().getTerminalSlotStyle()));
                 y = drawSectionTitle(context, viewport.x, y, "Terminal Solver");
-                y = drawToggleRow(context, viewport.x, y, "Terminal Solver", config().isTerminalSolverEnabled(), Lang.t("Markiert korrekte Slots in F7-Terminals (Panes, Rubix, Order, Starts With, Select All).", "Highlights correct slots in F7 terminals (Panes, Rubix, Order, Starts With, Select All)."));
-                y = drawToggleRow(context, viewport.x, y, Lang.t("Falsche Klicks blockieren", "Block Wrong Clicks"), config().isTerminalSolverBlockWrongClicks(), Lang.t("Falsche Terminal-Klicks unterdrucken.", "Suppress incorrect terminal clicks."));
-                y = drawToggleRow(context, viewport.x, y, Lang.t("Custom-Modus", "Custom Mode"), config().isTerminalSolverCustomMode(), Lang.t("Nicht-relevante Slots vollstaendig ausblenden statt nur abzudunkeln.", "Fully hide non-relevant slots instead of just dimming them."));
-                drawSliderRow(context, viewport.x, y, "GUI Scale", config().getTerminalGuiScale(), 0.5, 3.0, Lang.t("Skalierung des Terminal-GUIs.", "Scale of the terminal GUI."));
-            }
-            case BOSS -> {
-                y = drawSectionTitle(context, viewport.x, y, "Boss Solver (F7 P3)");
+                y = drawToggleRow(context, viewport.x, y, "Terminal Solver", config().isTerminalSolverEnabled(), Lang.t("Ersetzt F7-Terminals durch ein eigenes Overlay mit markierten Klick-Slots.", "Replaces F7 terminals with a custom overlay highlighting the slots to click."));
+                y = drawCycleRow(context, viewport.x, y, Lang.t("Slot-Stil", "Slot Style"), Lang.t(slotStyleDE[ss], slotStyleEN[ss]), config().isTerminalSolverEnabled(), Lang.t("Darstellung der markierten Slots.", "Appearance of the highlighted slots."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Zahlen anzeigen", "Show Numbers"), config().isTerminalShowNumbers(), Lang.t("Zeigt die Klick-Reihenfolge als Zahl im Order-Terminal.", "Shows the click order as a number in the Order terminal."));
+                y = drawSliderRow(context, viewport.x, y, "GUI Scale", config().getTerminalGuiScale(), 0.5, 3.0, Lang.t("Skalierung des Terminal-Overlays.", "Scale of the terminal overlay."));
+                y = drawDropdownHeader(context, viewport.x, y, Lang.t("Terminal-Farben", "Terminal Colors"), "terminalColors");
+                if (isDropdownOpen("terminalColors")) {
+                    y = drawToggleRow(context, viewport.x, y, Lang.t("Automatische HUD-Farben", "Automatic HUD Colors"), config().isTerminalUseHudColor(), Lang.t("Wenn an, werden die Solver-Farben automatisch aus der HUD-Farbe abgeleitet. Wenn aus, greifen die Farb-Einstellungen unten.", "When on, solver colours derive automatically from the HUD color. When off, the color settings below apply."));
+                    y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Loesung", "Solution"), 0);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, "Numbers 1", 1);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, "Numbers 2", 2);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, "Numbers 3", 3);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, "Rubix +", 4);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, "Rubix -", 5);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Melody Spalte", "Melody Column"), 6);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Melody Indikator", "Melody Indicator"), 7);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Melody Falsch", "Melody Wrong"), 8);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Hintergrund", "Background"), 9);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Rahmen", "Border"), 10);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, "Title", 11);
+                    y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Overlay-Text", "Overlay Text"), 12);
+                }
+                // Device solvers (F7 P3) — moved here from the Boss tab.
+                String[] arrowStyleDE = {"Dynamisch", "Eigene"};
+                String[] arrowStyleEN = {"Dynamic", "Custom"};
+                int arrowStyle = Math.max(0, Math.min(1, config().getArrowAlignColorStyle()));
+                y = drawSectionTitle(context, viewport.x, y, "Device");
                 y = drawToggleRow(context, viewport.x, y, "Simon Says", config().isSimonSaysEnabled(), Lang.t("Hebt die korrekte Schaltflaechen-Reihenfolge beim Goldor-Device hervor.", "Highlights the correct button sequence for the Goldor device."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Falsche Klicks blockieren", "Block Wrong Clicks"), config().isSimonSaysBlockWrongClicks(), Lang.t("Blockiert Klicks auf falsche Simon-Says-Knoepfe.", "Blocks clicks on incorrect Simon Says buttons."));
                 y = drawToggleRow(context, viewport.x, y, "Arrow Align", config().isArrowAlignEnabled(), Lang.t("Zeigt Klickanzahl fuer jede Pfeil-Bilderrahmen.", "Shows click count for each arrow item frame."));
+                y = drawCycleRow(context, viewport.x, y, Lang.t("Arrow Farb-Stil", "Arrow Color Style"), Lang.t(arrowStyleDE[arrowStyle], arrowStyleEN[arrowStyle]), config().isArrowAlignEnabled(), Lang.t("Dynamisch faerbt nach Klickanzahl (gruen/orange/rot).", "Dynamic colours by click count (green/orange/red)."));
+                y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Arrow Textfarbe", "Arrow Text Color"), 13);
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Falsche Klicks blockieren (Arrow)", "Block Wrong Clicks (Arrow)"), config().isArrowAlignBlockWrongClicks(), Lang.t("Blockiert Rechtsklicks auf bereits korrekte Rahmen.", "Blocks right-clicks on already-aligned frames."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Sneak invertieren", "Invert Sneak"), config().isArrowAlignInvertSneak(), Lang.t("Sneak deaktiviert das Blockieren statt es zu aktivieren.", "Sneak disables blocking instead of enabling it."));
                 y = drawToggleRow(context, viewport.x, y, "Arrow Device (I4)", config().isSharpShooterEnabled(), Lang.t("Hebt getroffene Smaragdbloecke beim Arrow-Device hervor.", "Highlights hit emerald blocks at the arrow device."));
-                y = drawToggleRow(context, viewport.x, y, "Purple Pad Timer", config().isPurplePadTimerEnabled(), Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("I4 Done-Text", "I4 Done Text"), config().isSharpShooterDoneEnabled(), Lang.t("Zeigt \"Done\" im Raum, wenn das I4-Device fertig ist.", "Shows \"Done\" in the world when the I4 device is complete."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("I4 Done-Title", "I4 Done Title"), config().isSharpShooterDoneTitleEnabled(), Lang.t("Blendet einen Title ein, wenn das I4-Device fertig ist.", "Flashes a screen title when the I4 device completes."));
+                y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("I4 Done-Farbe", "I4 Done Color"), 14);
+                y = drawSliderRow(context, viewport.x, y, Lang.t("I4 Done-Groesse", "I4 Done Size"), config().getSharpShooterDoneScale(), 1.0, 8.0, Lang.t("Textgroesse des Done-Textes.", "Text size of the Done text."));
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Wegpunkte & Titel", "Waypoints & Titles"));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Terminal-Wegpunkte", "Terminal Waypoints"), config().isTerminalWaypointsEnabled(), Lang.t("Markiert entdeckte Terminal-Positionen im Raum.", "Highlights discovered terminal positions in the room."));
+                drawToggleRow(context, viewport.x, y, Lang.t("Typ-Title", "Type Title"), config().isTerminalTitleEnabled(), Lang.t("Zeigt den Terminal-Typ als Title beim Oeffnen und Annaehern.", "Shows the terminal type as a title on open and approach."));
+            }
+            case BOSS -> {
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Allgemein", "General"));
                 y = drawToggleRow(context, viewport.x, y, "Blood Camper", config().isBloodCamperEnabled(), Lang.t("Zeigt Blood-Room-Fortschritt und Timer an.", "Shows blood room wave progress and timer."));
-                y = drawToggleRow(context, viewport.x, y, "Dungeon Score", config().isDungeonScoreEnabled(), Lang.t("Zeigt geschaetzte Dungeon-Punktzahl als HUD an.", "Shows estimated dungeon score as HUD overlay."));
+                y = drawSectionTitle(context, viewport.x, y, "F7");
+                y = drawToggleRow(context, viewport.x, y, "Damage Tick Timer", config().isTickTimerEnabled(), Lang.t("Countdown bis zum naechsten Goldor-Damage-Tick (F7 P3).", "Countdown to next Goldor damage tick (F7 P3)."));
+                y = drawToggleRow(context, viewport.x, y, "Purple Pad Timer", config().isPurplePadTimerEnabled(), Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."));
                 y = drawSectionTitle(context, viewport.x, y, "M7 Dragons (P5)");
                 y = drawToggleRow(context, viewport.x, y, "Dragon Overlay", config().isDragonEnabled(), Lang.t("Zeigt Dragon-Spawn-Prioritaet, Boxen und Timer in M7 P5.", "Shows dragon spawn priority, boxes and timer in M7 P5."));
                 y = drawToggleRow(context, viewport.x, y, "Dragon Boxes", config().isDragonBoxes(), Lang.t("Zeigt farbige Boxen an den Spawn-Positionen.", "Shows colored boxes at spawn positions."));
                 y = drawToggleRow(context, viewport.x, y, "Dragon Timer", config().isDragonTimer(), Lang.t("Zeigt Countdown bis zum Spawn.", "Shows countdown until spawn."));
                 y = drawToggleRow(context, viewport.x, y, "Spawn Alert", config().isDragonSpawnAlert(), Lang.t("Zeigt Spawn-Warnung im Chat.", "Shows spawn alert in chat."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Prioritaet", "Priority"), config().isDragonPriority(), Lang.t("Zeigt empfohlene Kill-Reihenfolge.", "Shows recommended kill order."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Drachen-Leben", "Dragon Health"), config().isDragonHealth(), Lang.t("Zeigt das Leben jedes Drachen ueber der Box.", "Shows each dragon's health above its box."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Prioritaet-Tracer", "Priority Tracer"), config().isDragonTracer(), Lang.t("Linie zum Prioritaets-Drachen.", "Line to the priority dragon."));
+                y = drawToggleRow(context, viewport.x, y, "Rag Axe Notification", config().isRagAxeNotificationEnabled(), Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."));
                 y = drawSectionTitle(context, viewport.x, y, "M7 Relic Timer");
-                drawToggleRow(context, viewport.x, y, "Relic Timer", config().isRelicTimerEnabled(), Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."));
-            }
-            case FLOOR_SPECIALS -> {
+                y = drawToggleRow(context, viewport.x, y, "Relic Timer", config().isRelicTimerEnabled(), Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."));
                 y = drawSectionTitle(context, viewport.x, y, "F4 / M4 Spirit Bear");
                 y = drawToggleRow(context, viewport.x, y, "Spirit Bear Timer", config().isSpiritBearTimerEnabled(), Lang.t("Fortschritt und Countdown bis zum Spirit Bear Spawn.", "Progress and countdown until Spirit Bear spawn."));
                 y = drawToggleRow(context, viewport.x, y, "Spirit Bear Highlight", config().isSpiritBearHighlightEnabled(), Lang.t("Spirit Bear per Glow hervorheben.", "Highlight Spirit Bear with glow."));
@@ -814,6 +880,10 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawSectionTitle(context, viewport.x, y, "Anzeige / NoRender");
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Feuer-Overlay", "Fire Overlay"), !config().isFireOverlayDisabled(),
                     Lang.t("Feuer-Overlay ausblenden wenn man brennt.", "Disable the fire overlay when on fire."));
+                y = drawToggleRow(context, viewport.x, y, "Front Cam", config().isFrontCamDisabled(),
+                    Lang.t("Schaltet die F5-Ansicht von vorne ab; F5 wechselt nur noch zwischen Ego- und 3rd-Person.", "Disables the front-facing F5 view; F5 only toggles between first and third person."));
+                y = drawToggleRow(context, viewport.x, y, "Soulweaver Gloves", config().isSoulweaverSkullsHidden(),
+                    Lang.t("Rendert die umherfliegenden Soulweaver-Gloves-Skulls nicht mehr.", "Stops rendering the orbiting Soulweaver Gloves skulls."));
                 drawSliderRow(context, viewport.x, y, Lang.t("Hurtcam Intensitaet", "Hurtcam Intensity"),
                     config().getHurtCamIntensity(), 0.0, 1.0,
                     Lang.t("0 = komplett aus, 1 = normal.", "0 = completely off, 1 = normal."));
@@ -868,6 +938,18 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Feuer-Overlay ausblenden wenn man brennt.", "Disable the fire overlay when on fire."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setFrontCamDisabled(!config().isFrontCamDisabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Schaltet die F5-Ansicht von vorne ab; F5 wechselt nur noch zwischen Ego- und 3rd-Person.", "Disables the front-facing F5 view; F5 only toggles between first and third person."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setSoulweaverSkullsHidden(!config().isSoulweaverSkullsHidden());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Rendert die umherfliegenden Soulweaver-Gloves-Skulls nicht mehr.", "Stops rendering the orbiting Soulweaver Gloves skulls."));
                 if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
                     activeSliderIndex = 10;
                     applySliderValue(10, mouseX, viewport.x);
@@ -935,6 +1017,8 @@ public final class HorizonConfigScreen extends Screen {
                 "Limits game view to 16:9 with black bars on the sides (Samsung Odyssey G9)."));
             case ANIMATIONS -> 5 * sliderRowHeight();
             case NO_RENDER -> toggleRowHeight(Lang.t("Feuer-Overlay ausblenden wenn man brennt.", "Disable the fire overlay when on fire."))
+                + toggleRowHeight(Lang.t("Schaltet die F5-Ansicht von vorne ab; F5 wechselt nur noch zwischen Ego- und 3rd-Person.", "Disables the front-facing F5 view; F5 only toggles between first and third person."))
+                + toggleRowHeight(Lang.t("Rendert die umherfliegenden Soulweaver-Gloves-Skulls nicht mehr.", "Stops rendering the orbiting Soulweaver Gloves skulls."))
                 + sliderRowHeight();
             case HELPERS -> toggleRowHeight(Lang.t("Zeigt Teleport-Ziel fuer Aspect of the Void/Dragons.", "Shows teleport destination for Aspect of the Void/Dragons."))
                 + toggleRowHeight(Lang.t("Box nur beim Schleichen anzeigen.", "Only show box while sneaking."))
@@ -1258,6 +1342,50 @@ public final class HorizonConfigScreen extends Screen {
         return y + 24;
     }
 
+    // ── Collapsible dropdown headers (for grouped colour settings) ──────────────────
+    private boolean isDropdownOpen(String key) { return openDropdowns.contains(key); }
+
+    /** A clickable section header with a large ▸/▾ indicator; toggles {@code key}'s open state. */
+    private int drawDropdownHeader(GuiGraphicsExtractor context, int x, int y, String title, String key) {
+        boolean open = isDropdownOpen(key);
+        int color = accentColor();
+        drawDropdownTriangle(context, x, y + 1, open, color); // ~2x the old glyph, easier to see
+        drawTextLine(context, x + 12, y, title, color);
+        context.fill(x, y + 14, x + CONTENT_ROW_WIDTH, y + 15, HudStyle.border());
+        return y + 24;
+    }
+
+    /** Draws a filled triangle indicator (size ~8px): right-pointing when collapsed, down when open. */
+    private void drawDropdownTriangle(GuiGraphicsExtractor context, int x, int y, boolean open, int color) {
+        int size = 8;
+        if (open) { // ▾ apex at bottom, widest at top
+            int centerX = x + size / 2;
+            for (int dy = 0; dy < size; dy++) {
+                int half = (size - dy) / 2;
+                if (half <= 0) break;
+                context.fill(centerX - half, y + dy, centerX + half, y + dy + 1, color);
+            }
+        } else { // ▸ apex at right, widest at left
+            int centerY = y + size / 2;
+            for (int dx = 0; dx < size; dx++) {
+                int half = (size - dx) / 2;
+                if (half <= 0) break;
+                context.fill(x + dx, centerY - half, x + dx + 1, centerY + half, color);
+            }
+        }
+    }
+
+    private Rect dropdownHeaderRect(int x, int y) {
+        return new Rect(x - 12, y, CONTENT_ROW_WIDTH + 16, 22);
+    }
+
+    /** Click handler for a dropdown header: toggles open/closed. Returns true if hit. */
+    private boolean handleDropdownHeader(double mouseX, double mouseY, int x, int y, String key) {
+        if (!dropdownHeaderRect(x, y).contains(mouseX, mouseY)) return false;
+        if (!openDropdowns.remove(key)) openDropdowns.add(key);
+        return true;
+    }
+
     private int drawToggleRow(GuiGraphicsExtractor context, int x, int y, String title, boolean enabled, String description) {
         int rowHeight = toggleRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, enabled ? 0xFF2DBA68 : 0xFF8A97A8, false);
@@ -1318,6 +1446,7 @@ public final class HorizonConfigScreen extends Screen {
             case 11 -> config().setEtherwarpSoundVolume((float) sliderValueFromMouse(mouseX, viewportX, 0.0, 2.0));
             case 12 -> config().setEtherwarpSoundPitch((float) sliderValueFromMouse(mouseX, viewportX, 0.0, 2.0));
             case 20 -> config().setTerminalGuiScale((float) sliderValueFromMouse(mouseX, viewportX, 0.5, 3.0));
+            case 21 -> config().setSharpShooterDoneScale((float) sliderValueFromMouse(mouseX, viewportX, 1.0, 8.0));
         }
         horizonClient.getConfigManager().save();
     }
@@ -1608,6 +1737,14 @@ public final class HorizonConfigScreen extends Screen {
             case 8 -> config().getWitherDoorColor();
             case 9 -> config().getBloodDoorColor();
             case 10 -> config().getSpiritBearHighlightColor();
+            case 11 -> config().getSecretColorChest();
+            case 12 -> config().getSecretColorItem();
+            case 13 -> config().getSecretColorEssence();
+            case 14 -> config().getSecretColorBat();
+            case 15 -> config().getSecretColorRedstone();
+            case 16 -> config().getSecretColorLever();
+            case 17 -> config().getDoorColorHasKey();
+            case 18 -> config().getDoorColorNoKey();
             default -> 0xFFFFFF;
         };
     }
@@ -1625,12 +1762,94 @@ public final class HorizonConfigScreen extends Screen {
             case 8 -> config().setWitherDoorColor(color);
             case 9 -> config().setBloodDoorColor(color);
             case 10 -> config().setSpiritBearHighlightColor(color);
+            case 11 -> config().setSecretColorChest(color);
+            case 12 -> config().setSecretColorItem(color);
+            case 13 -> config().setSecretColorEssence(color);
+            case 14 -> config().setSecretColorBat(color);
+            case 15 -> config().setSecretColorRedstone(color);
+            case 16 -> config().setSecretColorLever(color);
+            case 17 -> config().setDoorColorHasKey(color);
+            case 18 -> config().setDoorColorNoKey(color);
         }
         return color;
     }
 
     private int mobsColorSwatchHeight(int index) {
         return activeMobColorIndex == index ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+    }
+
+    // ── Terminal / Arrow overlay colours (own picker index namespace) ────────────
+
+    private int getTermColor(int index) {
+        return switch (index) {
+            case 0 -> config().getTermColorSolution();
+            case 1 -> config().getTermColorNumbers1();
+            case 2 -> config().getTermColorNumbers2();
+            case 3 -> config().getTermColorNumbers3();
+            case 4 -> config().getTermColorRubixPos();
+            case 5 -> config().getTermColorRubixNeg();
+            case 6 -> config().getTermColorMelodyColumn();
+            case 7 -> config().getTermColorMelodyIndicator();
+            case 8 -> config().getTermColorMelodyWrong();
+            case 9 -> config().getTermColorBackground();
+            case 10 -> config().getTermColorBorder();
+            case 11 -> config().getTermColorTitle();
+            case 12 -> config().getTermColorOverlayText();
+            case 13 -> config().getArrowAlignTextColor();
+            case 14 -> config().getSharpShooterDoneColor();
+            default -> 0xFFFFFFFF;
+        };
+    }
+
+    private int setTermColor(int index, int color) {
+        switch (index) {
+            case 0 -> config().setTermColorSolution(color);
+            case 1 -> config().setTermColorNumbers1(color);
+            case 2 -> config().setTermColorNumbers2(color);
+            case 3 -> config().setTermColorNumbers3(color);
+            case 4 -> config().setTermColorRubixPos(color);
+            case 5 -> config().setTermColorRubixNeg(color);
+            case 6 -> config().setTermColorMelodyColumn(color);
+            case 7 -> config().setTermColorMelodyIndicator(color);
+            case 8 -> config().setTermColorMelodyWrong(color);
+            case 9 -> config().setTermColorBackground(color);
+            case 10 -> config().setTermColorBorder(color);
+            case 11 -> config().setTermColorTitle(color);
+            case 12 -> config().setTermColorOverlayText(color);
+            case 13 -> config().setArrowAlignTextColor(color);
+            case 14 -> config().setSharpShooterDoneColor(color);
+        }
+        return color;
+    }
+
+    private int termColorSwatchHeight(int index) {
+        return activeTerminalColorIndex == index ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+    }
+
+    private int drawTermColorSwatchRow(GuiGraphicsExtractor context, int x, int y, String label, int termIndex) {
+        int currentColor = getTermColor(termIndex);
+        boolean expanded = activeTerminalColorIndex == termIndex;
+        int rowHeight = expanded ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+        drawSettingCard(context, x, y, rowHeight, currentColor | 0xFF000000, false);
+        int swatchX = x + 4;
+        int swatchY = y + CARD_PADDING_TOP;
+        drawColorPreviewSwatch(context, swatchX, swatchY, 12, currentColor);
+        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), TEXT);
+        if (expanded) {
+            drawColorPickerFields(context, x + 4, y + CARD_PADDING_TOP + LINE_HEIGHT + 4, currentColor);
+        }
+        return y + rowHeight;
+    }
+
+    /** Click handler for a terminal-colour swatch row; mirrors the mob-colour pattern. Returns
+     *  {@link ClickResult}: HANDLED if it consumed the click, else PASS. Advances {@code y}. */
+    private boolean handleTermColorRow(double mouseX, double mouseY, int viewportX, int y, int termIndex) {
+        if (activeTerminalColorIndex == termIndex
+            && handleGenericColorPickerClick(mouseX, mouseY, viewportX + 4, y, termIndex, this::getTermColor, this::setTermColor)) {
+            return true;
+        }
+        activeTerminalColorIndex = activeTerminalColorIndex == termIndex ? -1 : termIndex;
+        return true;
     }
 
     private void handleColorPickerDrag(double mouseX, double mouseY) {
@@ -1719,29 +1938,124 @@ public final class HorizonConfigScreen extends Screen {
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight(Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
-                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    config().setRagAxeNotificationEnabled(!config().isRagAxeNotificationEnabled());
-                    horizonClient.getConfigManager().save();
-                    yield true;
-                }
-                y += toggleRowHeight(Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."));
-                y += 24; // "Tick Timer" section title
-                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    config().setTickTimerEnabled(!config().isTickTimerEnabled());
-                    horizonClient.getConfigManager().save();
-                    yield true;
-                }
+                // Rag Axe Notification + Tick Timer moved to the Boss tab.
                 yield false;
             }
             case MOBS -> {
                 yield handleMobsClick(mouseX, mouseY, viewport, y);
             }
-            case DOORS -> {
-                yield handleDoorsClick(mouseX, mouseY, viewport, y);
-            }
             case REVIVAL -> handleReviveClick(mouseX, mouseY, viewport, y);
             case MAP -> handleMapClick(mouseX, mouseY, viewport, y);
+            case SECRETS -> {
+                // NOTE: base y already skips the first section title ("Secret Waypoints"); do NOT add 24.
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setSecretWaypointsEnabled(!config().isSecretWaypointsEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Zeigt Secret-Positionen im aktuellen Raum.", "Shows secret positions in the current room."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setSecretWaypointsThroughWalls(!config().isSecretWaypointsThroughWalls());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Zeigt Waypoints auch durch Bloecke.", "Shows waypoints through blocks."));
+                // "Secret Waypoints Config" dropdown header
+                if (handleDropdownHeader(mouseX, mouseY, viewport.x, y, "secretConfig")) yield true;
+                y += 24;
+                if (isDropdownOpen("secretConfig")) {
+                    boolean[] catState = {
+                        config().isSecretShowChest(), config().isSecretShowItem(), config().isSecretShowEssence(),
+                        config().isSecretShowBat(), config().isSecretShowRedstone(), config().isSecretShowLever()
+                    };
+                    String[] catDesc = {
+                        Lang.t("Waypoints fuer Secret-Truhen.", "Waypoints for secret chests."),
+                        Lang.t("Waypoints fuer Item-Secrets.", "Waypoints for item secrets."),
+                        Lang.t("Waypoints fuer Wither Essence.", "Waypoints for wither essence."),
+                        Lang.t("Waypoints fuer Bat-Secrets.", "Waypoints for bat secrets."),
+                        Lang.t("Waypoints fuer Redstone-Key-Secrets.", "Waypoints for redstone key secrets."),
+                        Lang.t("Waypoints fuer Hebel-Secrets.", "Waypoints for lever secrets.")
+                    };
+                    for (int ci = 0; ci < 6; ci++) {
+                        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                            switch (ci) {
+                                case 0 -> config().setSecretShowChest(!catState[0]);
+                                case 1 -> config().setSecretShowItem(!catState[1]);
+                                case 2 -> config().setSecretShowEssence(!catState[2]);
+                                case 3 -> config().setSecretShowBat(!catState[3]);
+                                case 4 -> config().setSecretShowRedstone(!catState[4]);
+                                case 5 -> config().setSecretShowLever(!catState[5]);
+                            }
+                            horizonClient.getConfigManager().save();
+                            yield true;
+                        }
+                        y += toggleRowHeight(catDesc[ci]);
+                        int colorIdx = 11 + ci;
+                        int rowH = activeMobColorIndex == colorIdx ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+                        if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                            if (activeMobColorIndex == colorIdx
+                                && handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, colorIdx, this::getMobColor, this::setMobColor)) {
+                                yield true;
+                            }
+                            activeMobColorIndex = activeMobColorIndex == colorIdx ? -1 : colorIdx;
+                            yield true;
+                        }
+                        y += rowH;
+                    }
+                }
+                // "Doors" section
+                y += 24;
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setWitherDoorEspEnabled(!config().isWitherDoorEspEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Wither-Tueren im Dungeon hervorheben.", "Highlight wither doors in dungeons."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setBloodDoorEspEnabled(!config().isBloodDoorEspEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Blood-Tueren im Dungeon hervorheben.", "Highlight blood doors in dungeons."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setDoorKeyHighlightEnabled(!config().isDoorKeyHighlightEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Zeigt Box und Tracer zu Wither/Blood Keys.", "Shows box and tracer to Wither/Blood keys."));
+                for (int di = 17; di <= 18; di++) {
+                    int rowH = activeMobColorIndex == di ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+                    if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                        if (activeMobColorIndex == di
+                            && handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, di, this::getMobColor, this::setMobColor)) {
+                            yield true;
+                        }
+                        activeMobColorIndex = activeMobColorIndex == di ? -1 : di;
+                        yield true;
+                    }
+                    y += rowH;
+                }
+                // "Dungeon Score" section
+                y += 24;
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setDungeonScoreEnabled(!config().isDungeonScoreEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Zeigt geschaetzte Dungeon-Punktzahl als HUD an.", "Shows estimated dungeon score as HUD overlay."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setDungeonScoreTitle(!config().isDungeonScoreTitle());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Title bei Erreichen von S (270) und S+ (300).", "Title when reaching S (270) and S+ (300)."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setDungeonScoreShowInBoss(!config().isDungeonScoreShowInBoss());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                yield false;
+            }
             case PUZZLE_SOLVER -> {
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setPuzzleSolverEnabled(!config().isPuzzleSolverEnabled());
@@ -1762,27 +2076,46 @@ public final class HorizonConfigScreen extends Screen {
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight(Lang.t("Markiert korrekte Slots in F7-Terminals (Panes, Rubix, Order, Starts With, Select All).", "Highlights correct slots in F7 terminals (Panes, Rubix, Order, Starts With, Select All)."));
+                y += toggleRowHeight(Lang.t("Ersetzt F7-Terminals durch ein eigenes Overlay mit markierten Klick-Slots.", "Replaces F7 terminals with a custom overlay highlighting the slots to click."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    config().setTerminalSolverBlockWrongClicks(!config().isTerminalSolverBlockWrongClicks());
+                    config().setTerminalSlotStyle(config().getTerminalSlotStyle() + 1);
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight(Lang.t("Falsche Terminal-Klicks unterdrucken.", "Suppress incorrect terminal clicks."));
+                y += toggleRowHeight(Lang.t("Darstellung der markierten Slots.", "Appearance of the highlighted slots."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    config().setTerminalSolverCustomMode(!config().isTerminalSolverCustomMode());
+                    config().setTerminalShowNumbers(!config().isTerminalShowNumbers());
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight(Lang.t("Nicht-relevante Slots vollstaendig ausblenden statt nur abzudunkeln.", "Fully hide non-relevant slots instead of just dimming them."));
+                y += toggleRowHeight(Lang.t("Zeigt die Klick-Reihenfolge als Zahl im Order-Terminal.", "Shows the click order as a number in the Order terminal."));
                 if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
                     activeSliderIndex = 20;
                     applySliderValue(20, mouseX, viewport.x);
                     yield true;
                 }
-                yield false;
-            }
-            case BOSS -> {
+                y += sliderRowHeight();
+                // "Terminal Colors" dropdown header
+                if (handleDropdownHeader(mouseX, mouseY, viewport.x, y, "terminalColors")) yield true;
+                y += 24;
+                if (isDropdownOpen("terminalColors")) {
+                    if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                        config().setTerminalUseHudColor(!config().isTerminalUseHudColor());
+                        horizonClient.getConfigManager().save();
+                        yield true;
+                    }
+                    y += toggleRowHeight(Lang.t("Wenn an, werden die Solver-Farben automatisch aus der HUD-Farbe abgeleitet. Wenn aus, greifen die Farb-Einstellungen unten.", "When on, solver colours derive automatically from the HUD color. When off, the color settings below apply."));
+                    for (int ti = 0; ti <= 12; ti++) {
+                        int rowH = termColorSwatchHeight(ti);
+                        if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                            handleTermColorRow(mouseX, mouseY, viewport.x, y, ti);
+                            yield true;
+                        }
+                        y += rowH;
+                    }
+                }
+                // "Device" section (moved from Boss)
+                y += 24;
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setSimonSaysEnabled(!config().isSimonSaysEnabled());
                     horizonClient.getConfigManager().save();
@@ -1802,30 +2135,98 @@ public final class HorizonConfigScreen extends Screen {
                 }
                 y += toggleRowHeight(Lang.t("Zeigt Klickanzahl fuer jede Pfeil-Bilderrahmen.", "Shows click count for each arrow item frame."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setArrowAlignColorStyle(config().getArrowAlignColorStyle() + 1);
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Dynamisch faerbt nach Klickanzahl (gruen/orange/rot).", "Dynamic colours by click count (green/orange/red)."));
+                {
+                    int rowH = termColorSwatchHeight(13);
+                    if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                        handleTermColorRow(mouseX, mouseY, viewport.x, y, 13);
+                        yield true;
+                    }
+                    y += rowH;
+                }
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setArrowAlignBlockWrongClicks(!config().isArrowAlignBlockWrongClicks());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Blockiert Rechtsklicks auf bereits korrekte Rahmen.", "Blocks right-clicks on already-aligned frames."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setArrowAlignInvertSneak(!config().isArrowAlignInvertSneak());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Sneak deaktiviert das Blockieren statt es zu aktivieren.", "Sneak disables blocking instead of enabling it."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setSharpShooterEnabled(!config().isSharpShooterEnabled());
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Hebt getroffene Smaragdbloecke beim Arrow-Device hervor.", "Highlights hit emerald blocks at the arrow device."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    config().setPurplePadTimerEnabled(!config().isPurplePadTimerEnabled());
+                    config().setSharpShooterDoneEnabled(!config().isSharpShooterDoneEnabled());
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight(Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."));
-                y += 24; // "General" section title
+                y += toggleRowHeight(Lang.t("Zeigt \"Done\" im Raum, wenn das I4-Device fertig ist.", "Shows \"Done\" in the world when the I4 device is complete."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setSharpShooterDoneTitleEnabled(!config().isSharpShooterDoneTitleEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Blendet einen Title ein, wenn das I4-Device fertig ist.", "Flashes a screen title when the I4 device completes."));
+                {
+                    int rowH = termColorSwatchHeight(14);
+                    if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                        handleTermColorRow(mouseX, mouseY, viewport.x, y, 14);
+                        yield true;
+                    }
+                    y += rowH;
+                }
+                if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    activeSliderIndex = 21;
+                    applySliderValue(21, mouseX, viewport.x);
+                    yield true;
+                }
+                y += sliderRowHeight();
+                y += 24; // "Waypoints & Titles" section title
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setTerminalWaypointsEnabled(!config().isTerminalWaypointsEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Markiert entdeckte Terminal-Positionen im Raum.", "Highlights discovered terminal positions in the room."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setTerminalTitleEnabled(!config().isTerminalTitleEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                yield false;
+            }
+            case BOSS -> {
+                // "General" section title (base y already skips it)
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setBloodCamperEnabled(!config().isBloodCamperEnabled());
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Zeigt Blood-Room-Fortschritt und Timer an.", "Shows blood room wave progress and timer."));
+                y += 24; // "F7" section title
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    config().setDungeonScoreEnabled(!config().isDungeonScoreEnabled());
+                    config().setTickTimerEnabled(!config().isTickTimerEnabled());
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight(Lang.t("Zeigt geschaetzte Dungeon-Punktzahl als HUD an.", "Shows estimated dungeon score as HUD overlay."));
+                y += toggleRowHeight(Lang.t("Countdown bis zum naechsten Goldor-Damage-Tick (F7 P3).", "Countdown to next Goldor damage tick (F7 P3)."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setPurplePadTimerEnabled(!config().isPurplePadTimerEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."));
                 y += 24; // "M7 Dragons (P5)" section title
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setDragonEnabled(!config().isDragonEnabled());
@@ -1857,15 +2258,32 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Zeigt empfohlene Kill-Reihenfolge.", "Shows recommended kill order."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setDragonHealth(!config().isDragonHealth());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Zeigt das Leben jedes Drachen ueber der Box.", "Shows each dragon's health above its box."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setDragonTracer(!config().isDragonTracer());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Linie zum Prioritaets-Drachen.", "Line to the priority dragon."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setRagAxeNotificationEnabled(!config().isRagAxeNotificationEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."));
                 y += 24; // "M7 Relic Timer" section title
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setRelicTimerEnabled(!config().isRelicTimerEnabled());
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                yield false;
-            }
-            case FLOOR_SPECIALS -> {
+                y += toggleRowHeight(Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."));
+                y += 24; // "F4 / M4 Spirit Bear" section title
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setSpiritBearTimerEnabled(!config().isSpiritBearTimerEnabled());
                     horizonClient.getConfigManager().save();
@@ -2004,17 +2422,22 @@ public final class HorizonConfigScreen extends Screen {
             return true;
         }
         y += toggleRowHeight(Lang.t("Dungeon-Teamkameraden per Glow markieren.", "Highlight dungeon teammates with glow."));
-        // Class color rows (indices 3-7: Archer, Berserk, Healer, Mage, Tank)
-        for (int ci = 3; ci <= 7; ci++) {
-            int rowH = activeMobColorIndex == ci ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
-            if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
-                if (activeMobColorIndex == ci) {
-                    if (handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, ci, this::getMobColor, this::setMobColor)) return true;
+        // "Teammate Colors" dropdown header
+        if (handleDropdownHeader(mouseX, mouseY, viewport.x, y, "teammateColors")) return true;
+        y += 24;
+        // Class color rows (indices 3-7: Archer, Berserk, Healer, Mage, Tank) — only when open
+        if (isDropdownOpen("teammateColors")) {
+            for (int ci = 3; ci <= 7; ci++) {
+                int rowH = activeMobColorIndex == ci ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+                if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                    if (activeMobColorIndex == ci) {
+                        if (handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, ci, this::getMobColor, this::setMobColor)) return true;
+                    }
+                    activeMobColorIndex = activeMobColorIndex == ci ? -1 : ci;
+                    return true;
                 }
-                activeMobColorIndex = activeMobColorIndex == ci ? -1 : ci;
-                return true;
+                y += rowH;
             }
-            y += rowH;
         }
         // "Mimic & Prince" section title
         y += 24;
@@ -2035,53 +2458,6 @@ public final class HorizonConfigScreen extends Screen {
         // Prince Message toggle
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setPrinceMessageEnabled(!config().isPrinceMessageEnabled());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        return false;
-    }
-
-    private boolean handleDoorsClick(double mouseX, double mouseY, Rect viewport, int y) {
-        // "Wither Doors" section title
-        // Wither Door ESP toggle
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setWitherDoorEspEnabled(!config().isWitherDoorEspEnabled());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight(Lang.t("Wither-Tueren im Dungeon hervorheben.", "Highlight wither doors in dungeons."));
-        // Wither Door Color (index 8)
-        int wdRowH = activeMobColorIndex == 8 ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
-        if (rowRect(viewport.x, y, wdRowH).contains(mouseX, mouseY)) {
-            if (activeMobColorIndex == 8) {
-                if (handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 8, this::getMobColor, this::setMobColor)) return true;
-            }
-            activeMobColorIndex = activeMobColorIndex == 8 ? -1 : 8;
-            return true;
-        }
-        y += wdRowH;
-        y += 24; // "Blood Doors" section title
-        // Blood Door ESP toggle
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setBloodDoorEspEnabled(!config().isBloodDoorEspEnabled());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight(Lang.t("Blood-Tueren im Dungeon hervorheben.", "Highlight blood doors in dungeons."));
-        // Blood Door Color (index 9)
-        int bdRowH = activeMobColorIndex == 9 ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
-        if (rowRect(viewport.x, y, bdRowH).contains(mouseX, mouseY)) {
-            if (activeMobColorIndex == 9) {
-                if (handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 9, this::getMobColor, this::setMobColor)) return true;
-            }
-            activeMobColorIndex = activeMobColorIndex == 9 ? -1 : 9;
-            return true;
-        }
-        y += bdRowH;
-        y += 24; // "Keys" section title
-        // Key Highlight toggle
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setDoorKeyHighlightEnabled(!config().isDoorKeyHighlightEnabled());
             horizonClient.getConfigManager().save();
             return true;
         }
@@ -2126,17 +2502,29 @@ public final class HorizonConfigScreen extends Screen {
             return true;
         }
         y += toggleRowHeight(Lang.t("Gesamtzahl der Secrets pro Raum.", "Total secret count per room."));
-        y += 24; // "Map Colors" section title
-        // 8 map colour rows (background + 7 room types), then a section title, then 3 name-colour rows.
-        for (int ci = 0; ci < 11; ci++) {
-            if (ci == 8) y += 24; // "Room Name Colors" section title
+        // "Map Colors" dropdown header
+        if (handleDropdownHeader(mouseX, mouseY, viewport.x, y, "mapColors")) return true;
+        y += 24;
+        // 8 map colour rows (background + 7 room types) — only when the dropdown is open.
+        if (isDropdownOpen("mapColors")) {
+            for (int ci = 0; ci < 8; ci++) {
+                int rowH = activeMapColorIndex == ci ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+                if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                    if (activeMapColorIndex == ci) {
+                        if (handleColorPickerClick(mouseX, mouseY, viewport.x + 4, y, ci)) return true;
+                    }
+                    activeMapColorIndex = activeMapColorIndex == ci ? -1 : ci;
+                    return true;
+                }
+                y += rowH;
+            }
+        }
+        y += 24; // "Room Name Colors" section title
+        for (int ci = 8; ci < 11; ci++) {
             int rowH = activeMapColorIndex == ci ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
             if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
                 if (activeMapColorIndex == ci) {
-                    // Check HSV picker click
-                    if (handleColorPickerClick(mouseX, mouseY, viewport.x + 4, y, ci)) {
-                        return true;
-                    }
+                    if (handleColorPickerClick(mouseX, mouseY, viewport.x + 4, y, ci)) return true;
                 }
                 activeMapColorIndex = activeMapColorIndex == ci ? -1 : ci;
                 return true;
@@ -2765,7 +3153,8 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "System HUD", "Misc", Tab.MISC, null, "system hud cpu gpu temperatur");
         addSearchResult(results, query, "Defense Bar", "Misc", Tab.MISC, null, "defense bar ruestung armor");
         addSearchResult(results, query, "Kompakte Herzen", "Misc", Tab.MISC, null, "kompakte herzen hypixel health herz absorption");
-        addSearchResult(results, query, "Rag Axe Notification", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "rag axe notification necron m7 phase dungeon");
+        addSearchResult(results, query, "Rag Axe Notification", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "rag axe notification necron m7 phase dungeon");
+        addSearchResult(results, query, "Damage Tick Timer", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "tick timer damage goldor f7 p3 dungeon");
         addSearchResult(results, query, "Starred Mobs", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "starred mobs highlight glow stern dungeon");
         addSearchResult(results, query, "Highlight Bats", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "bats fledermaeuse highlight dungeon");
         addSearchResult(results, query, "Highlight Fels", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "fels enderman invisible highlight dungeon");
@@ -2773,11 +3162,13 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Mimic Detection", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "mimic detection kill zombie baby dungeon f6 f7");
         addSearchResult(results, query, "Mimic Message", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "mimic party chat message killed dungeon");
         addSearchResult(results, query, "Prince Message", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "prince party chat message killed dungeon bonus score");
-        addSearchResult(results, query, "Wither Door ESP", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "wither door esp highlight dungeon");
-        addSearchResult(results, query, "Blood Door ESP", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "blood door esp highlight dungeon");
-        addSearchResult(results, query, "Door Key Highlight", "Dungeons / Doors", Tab.DUNGEON, DungeonSection.DOORS, "door key highlight wither blood tracer dungeon");
-        addSearchResult(results, query, "Spirit Bear Timer", "Dungeons / Specials", Tab.DUNGEON, DungeonSection.FLOOR_SPECIALS, "spirit bear timer f4 m4 boss spawn dungeon");
-        addSearchResult(results, query, "Spirit Bear Highlight", "Dungeons / Specials", Tab.DUNGEON, DungeonSection.FLOOR_SPECIALS, "spirit bear highlight glow f4 m4 dungeon");
+        addSearchResult(results, query, "Wither Door ESP", "Dungeons / Clear", Tab.DUNGEON, DungeonSection.SECRETS, "wither door esp highlight dungeon");
+        addSearchResult(results, query, "Blood Door ESP", "Dungeons / Clear", Tab.DUNGEON, DungeonSection.SECRETS, "blood door esp highlight dungeon");
+        addSearchResult(results, query, "Door Key Highlight", "Dungeons / Clear", Tab.DUNGEON, DungeonSection.SECRETS, "door key highlight wither blood tracer dungeon");
+        addSearchResult(results, query, "Spirit Bear Timer", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "spirit bear timer f4 m4 boss spawn dungeon");
+        addSearchResult(results, query, "Spirit Bear Highlight", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "spirit bear highlight glow f4 m4 dungeon");
+        addSearchResult(results, query, "Secret Waypoints", "Dungeons / Secrets", Tab.DUNGEON, DungeonSection.SECRETS, "secret waypoints chest item essence bat redstone lever dungeon room");
+        addSearchResult(results, query, "Secrets Through Walls", "Dungeons / Secrets", Tab.DUNGEON, DungeonSection.SECRETS, "secret waypoints through walls durch waende dungeon");
         addSearchResult(results, query, "Bridge verstecken", "Chat / General", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
         addSearchResult(results, query, "Bridge Bot Name", "Chat / General", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
         addSearchResult(results, query, "Nachrichten kopieren", "Chat / General", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
@@ -3028,10 +3419,7 @@ public final class HorizonConfigScreen extends Screen {
     private int dungeonContentHeight() {
         return 24 + switch (activeDungeonSection) {
             case GENERAL -> toggleRowHeight(Lang.t("Zeigt beste S+ Zeiten im Party Finder.", "Shows best S+ times in Party Finder."))
-                + toggleRowHeight(Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."))
-                + toggleRowHeight(Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."))
-                + 24 // "Tick Timer" section title
-                + toggleRowHeight(Lang.t("Countdown bis zum naechsten Goldor-Damage-Tick (F7 P3).", "Countdown to next Goldor damage tick (F7 P3)."));
+                + toggleRowHeight(Lang.t("Alert fuer Trinity, Tomioka und Duncan.", "Alert for Trinity, Tomioka and Duncan."));
             case MOBS -> {
                 int mobsH = toggleRowHeight(Lang.t("Blendet Nametags aller Mobs ohne Stern im Namen aus.", "Hides nametags of all mobs without a star in their name."))
                     + toggleRowHeight(Lang.t("Box/Glow fuer Mobs mit Stern im Namen.", "Box/Glow for mobs with a star in their name."))
@@ -3045,24 +3433,17 @@ public final class HorizonConfigScreen extends Screen {
                     + mobsColorSwatchHeight(2)
                     + 24 // "Teammates" section title
                     + toggleRowHeight(Lang.t("Dungeon-Teamkameraden per Glow markieren.", "Highlight dungeon teammates with glow."))
-                    + mobsColorSwatchHeight(3)
-                    + mobsColorSwatchHeight(4)
-                    + mobsColorSwatchHeight(5)
-                    + mobsColorSwatchHeight(6)
-                    + mobsColorSwatchHeight(7)
+                    + 24 // "Teammate Colors" dropdown header
+                    + (isDropdownOpen("teammateColors")
+                        ? mobsColorSwatchHeight(3) + mobsColorSwatchHeight(4) + mobsColorSwatchHeight(5)
+                          + mobsColorSwatchHeight(6) + mobsColorSwatchHeight(7)
+                        : 0)
                     + 24 // "Mimic & Prince" section title
                     + toggleRowHeight(Lang.t("Erkennt Mimic-Kill per Tod-Event (F6+).", "Detects mimic kill via death event (F6+)."))
                     + toggleRowHeight(Lang.t("Sendet 'Mimic killed!' in den Party-Chat.", "Sends 'Mimic killed!' to party chat."))
                     + toggleRowHeight(Lang.t("Sendet 'Prince killed!' in den Party-Chat.", "Sends 'Prince killed!' to party chat."));
                 yield mobsH;
             }
-            case DOORS -> toggleRowHeight(Lang.t("Wither-Tueren im Dungeon hervorheben.", "Highlight wither doors in dungeons."))
-                + mobsColorSwatchHeight(8)
-                + 24 // "Blood Doors" section title
-                + toggleRowHeight(Lang.t("Blood-Tueren im Dungeon hervorheben.", "Highlight blood doors in dungeons."))
-                + mobsColorSwatchHeight(9)
-                + 24 // "Keys" section title
-                + toggleRowHeight(Lang.t("Zeigt Box und Tracer zu Wither/Blood Keys.", "Shows box and tracer to Wither/Blood keys."));
             case REVIVAL -> {
                 int height = toggleRowHeight(Lang.t("Spirit, Bonzo und Phoenix als Status-Panel.", "Spirit, Bonzo and Phoenix as status panel."))
                     + numberRowHeight(Lang.t("Nutze [-] und [+] oder tippe direkt.", "Use [-] and [+] or type directly."))
@@ -3081,9 +3462,14 @@ public final class HorizonConfigScreen extends Screen {
                     + toggleRowHeight(Lang.t("Spielerkoepfe mit Klassenfarbe auf der Karte.", "Player heads with class colour on the map."))
                     + toggleRowHeight(Lang.t("Namen unter den Spielerkoepfen.", "Names below the player heads."))
                     + toggleRowHeight(Lang.t("Gesamtzahl der Secrets pro Raum.", "Total secret count per room."))
-                    + 24; // "Map Colors" section title
-                for (int ci = 0; ci < 11; ci++) {
-                    if (ci == 8) mapH += 24; // "Room Name Colors" section title
+                    + 24; // "Map Colors" dropdown header
+                if (isDropdownOpen("mapColors")) {
+                    for (int ci = 0; ci < 8; ci++) {
+                        mapH += activeMapColorIndex == ci ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+                    }
+                }
+                mapH += 24; // "Room Name Colors" section title
+                for (int ci = 8; ci < 11; ci++) {
                     mapH += activeMapColorIndex == ci ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
                 }
                 mapH += 24 // "Leap Menu" section title
@@ -3092,32 +3478,86 @@ public final class HorizonConfigScreen extends Screen {
                     + toggleRowHeight(Lang.t("Klasse-Quadrant, Klasse A-Z oder Name A-Z.", "Class quadrant, class A-Z or name A-Z."));
                 yield mapH;
             }
+            case SECRETS -> {
+                int secH = 24 // "Secret Waypoints" section title
+                    + toggleRowHeight(Lang.t("Zeigt Secret-Positionen im aktuellen Raum.", "Shows secret positions in the current room."))
+                    + toggleRowHeight(Lang.t("Zeigt Waypoints auch durch Bloecke.", "Shows waypoints through blocks."))
+                    + 24; // "Secret Waypoints Config" dropdown header
+                if (isDropdownOpen("secretConfig")) {
+                    String[] catDesc = {
+                        Lang.t("Waypoints fuer Secret-Truhen.", "Waypoints for secret chests."),
+                        Lang.t("Waypoints fuer Item-Secrets.", "Waypoints for item secrets."),
+                        Lang.t("Waypoints fuer Wither Essence.", "Waypoints for wither essence."),
+                        Lang.t("Waypoints fuer Bat-Secrets.", "Waypoints for bat secrets."),
+                        Lang.t("Waypoints fuer Redstone-Key-Secrets.", "Waypoints for redstone key secrets."),
+                        Lang.t("Waypoints fuer Hebel-Secrets.", "Waypoints for lever secrets.")
+                    };
+                    for (int ci = 0; ci < 6; ci++) {
+                        secH += toggleRowHeight(catDesc[ci]) + mobsColorSwatchHeight(11 + ci);
+                    }
+                }
+                secH += 24 // "Doors" section title
+                    + toggleRowHeight(Lang.t("Wither-Tueren im Dungeon hervorheben.", "Highlight wither doors in dungeons."))
+                    + toggleRowHeight(Lang.t("Blood-Tueren im Dungeon hervorheben.", "Highlight blood doors in dungeons."))
+                    + toggleRowHeight(Lang.t("Zeigt Box und Tracer zu Wither/Blood Keys.", "Shows box and tracer to Wither/Blood keys."))
+                    + mobsColorSwatchHeight(17)
+                    + mobsColorSwatchHeight(18)
+                    + 24 // "Dungeon Score" section title
+                    + toggleRowHeight(Lang.t("Zeigt geschaetzte Dungeon-Punktzahl als HUD an.", "Shows estimated dungeon score as HUD overlay."))
+                    + toggleRowHeight(Lang.t("Title bei Erreichen von S (270) und S+ (300).", "Title when reaching S (270) and S+ (300)."))
+                    + toggleRowHeight(Lang.t("Score bleibt im Bosskampf sichtbar (sonst verschwindet er beim Boss-Start).", "Score stays visible during the boss fight (otherwise it hides at boss start)."));
+                yield secH;
+            }
             case PUZZLE_SOLVER -> 24
                 + toggleRowHeight(Lang.t("Loesungen fuer Blaze, Boulder, Eis, Quiz, Wasser, Creeper Beams, Three Weirdos.", "Solutions for Blaze, Boulder, Ice Fill, Quiz, Water, Creeper Beams, Three Weirdos."))
                 + toggleRowHeight(Lang.t("Render-Stil der Loesung.", "Render style of the solution."));
-            case TERMINAL_SOLVER -> 24
-                + toggleRowHeight(Lang.t("Markiert korrekte Slots in F7-Terminals (Panes, Rubix, Order, Starts With, Select All).", "Highlights correct slots in F7 terminals (Panes, Rubix, Order, Starts With, Select All)."))
-                + toggleRowHeight(Lang.t("Falsche Terminal-Klicks unterdrucken.", "Suppress incorrect terminal clicks."))
-                + toggleRowHeight(Lang.t("Nicht-relevante Slots vollstaendig ausblenden statt nur abzudunkeln.", "Fully hide non-relevant slots instead of just dimming them."))
-                + sliderRowHeight();
-            case BOSS -> 24
-                + toggleRowHeight(Lang.t("Hebt die korrekte Schaltflaechen-Reihenfolge beim Goldor-Device hervor.", "Highlights the correct button sequence for the Goldor device."))
-                + toggleRowHeight(Lang.t("Blockiert Klicks auf falsche Simon-Says-Knoepfe.", "Blocks clicks on incorrect Simon Says buttons."))
-                + toggleRowHeight(Lang.t("Zeigt Klickanzahl fuer jede Pfeil-Bilderrahmen.", "Shows click count for each arrow item frame."))
-                + toggleRowHeight(Lang.t("Hebt getroffene Smaragdbloecke beim Arrow-Device hervor.", "Highlights hit emerald blocks at the arrow device."))
-                + toggleRowHeight(Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."))
-                + 24 // "General" section title
+            case TERMINAL_SOLVER -> {
+                int th = 24
+                    + toggleRowHeight(Lang.t("Ersetzt F7-Terminals durch ein eigenes Overlay mit markierten Klick-Slots.", "Replaces F7 terminals with a custom overlay highlighting the slots to click."))
+                    + toggleRowHeight(Lang.t("Darstellung der markierten Slots.", "Appearance of the highlighted slots."))
+                    + toggleRowHeight(Lang.t("Zeigt die Klick-Reihenfolge als Zahl im Order-Terminal.", "Shows the click order as a number in the Order terminal."))
+                    + sliderRowHeight()
+                    + 24; // "Terminal Colors" dropdown header
+                if (isDropdownOpen("terminalColors")) {
+                    th += toggleRowHeight(Lang.t("Wenn an, werden die Solver-Farben automatisch aus der HUD-Farbe abgeleitet. Wenn aus, greifen die Farb-Einstellungen unten.", "When on, solver colours derive automatically from the HUD color. When off, the color settings below apply."));
+                    for (int ti = 0; ti <= 12; ti++) th += termColorSwatchHeight(ti);
+                }
+                th += 24 // "Device" section title
+                    + toggleRowHeight(Lang.t("Hebt die korrekte Schaltflaechen-Reihenfolge beim Goldor-Device hervor.", "Highlights the correct button sequence for the Goldor device."))
+                    + toggleRowHeight(Lang.t("Blockiert Klicks auf falsche Simon-Says-Knoepfe.", "Blocks clicks on incorrect Simon Says buttons."))
+                    + toggleRowHeight(Lang.t("Zeigt Klickanzahl fuer jede Pfeil-Bilderrahmen.", "Shows click count for each arrow item frame."))
+                    + toggleRowHeight(Lang.t("Dynamisch faerbt nach Klickanzahl (gruen/orange/rot).", "Dynamic colours by click count (green/orange/red)."))
+                    + termColorSwatchHeight(13)
+                    + toggleRowHeight(Lang.t("Blockiert Rechtsklicks auf bereits korrekte Rahmen.", "Blocks right-clicks on already-aligned frames."))
+                    + toggleRowHeight(Lang.t("Sneak deaktiviert das Blockieren statt es zu aktivieren.", "Sneak disables blocking instead of enabling it."))
+                    + toggleRowHeight(Lang.t("Hebt getroffene Smaragdbloecke beim Arrow-Device hervor.", "Highlights hit emerald blocks at the arrow device."))
+                    + toggleRowHeight(Lang.t("Zeigt \"Done\" im Raum, wenn das I4-Device fertig ist.", "Shows \"Done\" in the world when the I4 device is complete."))
+                    + toggleRowHeight(Lang.t("Blendet einen Title ein, wenn das I4-Device fertig ist.", "Flashes a screen title when the I4 device completes."))
+                    + termColorSwatchHeight(14)
+                    + sliderRowHeight()
+                    + 24 // "Waypoints & Titles" section title
+                    + toggleRowHeight(Lang.t("Markiert entdeckte Terminal-Positionen im Raum.", "Highlights discovered terminal positions in the room."))
+                    + toggleRowHeight(Lang.t("Zeigt den Terminal-Typ als Title beim Oeffnen und Annaehern.", "Shows the terminal type as a title on open and approach."));
+                yield th;
+            }
+            case BOSS -> 24 // "General" section title
                 + toggleRowHeight(Lang.t("Zeigt Blood-Room-Fortschritt und Timer an.", "Shows blood room wave progress and timer."))
-                + toggleRowHeight(Lang.t("Zeigt geschaetzte Dungeon-Punktzahl als HUD an.", "Shows estimated dungeon score as HUD overlay."))
+                + 24 // "F7" section title
+                + toggleRowHeight(Lang.t("Countdown bis zum naechsten Goldor-Damage-Tick (F7 P3).", "Countdown to next Goldor damage tick (F7 P3)."))
+                + toggleRowHeight(Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."))
                 + 24 // "M7 Dragons (P5)" section title
                 + toggleRowHeight(Lang.t("Zeigt Dragon-Spawn-Prioritaet, Boxen und Timer in M7 P5.", "Shows dragon spawn priority, boxes and timer in M7 P5."))
                 + toggleRowHeight(Lang.t("Zeigt farbige Boxen an den Spawn-Positionen.", "Shows colored boxes at spawn positions."))
                 + toggleRowHeight(Lang.t("Zeigt Countdown bis zum Spawn.", "Shows countdown until spawn."))
                 + toggleRowHeight(Lang.t("Zeigt Spawn-Warnung im Chat.", "Shows spawn alert in chat."))
                 + toggleRowHeight(Lang.t("Zeigt empfohlene Kill-Reihenfolge.", "Shows recommended kill order."))
+                + toggleRowHeight(Lang.t("Zeigt das Leben jedes Drachen ueber der Box.", "Shows each dragon's health above its box."))
+                + toggleRowHeight(Lang.t("Linie zum Prioritaets-Drachen.", "Line to the priority dragon."))
+                + toggleRowHeight(Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."))
                 + 24 // "M7 Relic Timer" section title
-                + toggleRowHeight(Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."));
-            case FLOOR_SPECIALS -> toggleRowHeight(Lang.t("Fortschritt und Countdown bis zum Spirit Bear Spawn.", "Progress and countdown until Spirit Bear spawn."))
+                + toggleRowHeight(Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."))
+                + 24 // "F4 / M4 Spirit Bear" section title
+                + toggleRowHeight(Lang.t("Fortschritt und Countdown bis zum Spirit Bear Spawn.", "Progress and countdown until Spirit Bear spawn."))
                 + toggleRowHeight(Lang.t("Spirit Bear per Glow hervorheben.", "Highlight Spirit Bear with glow."))
                 + mobsColorSwatchHeight(10);
         };
@@ -3422,14 +3862,13 @@ public final class HorizonConfigScreen extends Screen {
 
     private enum DungeonSection {
         GENERAL("General"),
-        MOBS("Mobs"),
-        DOORS("Doors"),
+        MOBS("Entities"),
         REVIVAL("Revive"),
         MAP("Map"),
+        SECRETS("Clear"),
         PUZZLE_SOLVER("Puzzles"),
         TERMINAL_SOLVER("Terminal"),
-        BOSS("Boss"),
-        FLOOR_SPECIALS("Specials");
+        BOSS("Boss");
 
         private final String label;
 

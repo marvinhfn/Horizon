@@ -5,13 +5,15 @@ import de.horizon.feature.dungeon.room.RoomType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.saveddata.maps.MapDecoration;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 /**
  * Builds and holds the structured dungeon layout ({@link DungeonInfo}).
  *
- * <p>Map-authoritative, following Odin's {@code MapScan}: the Hypixel dungeon
+ * <p>Map-authoritative: the Hypixel dungeon
  * map item is the source of truth for which rooms exist, their type, their
  * checkmark state and the doors. The world scan ({@link DungeonRoomDetector})
  * is used only to attach a room name to each grid room by hashing its blocks.
@@ -68,9 +70,10 @@ public final class DungeonMapService {
             if (!layoutInit) return;
         }
         buildGrid(client, detector, colors);
+        resolveCheckmarks(colors);
     }
 
-    /** Floor-based calibration defaults (Odin DungeonScan.initClient), refined by initLayout. */
+    /** Floor-based calibration defaults, refined by initLayout. */
     private void initClient(int floor) {
         roomSizePx = floor <= 3 ? 18 : 16;
         roomGap = roomSizePx + ROOM_SPACING;
@@ -82,7 +85,7 @@ public final class DungeonMapService {
         };
     }
 
-    /** Refines calibration from the map itself: the entrance green run (Odin MapScan.initLayout). */
+    /** Refines calibration from the map itself: the entrance green run. */
     private boolean initLayout(byte[] colors) {
         for (int index = 0; index < colors.length; index++) {
             if (colors[index] != (byte) 30) continue; // ENTRANCE map colour
@@ -106,7 +109,7 @@ public final class DungeonMapService {
 
     private void buildGrid(Minecraft client, DungeonRoomDetector detector, byte[] colors) {
         int half = roomSizePx / 2;
-        int connectionGap = roomSizePx + ROOM_SPACING / 2; // Odin: roomSize + 2
+        int connectionGap = roomSizePx + ROOM_SPACING / 2; // roomSize + 2
 
         for (int tz = 0; tz <= 5; tz++) {
             for (int tx = 0; tx <= 5; tx++) {
@@ -159,6 +162,86 @@ public final class DungeonMapService {
         }
     }
 
+    /**
+     * Re-derives each room's checkmark state from the whole room (all cells), not
+     * just the primary tile's centre. Hypixel draws a single checkmark at the
+     * centre of a multi-tile room (2x2 / 1x2 / L), which never lands on the
+     * corner tile's centre — so the per-tile read leaves those rooms as merely
+     * DISCOVERED even when cleared. Here we scan the room's full pixel bounding
+     * box for a checkmark colour (any pixel that differs from the room body).
+     */
+    private void resolveCheckmarks(byte[] colors) {
+        boolean[][] visited = new boolean[11][11];
+        for (int gz = 0; gz <= 10; gz++) {
+            for (int gx = 0; gx <= 10; gx++) {
+                if (visited[gx][gz]) continue;
+                DungeonRoom start = dungeonInfo.room(gx, gz);
+                if (start == null) continue;
+
+                // Flood-fill the whole room: all connected DungeonRoom cells
+                // (tiles + separators). Different rooms are split by doors/nulls.
+                List<DungeonRoom> cells = new ArrayList<>();
+                Deque<int[]> queue = new ArrayDeque<>();
+                queue.add(new int[]{gx, gz});
+                visited[gx][gz] = true;
+                boolean white = false, green = false, red = false, wither = false;
+                int body = start.mapColorId();
+                while (!queue.isEmpty()) {
+                    int[] c = queue.poll();
+                    DungeonRoom cell = dungeonInfo.room(c[0], c[1]);
+                    if (cell == null) continue;
+                    cells.add(cell);
+                    // Scan only this cell's own pixel rectangle (tile square or the
+                    // connecting gap), so an L-room's empty notch is never sampled.
+                    int[] r = cellRect(c[0], c[1]);
+                    for (int z = r[1]; z <= r[3]; z++) {
+                        for (int x = r[0]; x <= r[2]; x++) {
+                            int px = getPx(colors, x, z);
+                            if (px == body) continue;
+                            switch (px) {
+                                case 34 -> white = true;
+                                case 30 -> green = true;
+                                case 18 -> red = true;
+                                case 119 -> wither = true;
+                                default -> { }
+                            }
+                        }
+                    }
+                    int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+                    for (int[] d : dirs) {
+                        int nx = c[0] + d[0], nz = c[1] + d[1];
+                        if (nx < 0 || nx > 10 || nz < 0 || nz > 10 || visited[nx][nz]) continue;
+                        if (dungeonInfo.room(nx, nz) == null) continue;
+                        visited[nx][nz] = true;
+                        queue.add(new int[]{nx, nz});
+                    }
+                }
+
+                RoomState state;
+                if (white) state = RoomState.CLEARED;
+                else if (green) state = start.type() == RoomType.ENTRANCE ? RoomState.DISCOVERED : RoomState.GREEN;
+                else if (red) state = RoomState.FAILED;
+                else if (wither) state = RoomState.UNOPENED;
+                else state = RoomState.DISCOVERED;
+                for (DungeonRoom cell : cells) cell.setState(state);
+            }
+        }
+    }
+
+    /** Pixel rectangle {x0,z0,x1,z1} (inclusive) covered by a grid cell: a room tile,
+     *  a connecting gap between two tiles, or the 2x2 centre gap. */
+    private int[] cellRect(int gx, int gz) {
+        int col = gx / 2, row = gz / 2;
+        int bx = mapStartX + col * roomGap;
+        int bz = mapStartY + row * roomGap;
+        int x0, x1, z0, z1;
+        if ((gx & 1) == 0) { x0 = bx; x1 = bx + roomSizePx - 1; }
+        else { x0 = bx + roomSizePx; x1 = mapStartX + (col + 1) * roomGap - 1; }
+        if ((gz & 1) == 0) { z0 = bz; z1 = bz + roomSizePx - 1; }
+        else { z0 = bz + roomSizePx; z1 = mapStartY + (row + 1) * roomGap - 1; }
+        return new int[]{x0, z0, x1, z1};
+    }
+
     private void setRoom(Minecraft client, DungeonRoomDetector detector, int gx, int gz,
                          int tx, int tz, int corner, RoomType type, RoomState state) {
         int wX = WORLD_START + WORLD_STEP * tx;
@@ -202,7 +285,7 @@ public final class DungeonMapService {
         dungeonInfo.set(gx, gz, sep);
     }
 
-    // ── Map colour → type / state (Odin RoomType / MapCheckmark) ──────────────
+    // ── Map colour → type / state  ──────────────
 
     private static RoomType roomType(int mapColor) {
         return switch (mapColor) {
@@ -244,6 +327,45 @@ public final class DungeonMapService {
 
     public DungeonInfo getDungeonInfo() {
         return dungeonInfo;
+    }
+
+    /** Sum of the secret counts of all discovered rooms (each multi-cell room counted once). */
+    public int getDiscoveredSecretTotal() {
+        boolean[][] visited = new boolean[11][11];
+        int sum = 0;
+        for (int x = 0; x <= 10; x++) {
+            for (int z = 0; z <= 10; z++) {
+                if (visited[x][z]) continue;
+                if (!(dungeonInfo.get(x, z) instanceof DungeonRoom)) continue;
+                int total = floodSecrets(visited, x, z);
+                if (total > 0) sum += total;
+            }
+        }
+        return sum;
+    }
+
+    /** Flood-fills a connected room blob, marking cells visited, returning its secret total. */
+    private int floodSecrets(boolean[][] visited, int startX, int startZ) {
+        int total = 0;
+        java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
+        visited[startX][startZ] = true;
+        queue.add(new int[]{startX, startZ});
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        while (!queue.isEmpty()) {
+            int[] c = queue.poll();
+            if (dungeonInfo.get(c[0], c[1]) instanceof DungeonRoom room) {
+                total = Math.max(total, room.secretsTotal());
+            }
+            for (int[] d : dirs) {
+                int nx = c[0] + d[0], nz = c[1] + d[1];
+                if (nx < 0 || nx > 10 || nz < 0 || nz > 10 || visited[nx][nz]) continue;
+                if (dungeonInfo.get(nx, nz) instanceof DungeonRoom) {
+                    visited[nx][nz] = true;
+                    queue.add(new int[]{nx, nz});
+                }
+            }
+        }
+        return total;
     }
 
     // ── Packet map data ────────────────────────────────────────────────────

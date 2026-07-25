@@ -27,9 +27,6 @@ public class GameRendererMixin {
 
     @Shadow private GameRenderState gameRenderState;
 
-    @Unique private boolean horizon$terminalScaleActive = false;
-    @Unique private int horizon$origGuiScale;
-
     @Inject(method = "renderLevel", at = @At("HEAD"))
     private void horizon$renderWorldHead(DeltaTracker tickCounter, CallbackInfo ci) {
         PillarboxState.inWorldRendering = true;
@@ -84,57 +81,7 @@ public class GameRendererMixin {
         poseStack.mulPose(Axis.YP.rotationDegrees(hurtDir));
     }
 
-    /**
-     * Terminal GUI scale: keep guiScale modified as long as a terminal is open.
-     * MC 26.1.2 uses deferred rendering — extractGui captures render state,
-     * actual rendering happens later using the Window's live guiScale for projection.
-     * Restoring at RETURN of extractGui would cause coordinate space mismatch (PiP effect).
-     */
-    @Inject(method = "extractGui", at = @At("HEAD"))
-    private void horizon$applyTerminalScale(DeltaTracker delta, boolean renderGui, boolean hasScreen, CallbackInfo ci) {
-        HorizonClient horizon = HorizonClient.getInstance();
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null) return;
-
-        boolean shouldScale = false;
-        if (horizon != null) {
-            float termScale = horizon.getConfigManager().getConfig().getTerminalGuiScale();
-            if (termScale != 1.0f) {
-                TerminalSolverService tss = horizon.getTerminalSolverService();
-                shouldScale = tss.getCurrentType() != TerminalSolverService.TerminalType.NONE
-                    && mc.screen instanceof AbstractContainerScreen<?>;
-            }
-        }
-
-        if (shouldScale && !horizon$terminalScaleActive) {
-            // Activate: apply modified scale and keep it
-            Window window = mc.getWindow();
-            horizon$origGuiScale = ((WindowAccessor)(Object) window).getGuiScale();
-            float termScale = horizon.getConfigManager().getConfig().getTerminalGuiScale();
-            int newScale = Math.max(1, Math.round(horizon$origGuiScale * termScale));
-            window.setGuiScale(newScale);
-            horizon$updateScreenDimensions(mc);
-            horizon$terminalScaleActive = true;
-        } else if (!shouldScale && horizon$terminalScaleActive) {
-            // Deactivate: restore original scale
-            Window window = mc.getWindow();
-            window.setGuiScale(horizon$origGuiScale);
-            horizon$updateScreenDimensions(mc);
-            horizon$terminalScaleActive = false;
-        }
-    }
-
-    @Unique
-    private void horizon$updateScreenDimensions(Minecraft mc) {
-        Screen screen = mc.screen;
-        if (screen == null) return;
-        Window window = mc.getWindow();
-        screen.width = window.getGuiScaledWidth();
-        screen.height = window.getGuiScaledHeight();
-        if (screen instanceof AbstractContainerScreen<?> cs) {
-            var accessor = (AbstractContainerScreenAccessor)(Object) cs;
-            accessor.setLeftPos((screen.width - accessor.getImageWidth()) / 2);
-            accessor.setTopPos((screen.height - accessor.getImageHeight()) / 2);
-        }
-    }
+    // Terminal GUI scale is now handled entirely inside the terminal solver overlay
+    // (TerminalSolverService.render scales by terminalGuiScale), so the window-level
+    // guiScale hack that scaled the now-hidden vanilla chest was removed.
 }

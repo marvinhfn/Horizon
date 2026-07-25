@@ -131,6 +131,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final TickTimerService tickTimerService = new TickTimerService();
     private final PuzzleSolverService puzzleSolverService = new PuzzleSolverService();
     private final TerminalSolverService terminalSolverService = new TerminalSolverService();
+    private final de.horizon.feature.dungeon.terminal.TerminalWaypointService terminalWaypointService = new de.horizon.feature.dungeon.terminal.TerminalWaypointService();
     private final SimonSaysService simonSaysService = new SimonSaysService();
     private final ArrowAlignService arrowAlignService = new ArrowAlignService();
     private final SharpShooterService sharpShooterService = new SharpShooterService();
@@ -144,6 +145,8 @@ public final class HorizonClient implements ClientModInitializer {
     private final DungeonMapService dungeonMapService = new DungeonMapService();
     private final DoorEspService doorEspService = new DoorEspService();
     private final TeammateGlowService teammateGlowService = new TeammateGlowService();
+    private final de.horizon.feature.skyblock.MayorService mayorService = new de.horizon.feature.skyblock.MayorService();
+    private final de.horizon.feature.dungeon.secret.SecretWaypointService secretWaypointService = new de.horizon.feature.dungeon.secret.SecretWaypointService();
     private boolean quizColoringSending = false;
     private KeyMapping openConfigKeyBinding;
     private Screen pendingScreen;
@@ -179,16 +182,27 @@ public final class HorizonClient implements ClientModInitializer {
         ));
 
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("horizon", "hud"), this::renderHud);
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (world.isClientSide() && hitResult != null) {
+                secretWaypointService.onBlockInteract(hitResult.getBlockPos());
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(context -> {
-            etherwarpHelperService.renderWorld(context, configManager.getConfig());
-            puzzleSolverService.renderWorld(context, configManager.getConfig(), Minecraft.getInstance());
-            simonSaysService.renderWorld(context, configManager.getConfig());
-            arrowAlignService.renderWorld(context, configManager.getConfig());
-            sharpShooterService.renderWorld(context, configManager.getConfig());
-            bloodCamperService.renderWorld(context, Minecraft.getInstance(), configManager.getConfig().isBloodCamperEnabled());
-            dragonService.renderWorld(context, configManager.getConfig());
-            doorEspService.renderWorld(context, configManager.getConfig(), dungeonStateService.isInDungeon(), dungeonStateService.isInBoss());
-            renderStarredMobHighlights(context);
+            // Each render is isolated: a transient exception in one service must not
+            // abort the remaining renders for the frame (that made secrets/puzzle/door
+            // renders blink out together intermittently).
+            safeRender("etherwarp", () -> etherwarpHelperService.renderWorld(context, configManager.getConfig()));
+            safeRender("puzzle", () -> puzzleSolverService.renderWorld(context, configManager.getConfig(), Minecraft.getInstance()));
+            safeRender("simonSays", () -> simonSaysService.renderWorld(context, configManager.getConfig()));
+            safeRender("arrowAlign", () -> arrowAlignService.renderWorld(context, configManager.getConfig()));
+            safeRender("sharpShooter", () -> sharpShooterService.renderWorld(context, configManager.getConfig()));
+            safeRender("bloodCamper", () -> bloodCamperService.renderWorld(context, Minecraft.getInstance(), configManager.getConfig().isBloodCamperEnabled()));
+            safeRender("dragon", () -> dragonService.renderWorld(context, configManager.getConfig()));
+            safeRender("doorEsp", () -> doorEspService.renderWorld(context, configManager.getConfig(), dungeonStateService.isInDungeon(), dungeonStateService.isInBoss()));
+            safeRender("secretWaypoint", () -> secretWaypointService.renderWorld(context, configManager.getConfig(), dungeonRoomDetector, dungeonStateService.isInDungeon(), dungeonStateService.isInBoss()));
+            safeRender("terminalWaypoint", () -> terminalWaypointService.renderWorld(context, configManager.getConfig(), dungeonStateService.isInBoss()));
+            safeRender("starredMobs", () -> renderStarredMobHighlights(context));
         });
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
@@ -207,6 +221,8 @@ public final class HorizonClient implements ClientModInitializer {
             dragonService.handleChatMessage(raw, dungeonStateService);
             relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
             doorEspService.handleChatMessage(raw);
+            secretWaypointService.handleChatMessage(raw, dungeonRoomDetector);
+            terminalWaypointService.handleChatMessage(raw, Minecraft.getInstance());
             mimicService.handleChatMessage(raw, configManager.getConfig());
             spiritBearService.handleChatMessage(raw, dungeonStateService);
             // Quiz answer coloring: replace option messages with colored versions
@@ -237,6 +253,8 @@ public final class HorizonClient implements ClientModInitializer {
             dragonService.handleChatMessage(raw, dungeonStateService);
             relicTimerService.handleChatMessage(raw, dungeonStateService, configManager.getConfig());
             doorEspService.handleChatMessage(raw);
+            secretWaypointService.handleChatMessage(raw, dungeonRoomDetector);
+            terminalWaypointService.handleChatMessage(raw, Minecraft.getInstance());
             mimicService.handleChatMessage(raw, configManager.getConfig());
             spiritBearService.handleChatMessage(raw, dungeonStateService);
             if (!quizColoringSending && configManager.getConfig().isPuzzleSolverEnabled()) {
@@ -340,6 +358,11 @@ public final class HorizonClient implements ClientModInitializer {
             return;
         }
         horizonApiAuthService.tick();
+        // Front Cam: skip the front-facing third-person view so F5 only toggles 1st/3rd person.
+        if (configManager.getConfig().isFrontCamDisabled()
+            && client.options.getCameraType() == net.minecraft.client.CameraType.THIRD_PERSON_FRONT) {
+            client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+        }
         dungeonStateService.tick(client);
         dungeonRoomDetector.tick(client, dungeonStateService);
         dungeonAlertService.tick(client, configManager.getConfig(), dungeonStateService, dungeonRoomDetector);
@@ -349,11 +372,14 @@ public final class HorizonClient implements ClientModInitializer {
         puzzleSolverService.tick(client, dungeonStateService, dungeonRoomDetector, configManager.getConfig());
         simonSaysService.tick(client, dungeonStateService, configManager.getConfig());
         arrowAlignService.tick(client, dungeonStateService, configManager.getConfig());
+        sharpShooterService.tick(client, configManager.getConfig());
+        terminalWaypointService.tick(client, configManager.getConfig(), dungeonStateService.isInBoss());
         dungeonScoreService.tick(client, dungeonStateService);
         dragonService.tick(client, dungeonStateService, configManager.getConfig());
         relicTimerService.tick();
         spiritBearService.tick(client, configManager.getConfig());
         teammateGlowService.tick(client, dungeonStateService.isInDungeon());
+        mayorService.tick();
         if (dungeonStateService.isInDungeon()) {
             StarredMobService.tick(client);
             bloodCamperService.tick(client);
@@ -464,6 +490,10 @@ public final class HorizonClient implements ClientModInitializer {
         return dungeonStateService;
     }
 
+    public MimicService getMimicService() {
+        return mimicService;
+    }
+
     public DungeonMapService getDungeonMapService() {
         return dungeonMapService;
     }
@@ -472,15 +502,21 @@ public final class HorizonClient implements ClientModInitializer {
         return teammateGlowService;
     }
 
+    public de.horizon.feature.skyblock.MayorService getMayorService() {
+        return mayorService;
+    }
+
     public ChatTabManager getChatTabManager() {
         return chatTabManager;
     }
 
     private void resetDungeonServices() {
         dungeonStateService.onWorldChange();
+        dungeonRoomDetector.reset();
         StarredMobService.onWorldChange();
         teammateGlowService.onWorldChange();
         doorEspService.reset();
+        secretWaypointService.reset();
         dungeonMapService.reset();
         tickTimerService.reset();
         purplePadTimerService.reset();
@@ -488,6 +524,7 @@ public final class HorizonClient implements ClientModInitializer {
         arrowAlignService.reset();
         sharpShooterService.reset();
         terminalSolverService.reset();
+        terminalWaypointService.reset();
         bloodCamperService.reset();
         dungeonScoreService.reset();
         dragonService.reset();
@@ -518,15 +555,18 @@ public final class HorizonClient implements ClientModInitializer {
         puzzleSolverService.onTeleport(newX, newZ, oldX, oldZ, yaw);
     }
 
-    public void onBlockInteract(BlockPos pos) {
-        simonSaysService.onBlockInteract(pos, configManager.getConfig());
+    /** @return true if the block interaction should be cancelled (Simon Says block-wrong-clicks). */
+    public boolean onBlockInteract(BlockPos pos) {
+        boolean block = simonSaysService.onBlockInteract(pos, configManager.getConfig());
         puzzleSolverService.onBlockInteract(pos);
+        return block;
     }
 
     public void onBlockUpdate(BlockPos pos, BlockState newState, BlockState oldState, Minecraft mc) {
         puzzleSolverService.onBlockChange(pos, mc);
         simonSaysService.onBlockUpdate(pos, newState);
         sharpShooterService.onBlockUpdate(pos, oldState, newState);
+        dragonService.onBlockUpdate(pos, newState);
         spiritBearService.onBlockUpdate(pos, newState, oldState);
     }
 
@@ -536,6 +576,34 @@ public final class HorizonClient implements ClientModInitializer {
 
     public TerminalSolverService getTerminalSolverService() {
         return terminalSolverService;
+    }
+
+    /**
+     * Whether the vanilla container should be fully hidden because the terminal overlay (or leap
+     * menu) has replaced it. Shared by HandledScreenMixin (extractContents/extractRenderState) and
+     * ContainerScreenMixin (extractBackground) so the two never disagree.
+     */
+    public boolean shouldHideVanillaContainer(AbstractContainerScreen<?> screen) {
+        var cfg = configManager.getConfig();
+        if (cfg.isTerminalSolverEnabled() && terminalSolverService.isActiveTerminal()) return true;
+        if (cfg.isLeapMenuEnabled()) return de.horizon.feature.dungeon.LeapMenuOverlay.isLeapScreenTitle(screen);
+        return false;
+    }
+
+    /**
+     * Called from the entity-interact mixin. Returns true when a right-click on an Arrow Align
+     * frame should be cancelled (block-wrong-clicks), gated on the Goldor phase.
+     */
+    public boolean shouldBlockArrowInteract(net.minecraft.world.entity.Entity target) {
+        if (target == null) return false;
+        if (!dungeonStateService.isInDungeon()) return false;
+        return arrowAlignService.shouldBlockInteract(target, configManager.getConfig());
+    }
+
+    /** True when an arrow-device frame's vanilla name label should be hidden (only our count shows). */
+    public boolean shouldHideArrowFrameName(net.minecraft.world.entity.decoration.ItemFrame frame) {
+        if (!configManager.getConfig().isArrowAlignEnabled() || !dungeonStateService.isInDungeon()) return false;
+        return arrowAlignService.isDeviceFrame(frame);
     }
 
     public SystemStatsService getSystemStatsService() {
@@ -582,6 +650,20 @@ public final class HorizonClient implements ClientModInitializer {
 
     private Screen normalizeCommandParent(Screen parent) {
         return parent instanceof ChatScreen ? null : parent;
+    }
+
+    private final java.util.Set<String> loggedRenderErrors = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Runs a world-render step in isolation; a failure is logged once and never
+     *  cascades to the other render steps in the frame. */
+    private void safeRender(String name, Runnable render) {
+        try {
+            render.run();
+        } catch (RuntimeException | LinkageError e) {
+            if (loggedRenderErrors.add(name)) {
+                HorizonMod.LOGGER.error("Horizon render step '{}' failed (further errors suppressed)", name, e);
+            }
+        }
     }
 
     private void renderStarredMobHighlights(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext ctx) {
@@ -656,11 +738,16 @@ public final class HorizonClient implements ClientModInitializer {
                 return;
             }
 
-            // Detect terminal screen opens and set custom mode flag
+            // Detect terminal screen opens
             if (configManager.getConfig().isTerminalSolverEnabled()) {
                 terminalSolverService.onScreenOpen(handledScreen);
             }
-            terminalSolverService.updateCustomModeFlag(configManager.getConfig());
+            // Terminal waypoints/titles: record position + show type title (independent of solver)
+            if (configManager.getConfig().isTerminalWaypointsEnabled()
+                || configManager.getConfig().isTerminalTitleEnabled()) {
+                var termType = TerminalSolverService.detectType(handledScreen.getTitle().getString());
+                terminalWaypointService.onTerminalOpen(termType, configManager.getConfig());
+            }
 
             ScreenEvents.afterExtract(screen).register((currentScreen, context, mouseX, mouseY, delta) -> {
                 if ("YOUTUBE_MUSIC".equals(configManager.getConfig().getActiveMusicService())) {
@@ -700,37 +787,14 @@ public final class HorizonClient implements ClientModInitializer {
                         return false; // cancel vanilla click
                     }
                 }
-                // Terminal solver: block wrong clicks when solver is active
+                // Terminal solver: the overlay fully replaces the chest, so route every click on it
+                // through the solver (valid clicks are forwarded to the server, all others swallowed).
                 if (configManager.getConfig().isTerminalSolverEnabled()
-                    && terminalSolverService.getCurrentType() != TerminalSolverService.TerminalType.NONE
-                    && terminalSolverService.getCurrentType() != TerminalSolverService.TerminalType.MELODY) {
-                    // Custom mode: map click via custom grid
-                    if (TerminalSolverService.isCustomModeRendering()) {
-                        int customSlot = terminalSolverService.getCustomModeSlotIndex(click.x(), click.y());
-                        if (customSlot < 0) return false; // click outside grid → block
-                        boolean isLeft = click.button() == 0;
-                        if (terminalSolverService.shouldBlockClick(customSlot, isLeft)) return false;
-                        terminalSolverService.onSlotClicked(customSlot);
-                        // Send container click for this slot
-                        Minecraft mc2 = Minecraft.getInstance();
-                        if (mc2 != null && mc2.player != null && mc2.gameMode != null) {
-                            mc2.gameMode.handleContainerInput(
-                                handledScreen.getMenu().containerId, customSlot,
-                                isLeft ? 0 : 1, ContainerInput.PICKUP, mc2.player);
-                        }
-                        return false; // consume click
-                    }
-                    // Normal mode: check vanilla slot positions
-                    var accessor = (AbstractContainerScreenAccessor)(Object) handledScreen;
-                    for (var s : handledScreen.getMenu().slots) {
-                        int sx = accessor.getLeftPos() + s.x;
-                        int sy = accessor.getTopPos() + s.y;
-                        if (click.x() >= sx && click.x() < sx + 16 && click.y() >= sy && click.y() < sy + 16) {
-                            boolean isLeft = click.button() == 0;
-                            if (terminalSolverService.shouldBlockClick(s.index, isLeft)) return false;
-                            terminalSolverService.onSlotClicked(s.index);
-                            break;
-                        }
+                    && terminalSolverService.isActiveTerminal()) {
+                    boolean isLeft = click.button() == 0;
+                    if (terminalSolverService.onOverlayMouseClick(handledScreen, click.x(), click.y(), isLeft, configManager.getConfig())) {
+                        terminalSolverService.onScreenTick(handledScreen);
+                        return false; // consume click (never let it reach the vanilla chest)
                     }
                 }
                 // Slot Binds: intercept shift-clicks in player inventory
@@ -773,21 +837,15 @@ public final class HorizonClient implements ClientModInitializer {
             );
             // allowKeyPress fires before vanilla processing → can cancel hotbar-swap for wardrobe
             ScreenKeyboardEvents.allowKeyPress(screen).register((currentScreen, input) -> {
-                // Terminal solver custom mode: drop key acts as left click on hovered solver slot
-                if (TerminalSolverService.isCustomModeRendering()) {
+                // Terminal solver: the drop key acts as a left click on the hovered overlay slot.
+                if (configManager.getConfig().isTerminalSolverEnabled()
+                    && terminalSolverService.isActiveTerminal()) {
                     Minecraft mc = Minecraft.getInstance();
                     if (mc != null && mc.options.keyDrop.matches(input)) {
                         double mouseX = mc.mouseHandler.getScaledXPos(mc.getWindow());
                         double mouseY = mc.mouseHandler.getScaledYPos(mc.getWindow());
-                        int customSlot = terminalSolverService.getCustomModeSlotIndex(mouseX, mouseY);
-                        if (customSlot >= 0 && !terminalSolverService.shouldBlockClick(customSlot, true)) {
-                            terminalSolverService.onSlotClicked(customSlot);
-                            if (mc.gameMode != null && mc.player != null) {
-                                mc.gameMode.handleContainerInput(
-                                    handledScreen.getMenu().containerId, customSlot, 0,
-                                    ContainerInput.PICKUP, mc.player);
-                            }
-                        }
+                        terminalSolverService.onOverlayMouseClick(handledScreen, mouseX, mouseY, true, configManager.getConfig());
+                        terminalSolverService.onScreenTick(handledScreen);
                         return false; // block default drop behavior
                     }
                 }

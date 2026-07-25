@@ -1,753 +1,572 @@
 package de.horizon.feature.dungeon.terminal;
 
 import de.horizon.config.HorizonConfig;
-import de.horizon.mixin.AbstractContainerScreenAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.DyeColor;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.block.StainedGlassPaneBlock;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Terminal Solver for F7 boss terminals.
- * Supports: Panes (Red/Green), Order/Numbers, Rubix, Starts With, Select All, Melody (recognized only).
+ * Floor-7 terminal solver (custom overlay). Detects the terminal by its screen title,
+ * computes the required clicks per type ({@link #solve()}), and draws a self-contained "custom"
+ * overlay (title + background + border + coloured slots) in place of the vanilla chest. Clicks on
+ * the overlay are translated to server container clicks; every other click on the screen is
+ * swallowed so misclicks can never reach the server.
  */
 public final class TerminalSolverService {
 
-    public enum TerminalType { PANES, ORDER, RUBIX, STARTS_WITH, SELECT_ALL, MELODY, NONE }
+    public enum TerminalType {
+        NONE("", 0),
+        PANES("Panes", 45),         // "Correct all the panes!"  (red -> green)
+        ORDER("Order", 36),         // "Click in order!"          (1..14 numbers)
+        SAME_COLOR("Same Color", 45),// "Change all to same color!" (rubix)
+        ITEM_NAME("Item Name", 45), // "What starts with: 'x'?"
+        COLOURED_ITEMS("Coloured Items", 54), // "Select all the <colour> items!"
+        MELODY("Melody", 54);       // "Click the button on time!"
 
-    // Rubix pane color order: left click = next, right click = prev
-    private static final List<DyeColor> RUBIX_ORDER = List.of(
-        DyeColor.ORANGE, DyeColor.YELLOW, DyeColor.GREEN, DyeColor.BLUE, DyeColor.RED
-    );
-    private static final int[] RUBIX_INDICES = {12, 13, 14, 21, 22, 23, 30, 31, 32};
+        private final String label;
+        private final int slotCount;
+        TerminalType(String label, int slotCount) { this.label = label; this.slotCount = slotCount; }
+        public String label() { return label; }
+        public int slotCount() { return slotCount; }
+    }
 
-    // ARGB colors for highlights
-    private static final int COLOR_CORRECT_1  = 0xFF4F8F2F;
-    private static final int COLOR_CORRECT_2  = 0xFFB5A12E;
-    private static final int COLOR_CORRECT_3  = 0xFFB86A2E;
-    private static final int COLOR_OTHER      = 0xFF8F2E2E;
-    private static final int COLOR_BG_SLOT    = 0xFF191919;
-    private static final long PENDING_TIMEOUT_MS = 3000; // 3s until pending click expires
-    // Rubix: left click = green, right click = blue
-    private static final int COLOR_RUBIX_LEFT  = 0xFF4F8F2F;
-    private static final int COLOR_RUBIX_RIGHT = 0xFF2F4F8F;
+    /** A single click the solver wants performed: {@code btn} is the rubix direction (0 = fwd, 1 = back). */
+    private record TerminalClick(int slotId, int btn) {
+        TerminalClick(int slotId) { this(slotId, 0); }
+    }
 
-    // Title patterns for terminal detection
-    private static final Pattern STARTS_WITH_PATTERN = Pattern.compile("^What starts with: '(.*?)'\\?$");
-    private static final Pattern SELECT_ALL_PATTERN = Pattern.compile("^Select all the (.*?) items!$");
+    private static final Pattern ITEM_NAME_PATTERN = Pattern.compile("^What starts with: '(.*?)'\\?$");
+    private static final Pattern COLOURED_ITEMS_PATTERN = Pattern.compile("^Select all the (.*?) items!$");
 
-    // Legacy name mapping for "Starts With" terminal (MC modern → Hypixel expected names)
-    private static final Map<String, String> LEGACY_NAMES = Map.ofEntries(
-        Map.entry("Grass", "Grass Block"),
-        Map.entry("Redstone Dust", "Redstone"),
-        Map.entry("Empty Map", "Map"),
-        Map.entry("Oak Planks", "Oak Wood Planks"),
-        Map.entry("Spruce Planks", "Spruce Wood Planks"),
-        Map.entry("Birch Planks", "Birch Wood Planks"),
-        Map.entry("Jungle Planks", "Jungle Wood Planks"),
-        Map.entry("Acacia Planks", "Acacia Wood Planks"),
-        Map.entry("Dark Oak Planks", "Dark Oak Wood Planks"),
-        Map.entry("Tall Grass", "Double Tallgrass"),
-        Map.entry("Brown Mushroom", "Mushroom"),
-        Map.entry("Red Mushroom", "Mushroom"),
-        Map.entry("Brick Slab", "Bricks Slab"),
-        Map.entry("Stone Brick Slab", "Stone Bricks Slab"),
-        Map.entry("Oak Slab", "Oak Wood Slab"),
-        Map.entry("Spruce Slab", "Spruce Wood Slab"),
-        Map.entry("Birch Slab", "Birch Wood Slab"),
-        Map.entry("Jungle Slab", "Jungle Wood Slab"),
-        Map.entry("Acacia Slab", "Acacia Wood Slab"),
-        Map.entry("Dark Oak Slab", "Dark Oak Wood Slab"),
-        Map.entry("Mossy Cobblestone", "Mossy Stone"),
-        Map.entry("Oak Stairs", "Oak Wood Stairs"),
-        Map.entry("Spruce Stairs", "Spruce Wood Stairs"),
-        Map.entry("Birch Stairs", "Birch Wood Stairs"),
-        Map.entry("Jungle Stairs", "Jungle Wood Stairs"),
-        Map.entry("Acacia Stairs", "Acacia Wood Stairs"),
-        Map.entry("Dark Oak Stairs", "Dark Oak Wood Stairs"),
-        Map.entry("Oak Pressure Plate", "Wooden Pressure Plate"),
-        Map.entry("Light Weighted Pressure Plate", "Weighted Pressure Plate (Light)"),
-        Map.entry("Heavy Weighted Pressure Plate", "Weighted Pressure Plate (Heavy)"),
-        Map.entry("Oak Button", "Button"),
-        Map.entry("Stone Button", "Button"),
-        Map.entry("White Carpet", "Carpet"),
-        Map.entry("Black Terracotta", "Black Stained Clay"),
-        Map.entry("Red Terracotta", "Red Stained Clay"),
-        Map.entry("Green Terracotta", "Green Stained Clay"),
-        Map.entry("Brown Terracotta", "Brown Stained Clay"),
-        Map.entry("Blue Terracotta", "Blue Stained Clay"),
-        Map.entry("Purple Terracotta", "Purple Stained Clay"),
-        Map.entry("Cyan Terracotta", "Cyan Stained Clay"),
-        Map.entry("Light Gray Terracotta", "Light Gray Stained Clay"),
-        Map.entry("Gray Terracotta", "Gray Stained Clay"),
-        Map.entry("Pink Terracotta", "Pink Stained Clay"),
-        Map.entry("Lime Terracotta", "Lime Stained Clay"),
-        Map.entry("Yellow Terracotta", "Yellow Stained Clay"),
-        Map.entry("Light Blue Terracotta", "Light Blue Stained Clay"),
-        Map.entry("Magenta Terracotta", "Magenta Stained Clay"),
-        Map.entry("Orange Terracotta", "Orange Stained Clay"),
-        Map.entry("White Terracotta", "White Stained Clay"),
-        Map.entry("Terracotta", "Hardened Clay"),
-        Map.entry("Nether Portal", "Portal"),
-        Map.entry("White Wool", "Wool"),
-        Map.entry("Block of Lapis Lazuli", "Lapis Lazuli Block"),
-        Map.entry("Red Bed", "Bed"),
-        Map.entry("White Bed", "Bed"),
-        Map.entry("Oak Trapdoor", "Wooden Trapdoor"),
-        Map.entry("Infested Stone", "Stone Monster Egg"),
-        Map.entry("Infested Cobblestone", "Cobblestone Monster Egg"),
-        Map.entry("Infested Stone Bricks", "Stone Brick Monster Egg"),
-        Map.entry("Infested Mossy Stone Bricks", "Mossy Stone Brick Monster Egg"),
-        Map.entry("Infested Cracked Stone Bricks", "Cracked Stone Brick Monster Egg"),
-        Map.entry("Infested Chiseled Stone Bricks", "Chiseled Stone Brick Monster Egg"),
-        Map.entry("Enchanting Table", "Enchantment Table"),
-        Map.entry("Chipped Anvil", "Slightly Damaged Anvil"),
-        Map.entry("Damaged Anvil", "Very Damaged Anvil"),
-        Map.entry("Daylight Detector", "Daylight Sensor"),
-        Map.entry("Quartz Pillar", "Pillar Quartz Block"),
-        Map.entry("Wheat Seeds", "Seeds"),
-        Map.entry("Chainmail Helmet", "Chain Helmet"),
-        Map.entry("Chainmail Chestplate", "Chain Chestplate"),
-        Map.entry("Chainmail Leggings", "Chain Leggings"),
-        Map.entry("Chainmail Boots", "Chain Boots"),
-        Map.entry("Oak Boat", "Boat"),
-        Map.entry("Milk Bucket", "Milk"),
-        Map.entry("Sugar Cane", "Sugar Canes"),
-        Map.entry("Raw Cod", "Raw Fish"),
-        Map.entry("Tropical Fish", "Clownfish"),
-        Map.entry("Cooked Cod", "Cooked Fish"),
-        Map.entry("Red Dye", "Rose Red"),
-        Map.entry("Green Dye", "Cactus Green"),
-        Map.entry("Yellow Dye", "Dandelion Yellow"),
-        Map.entry("Glistering Melon Slice", "Glistering Melon"),
-        Map.entry("Player Head", "Head"),
-        Map.entry("Golden Horse Armor", "Gold Horse Armor")
-    );
+    // Rubix colour cycle order (rubix order).
+    private static final Item[] RUBIX_ORDER = {
+        Items.RED_STAINED_GLASS_PANE,
+        Items.ORANGE_STAINED_GLASS_PANE,
+        Items.YELLOW_STAINED_GLASS_PANE,
+        Items.GREEN_STAINED_GLASS_PANE,
+        Items.BLUE_STAINED_GLASS_PANE,
+    };
+    private static final int[] RUBIX_SLOTS = {12, 13, 14, 21, 22, 23, 30, 31, 32};
 
-    // Color name normalization for "Select All" terminal
-    private static final Map<String, String> COLOR_FIXES = Map.ofEntries(
-        Map.entry("light gray", "silver"),
-        Map.entry("wool", "white"),
-        Map.entry("bone", "white"),
-        Map.entry("ink", "black"),
-        Map.entry("lapis", "blue"),
-        Map.entry("cocoa", "brown"),
-        Map.entry("dandelion", "yellow"),
-        Map.entry("rose", "red"),
-        Map.entry("cactus", "green")
-    );
+    // Items that carry a permanent glint (their glint cannot signal "already clicked").
+    private static Set<Item> specialItems;
 
-    // Static flag for mixin to check if terminal custom mode rendering should suppress container
-    private static volatile boolean customModeRendering = false;
-    public static boolean isCustomModeRendering() { return customModeRendering; }
+    private static Set<Item> specialItems() {
+        if (specialItems == null) {
+            Set<Item> set = new HashSet<>();
+            for (Item item : BuiltInRegistries.ITEM) {
+                if (item.components().has(DataComponents.ENCHANTMENT_GLINT_OVERRIDE)) set.add(item);
+            }
+            specialItems = set;
+        }
+        return specialItems;
+    }
 
+    // ── Live terminal state ────────────────────────────────────────────────────
     private TerminalType currentType = TerminalType.NONE;
-    private String searchParam = ""; // letter for StartsWith, color for SelectAll
+    private String currentTitle = "";
+    private final Map<Integer, ItemStack> currentItems = new HashMap<>();
+    private String lastSignature = null;
 
-    // Per-slot solution arrays (indexed by container slot)
-    private boolean[] solutionSlots = new boolean[0]; // true = should be clicked (StartsWith, SelectAll, Panes)
-    private int[] orderCounts = new int[0]; // count value for ORDER terminal (0 = non-target)
-    private int[] rubixClicks = new int[0]; // clicks needed for RUBIX (0 = already correct)
+    private final List<TerminalClick> solution = new ArrayList<>();
+    private final Map<Integer, Integer> numbersSlotCounts = new HashMap<>();
 
-    // ORDER: cache initial slot states to handle animation flickering
-    private int[] orderInitSlots = null;
-    private int orderMinCount = 14;
+    // Startwith bookkeeping for permanently-glinted items.
+    private final Set<Integer> clickedSlots = new HashSet<>();
+    private int pendingSpecialClick = -1;
 
-    // RUBIX: track last click for held-item compensation
-    private int rubixLastClicked = -1;
-    private boolean rubixLastClickWasLeft = false;
+    // Melody state.
+    private Integer melodyCorrect, melodyButton, melodyCurrent;
 
-    // Pending click tracking: slot stays hidden until server acknowledges or timeout
-    private long[] pendingClickTimes = new long[0];
+    // Custom-overlay geometry cache for click mapping (screen-space, before user scale).
+    private float scaleCache = 1f, offsetXCache, offsetYCache;
+    private int windowSizeCache;
+
+    // ── Title detection ────────────────────────────────────────────────────────
+
+    /** Classifies a terminal by its screen title (also used by the waypoint service). */
+    public static TerminalType detectType(String title) {
+        if (title == null) return TerminalType.NONE;
+        return switch (title) {
+            case "Correct all the panes!" -> TerminalType.PANES;
+            case "Click in order!" -> TerminalType.ORDER;
+            case "Change all to same color!" -> TerminalType.SAME_COLOR;
+            case "Click the button on time!" -> TerminalType.MELODY;
+            default -> {
+                if (ITEM_NAME_PATTERN.matcher(title).matches()) yield TerminalType.ITEM_NAME;
+                if (COLOURED_ITEMS_PATTERN.matcher(title).matches()) yield TerminalType.COLOURED_ITEMS;
+                yield TerminalType.NONE;
+            }
+        };
+    }
 
     public void onScreenOpen(AbstractContainerScreen<?> screen) {
         reset();
-        String title = screen.getTitle().getString();
-
-        if (title.equals("Correct all the panes!")) {
-            currentType = TerminalType.PANES;
-        } else if (title.equals("Click in order!")) {
-            currentType = TerminalType.ORDER;
-        } else if (title.equals("Change all to same color!")) {
-            currentType = TerminalType.RUBIX;
-        } else if (title.equals("Click the button on time!")) {
-            currentType = TerminalType.MELODY;
-        } else {
-            Matcher swMatcher = STARTS_WITH_PATTERN.matcher(title);
-            if (swMatcher.matches()) {
-                currentType = TerminalType.STARTS_WITH;
-                searchParam = swMatcher.group(1);
-            } else {
-                Matcher saMatcher = SELECT_ALL_PATTERN.matcher(title);
-                if (saMatcher.matches()) {
-                    currentType = TerminalType.SELECT_ALL;
-                    searchParam = saMatcher.group(1);
-                }
-            }
-        }
+        currentTitle = screen.getTitle().getString();
+        currentType = detectType(currentTitle);
     }
 
     public void onScreenTick(AbstractContainerScreen<?> screen) {
-        if (currentType == TerminalType.NONE || currentType == TerminalType.MELODY) return;
-        computeSolution(screen);
+        if (currentType == TerminalType.NONE) return;
+        int slotCount = currentType.slotCount();
+        var menu = screen.getMenu();
+        List<ItemStack> items = menu.getItems();
+
+        currentItems.clear();
+        StringBuilder sig = new StringBuilder();
+        for (int i = 0; i < slotCount && i < items.size(); i++) {
+            ItemStack stack = items.get(i);
+            if (stack.isEmpty()) continue;
+            currentItems.put(i, stack);
+            sig.append(i).append(':')
+               .append(BuiltInRegistries.ITEM.getKey(stack.getItem())).append(':')
+               .append(stack.getCount()).append(TerminalNames.hasGlint(stack) ? "g" : "").append(';');
+        }
+
+        // Only re-solve when the container contents actually changed (anti-flicker model):
+        // a click via CLONE does not alter client items, so between click and the server's update
+        // the signature is unchanged and the predicted solution stays put.
+        String signature = sig.toString();
+        if (!signature.equals(lastSignature)) {
+            lastSignature = signature;
+            solve();
+        }
     }
 
-    private void computeSolution(AbstractContainerScreen<?> screen) {
-        List<ItemStack> items = screen.getMenu().getItems();
-        int size = items.size();
-        ensurePendingArrays(size);
+    // ── Solving ────────────────────────────────────────────────────────────────
 
+    private void solve() {
+        solution.clear();
         switch (currentType) {
-            case PANES -> solvePanes(items, size);
-            case ORDER -> solveOrder(items, size, screen);
-            case RUBIX -> solveRubix(items, size, screen);
-            case STARTS_WITH -> solveStartsWith(items, size);
-            case SELECT_ALL -> solveSelectAll(items, size);
+            case PANES -> { // red panes -> click all
+                for (var e : currentItems.entrySet()) {
+                    if (e.getValue().getItem() == Items.RED_STAINED_GLASS_PANE) solution.add(new TerminalClick(e.getKey()));
+                }
+            }
+            case ORDER -> { // red panes numbered by stack size, click ascending
+                numbersSlotCounts.clear();
+                List<Map.Entry<Integer, ItemStack>> panes = new ArrayList<>();
+                for (var e : currentItems.entrySet()) {
+                    if (e.getValue().getItem() == Items.RED_STAINED_GLASS_PANE) panes.add(e);
+                }
+                panes.sort((a, b) -> Integer.compare(a.getValue().getCount(), b.getValue().getCount()));
+                for (var e : panes) {
+                    numbersSlotCounts.put(e.getKey(), e.getValue().getCount());
+                    solution.add(new TerminalClick(e.getKey()));
+                }
+            }
+            case ITEM_NAME -> {
+                Matcher m = ITEM_NAME_PATTERN.matcher(currentTitle);
+                if (!m.matches()) break;
+                String letter = m.group(1).toLowerCase();
+                // A special item that was clicked keeps its glint, so remember it once the window updates.
+                if (pendingSpecialClick >= 0) {
+                    ItemStack s = currentItems.get(pendingSpecialClick);
+                    if (s != null && specialItems().contains(s.getItem())) clickedSlots.add(pendingSpecialClick);
+                    pendingSpecialClick = -1;
+                }
+                for (var e : currentItems.entrySet()) {
+                    int idx = e.getKey();
+                    ItemStack stack = e.getValue();
+                    String name = TerminalNames.legacyName(TerminalNames.displayName(stack)).toLowerCase();
+                    if (!name.startsWith(letter)) continue;
+                    if (clickedSlots.contains(idx)) continue;
+                    if (!TerminalNames.hasGlint(stack) || specialItems().contains(stack.getItem())) {
+                        solution.add(new TerminalClick(idx));
+                    }
+                }
+            }
+            case COLOURED_ITEMS -> {
+                Matcher m = COLOURED_ITEMS_PATTERN.matcher(currentTitle);
+                if (!m.matches()) break;
+                String colour = m.group(1).toLowerCase();
+                for (var e : currentItems.entrySet()) {
+                    ItemStack stack = e.getValue();
+                    if (stack.getItem() == Items.BLACK_STAINED_GLASS_PANE) continue;
+                    if (TerminalNames.hasGlint(stack)) continue;
+                    String name = TerminalNames.fixColorName(TerminalNames.displayName(stack)).toLowerCase();
+                    if (name.startsWith(colour)) solution.add(new TerminalClick(e.getKey()));
+                }
+            }
+            case SAME_COLOR -> {
+                List<int[]> panes = new ArrayList<>(); // {slot, colourIndex}
+                for (int slot : RUBIX_SLOTS) {
+                    ItemStack stack = currentItems.get(slot);
+                    if (stack == null) continue;
+                    int ci = indexOf(RUBIX_ORDER, stack.getItem());
+                    if (ci >= 0) panes.add(new int[]{slot, ci});
+                }
+                int[] costs = new int[5];
+                for (int target = 0; target < 5; target++) {
+                    for (int[] p : panes) {
+                        int dist = Math.abs(target - p[1]);
+                        costs[target] += dist > 2 ? 5 - dist : dist;
+                    }
+                }
+                int origin = 0;
+                for (int i = 1; i < 5; i++) if (costs[i] < costs[origin]) origin = i;
+                for (int[] p : panes) {
+                    if (p[1] == origin) continue;
+                    int diff = origin - p[1];
+                    if (diff > 2) diff -= 5;
+                    if (diff < -2) diff += 5;
+                    solution.add(new TerminalClick(p[0], diff));
+                }
+            }
+            case MELODY -> solveMelody();
             default -> {}
         }
-
-        // Apply pending click tracking for applicable terminal types
-        if (currentType == TerminalType.PANES || currentType == TerminalType.STARTS_WITH
-                || currentType == TerminalType.SELECT_ALL) {
-            applyPendingTracking(size);
-        }
     }
 
-    private void ensurePendingArrays(int size) {
-        if (pendingClickTimes.length != size) {
-            pendingClickTimes = new long[size];
+    private void solveMelody() {
+        melodyCorrect = melodyButton = melodyCurrent = null;
+        Integer limeSlot = null, targetSlot = null;
+        for (var e : currentItems.entrySet()) {
+            Item it = e.getValue().getItem();
+            if (it == Items.LIME_STAINED_GLASS_PANE) limeSlot = e.getKey();
+            // The "where to click" marker is a purple/magenta pane depending on the version.
+            else if (it == Items.MAGENTA_STAINED_GLASS_PANE || it == Items.PURPLE_STAINED_GLASS_PANE) targetSlot = e.getKey();
         }
+        if (targetSlot != null) melodyCorrect = targetSlot % 9; // target column (0..8)
+        if (limeSlot == null) return;
+        melodyButton = (int) Math.floor(limeSlot / 9.0) - 1;
+        melodyCurrent = limeSlot % 9 - 1;
     }
 
-    /**
-     * Post-processing: pending slots are hidden from the solution until the server
-     * changes the item (acknowledged) or the timeout expires (flicker back).
-     */
-    private void applyPendingTracking(int size) {
-        long now = System.currentTimeMillis();
-        for (int i = 0; i < size; i++) {
-            if (i >= pendingClickTimes.length || pendingClickTimes[i] == 0) continue;
-            boolean stillTarget = i < solutionSlots.length && solutionSlots[i];
-            if (!stillTarget) {
-                // Server acknowledged — item changed
-                pendingClickTimes[i] = 0;
-            } else if (now - pendingClickTimes[i] > PENDING_TIMEOUT_MS) {
-                // Timeout — flicker back to clickable
-                pendingClickTimes[i] = 0;
-            } else {
-                // Still pending — hide from solution
-                solutionSlots[i] = false;
-            }
-        }
+    private static int indexOf(Item[] arr, Item item) {
+        for (int i = 0; i < arr.length; i++) if (arr[i] == item) return i;
+        return -1;
     }
 
-    // ── Solvers ──────────────────────────────────────────────────────────────
-
-    private void solvePanes(List<ItemStack> items, int size) {
-        if (solutionSlots.length != size) {
-            solutionSlots = new boolean[size];
-        }
-        for (int i = 0; i < size; i++) {
-            solutionSlots[i] = items.get(i).getItem() == Items.RED_STAINED_GLASS_PANE;
-        }
-    }
-
-    private void solveOrder(List<ItemStack> items, int size, AbstractContainerScreen<?> screen) {
-        // Initialize cached slot counts on first tick (prevents flickering during animation)
-        if (orderInitSlots == null && size > 45 && !items.get(size - 45).isEmpty()) {
-            orderInitSlots = new int[size];
-            for (int i = 0; i < size; i++) {
-                ItemStack stack = items.get(i);
-                orderInitSlots[i] = (stack.getItem() == Items.RED_STAINED_GLASS_PANE) ? stack.getCount() : 0;
-            }
-        }
-
-        orderCounts = new int[size];
-        orderMinCount = 14;
-        for (int i = 0; i < size; i++) {
-            ItemStack stack = items.get(i);
-            int count = (stack.getItem() == Items.RED_STAINED_GLASS_PANE) ? stack.getCount() : 0;
-
-            // Use cached value if item disappeared or changed (animation glitch compensation)
-            int cached = (orderInitSlots != null && i < orderInitSlots.length) ? orderInitSlots[i] : 0;
-            int fixedCount;
-            if (cached > 0 && (stack.isEmpty() || (count != 0 && count != cached))) {
-                fixedCount = cached;
-            } else {
-                fixedCount = count;
-            }
-
-            orderCounts[i] = fixedCount;
-            if (fixedCount > 0) orderMinCount = Math.min(orderMinCount, fixedCount);
-        }
-    }
-
-    private void solveRubix(List<ItemStack> items, int size, AbstractContainerScreen<?> screen) {
-        rubixClicks = new int[size];
-
-        // Collect current colors of the 9 rubix panes
-        record RubixSlot(int idx, int colorIndex) {}
-        List<RubixSlot> panes = new ArrayList<>(9);
-
-        ItemStack held = screen.getMenu().getCarried();
-
-        for (int idx : RUBIX_INDICES) {
-            if (idx >= size) continue;
-            ItemStack item = items.get(idx);
-
-            // If this slot was just clicked, the item might be in the carried slot
-            if (item.isEmpty() && idx == rubixLastClicked && !held.isEmpty()) {
-                item = held;
-            }
-
-            DyeColor color = getPaneColor(item);
-            if (color == null) continue;
-            int colorIdx = RUBIX_ORDER.indexOf(color);
-            if (colorIdx < 0) continue;
-
-            // Compensate for held item (item in transit after click)
-            if (item == held && rubixLastClicked == idx) {
-                if (rubixLastClickWasLeft) colorIdx++;
-                else colorIdx--;
-                if (colorIdx < 0) colorIdx += RUBIX_ORDER.size();
-                if (colorIdx >= RUBIX_ORDER.size()) colorIdx -= RUBIX_ORDER.size();
-            }
-
-            panes.add(new RubixSlot(idx, colorIdx));
-        }
-
-        // Find optimal target color (fewest total clicks)
-        int bestCost = 19;
-        int[] bestClicks = null;
-        for (int target = 0; target < RUBIX_ORDER.size(); target++) {
-            int totalClicks = 0;
-            int[] clicks = new int[size];
-            for (RubixSlot pane : panes) {
-                int dist = Math.abs(target - pane.colorIndex);
-                if (dist >= 3) dist = 5 - dist;
-                totalClicks += dist;
-
-                // Left clicks needed: positive = how many left clicks
-                int lc = target - pane.colorIndex;
-                if (lc < 0) lc += 5;
-                clicks[pane.idx] = lc;
-            }
-            if (totalClicks < bestCost) {
-                bestCost = totalClicks;
-                bestClicks = clicks;
-            }
-        }
-
-        if (bestClicks != null) {
-            rubixClicks = bestClicks;
-        }
-    }
-
-    private void solveStartsWith(List<ItemStack> items, int size) {
-        solutionSlots = new boolean[size];
-        if (searchParam.isEmpty()) return;
-
-        for (int i = 0; i < size; i++) {
-            ItemStack stack = items.get(i);
-            if (stack.isEmpty()) continue;
-            // Check for enchantment glint override (= already clicked/completed)
-            Boolean glint = stack.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE);
-            if (glint != null && glint) continue;
-
-            String name = getItemDisplayName(stack);
-            // Apply legacy name mapping
-            String legacyName = LEGACY_NAMES.get(name);
-            if (legacyName != null) name = legacyName;
-
-            solutionSlots[i] = name.regionMatches(true, 0, searchParam, 0, searchParam.length());
-        }
-    }
-
-    private void solveSelectAll(List<ItemStack> items, int size) {
-        solutionSlots = new boolean[size];
-        if (searchParam.isEmpty()) return;
-
-        for (int i = 0; i < size; i++) {
-            ItemStack stack = items.get(i);
-            if (stack.isEmpty()) continue;
-            Boolean glint = stack.get(DataComponents.ENCHANTMENT_GLINT_OVERRIDE);
-            if (glint != null && glint) continue;
-
-            String name = getItemDisplayName(stack);
-            // Apply color name fixes
-            for (Map.Entry<String, String> fix : COLOR_FIXES.entrySet()) {
-                if (name.regionMatches(true, 0, fix.getKey(), 0, fix.getKey().length())) {
-                    name = fix.getValue();
-                    break;
-                }
-            }
-
-            solutionSlots[i] = name.regionMatches(true, 0, searchParam, 0, searchParam.length());
-        }
-    }
-
-    // ── Custom mode grid layout per terminal type ──────────────────────────
-    // rows, cols, startRow (in 9-wide container), startCol
-    private static final int[][] GRID_PARAMS = new int[6][];
-    static {
-        GRID_PARAMS[TerminalType.PANES.ordinal()]      = new int[]{3, 5, 1, 2};
-        GRID_PARAMS[TerminalType.ORDER.ordinal()]       = new int[]{2, 7, 1, 1};
-        GRID_PARAMS[TerminalType.RUBIX.ordinal()]       = new int[]{3, 3, 1, 3};
-        GRID_PARAMS[TerminalType.STARTS_WITH.ordinal()] = new int[]{3, 7, 1, 1};
-        GRID_PARAMS[TerminalType.SELECT_ALL.ordinal()]  = new int[]{4, 7, 1, 1};
-    }
-    private static final int CUSTOM_SLOT_SIZE = 24;
-    private static final int CUSTOM_GAP = 2;
-    private static final int CUSTOM_BG_COLOR = 0xCC1A1A1A;
-
-    // Cached custom grid origin for click mapping
-    private float customOriginX, customOriginY;
-    private float customScale;
-    private int customRows, customCols, customStartRow, customStartCol;
-
-    // ── Rendering ────────────────────────────────────────────────────────────
-
-    /**
-     * Called BEFORE rendering to set the customModeRendering flag.
-     * The HandledScreenMixin checks this flag to cancel container rendering.
-     */
-    public void updateCustomModeFlag(HorizonConfig config) {
-        customModeRendering = config.isTerminalSolverCustomMode()
-            && config.isTerminalSolverEnabled()
-            && currentType != TerminalType.NONE
-            && currentType != TerminalType.MELODY;
-    }
+    // ── Rendering (custom overlay) ────────────────────────────────────────
 
     public void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor ctx, HorizonConfig config) {
-        if (!config.isTerminalSolverEnabled() || currentType == TerminalType.NONE || currentType == TerminalType.MELODY) return;
-
+        if (currentType == TerminalType.NONE || !config.isTerminalSolverEnabled()) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.player == null) return;
+        if (mc == null || mc.font == null) return;
+        Font font = mc.font;
 
-        boolean customMode = config.isTerminalSolverCustomMode();
-        if (customMode) {
-            customScale = config.getTerminalGuiScale();
-            renderCustomMode(screen, ctx, mc);
-        } else {
-            renderNormalMode(screen, ctx, mc);
-        }
-    }
+        float s = config.getTerminalGuiScale();
+        if (s <= 0) s = 1f;
+        int windowSize = currentType.slotCount();
+        int width = 9 * 18;
+        int height = windowSize / 9 * 18;
+        float sw = screen.width / s;
+        float sh = screen.height / s;
+        float offsetX = sw / 2f - width / 2f;
+        float offsetY = sh / 2f - height / 2f;
 
-    private void renderCustomMode(AbstractContainerScreen<?> screen, GuiGraphicsExtractor ctx, Minecraft mc) {
-        int[] params = GRID_PARAMS[currentType.ordinal()];
-        if (params == null) return;
-
-        int rows = params[0], cols = params[1], startRow = params[2], startCol = params[3];
-        float scale = customScale > 0 ? customScale : 2.0f;
-
-        int gap = CUSTOM_GAP;
-        int slotSize = CUSTOM_SLOT_SIZE;
-        int gridW = cols * slotSize + (cols - 1) * gap;
-        int gridH = rows * slotSize + (rows - 1) * gap;
-        float originX = (screen.width - gridW * scale) / 2f;
-        float originY = (screen.height - gridH * scale) / 2f;
-
-        // Cache for click mapping
-        customOriginX = originX;
-        customOriginY = originY;
-        customScale = scale;
-        customRows = rows;
-        customCols = cols;
-        customStartRow = startRow;
-        customStartCol = startCol;
-
-        boolean completed = isCompleted();
+        scaleCache = s;
+        offsetXCache = offsetX;
+        offsetYCache = offsetY;
+        windowSizeCache = windowSize;
 
         ctx.pose().pushMatrix();
-        ctx.pose().translate(originX, originY);
-        ctx.pose().scale(scale, scale);
+        ctx.pose().scale(s, s);
 
-        // Background
-        int pad = 4;
-        ctx.fill(-pad, -pad, gridW + pad, gridH + pad, CUSTOM_BG_COLOR);
+        drawCenteredString(ctx, font, currentType.label(), offsetX + width / 2f, offsetY - 15f, config.getTermColorTitle(), 1.2f);
+        drawRect(ctx, offsetX, offsetY, width, height, config.getTermColorBackground());
+        drawBorder(ctx, offsetX, offsetY, width, height, config.getTermColorBorder(), 1);
 
-        // Render slots
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                int slotIndex = (startRow + row) * 9 + (startCol + col);
-                int bx = col * (slotSize + gap);
-                int by = row * (slotSize + gap);
+        int baseColor = solutionColor(config);
+        for (int index = 0; index < solution.size(); index++) {
+            TerminalClick click = solution.get(index);
+            int slot = click.slotId();
+            float sx = slot % 9 * 18 + offsetX;
+            float sy = slot / 9 * 18 + offsetY;
 
-                if (completed) {
-                    ctx.fill(bx, by, bx + slotSize, by + slotSize, COLOR_CORRECT_1);
-                } else {
-                    boolean isSolution = isSlotSolution(slotIndex);
-                    if (isSolution) {
-                        ctx.fill(bx, by, bx + slotSize, by + slotSize, getSolutionColor(slotIndex));
-                    } else {
-                        ctx.fill(bx, by, bx + slotSize, by + slotSize, COLOR_BG_SLOT);
+            switch (currentType) {
+                case ORDER -> {
+                    if (index > 2) break;
+                    int color = numbersColor(config, index);
+                    drawSlot(ctx, sx, sy, color, config.getTerminalSlotStyle());
+                    if (config.isTerminalShowNumbers()) {
+                        int count = numbersSlotCounts.getOrDefault(slot, 0);
+                        drawCenteredString(ctx, font, String.valueOf(count), sx + 8, sy + 8 - font.lineHeight / 2f, config.getTermColorOverlayText(), 1f);
                     }
                 }
-
-                // Text overlays (numbers for ORDER, click counts for RUBIX)
-                if (!completed && mc.font != null) {
-                    String text = getSlotText(slotIndex);
-                    if (text != null) {
-                        int textColor = getSlotTextColor(slotIndex);
-                        int tw = mc.font.width(text);
-                        int tx = bx + (slotSize - tw) / 2;
-                        int ty = by + (slotSize - mc.font.lineHeight) / 2 + 1;
-                        ctx.text(mc.font, text, tx, ty, textColor);
-                    }
+                case SAME_COLOR -> {
+                    int color = rubixColor(config, click.btn() > 0);
+                    drawSlot(ctx, sx, sy, color, config.getTerminalSlotStyle());
+                    drawCenteredString(ctx, font, String.valueOf(click.btn()), sx + 8, sy + 8 - font.lineHeight / 2f, config.getTermColorOverlayText(), 1f);
                 }
+                default -> drawSlot(ctx, sx, sy, baseColor, config.getTerminalSlotStyle());
             }
         }
 
-        // "Done" text
-        if (completed && mc.font != null) {
-            String done = "Done";
-            int tw = mc.font.width(done);
-            ctx.text(mc.font, done, (gridW - tw) / 2, (gridH - mc.font.lineHeight) / 2, 0xFF55FF55);
+        if (currentType == TerminalType.MELODY) {
+            int style = config.getTerminalSlotStyle();
+            // WHERE to click: the target column marker (purple/magenta), highlighted across the rows.
+            if (melodyCorrect != null) {
+                drawSlotSized(ctx, offsetX + melodyCorrect * 18, offsetY + 18, 16, 70, melodyColor(config, 0), style);
+            }
+            // WHEN / which row: the button to press (green) + the moving indicator + wrong buttons.
+            if (melodyButton != null && melodyCurrent != null) {
+                int buttonSlot = melodyButton * 9 + 16;      // the button to press = which ROW to click
+                int currentSlot = melodyButton * 9 + 10 + melodyCurrent;
+                for (int i = 0; i < windowSize; i++) {
+                    float x = i % 9 * 18 + offsetX;
+                    float y = i / 9 * 18 + offsetY;
+                    if (i == buttonSlot) drawSlot(ctx, x, y, baseColor, style);
+                    else if (i == 16 || i == 25 || i == 34 || i == 43) drawSlot(ctx, x, y, melodyColor(config, 2), style);
+                    else if (i == currentSlot) drawSlot(ctx, x, y, melodyColor(config, 1), style);
+                }
+            }
         }
 
         ctx.pose().popMatrix();
     }
 
-    private void renderNormalMode(AbstractContainerScreen<?> screen, GuiGraphicsExtractor ctx, Minecraft mc) {
-        var accessor = (AbstractContainerScreenAccessor)(Object) screen;
-        int leftPos = accessor.getLeftPos();
-        int topPos = accessor.getTopPos();
-        int imgW = accessor.getImageWidth();
-        int imgH = accessor.getImageHeight();
+    private void drawSlot(GuiGraphicsExtractor ctx, float x, float y, int color, int style) {
+        drawSlotSized(ctx, x, y, 16, 16, color, style);
+    }
 
-        boolean completed = isCompleted();
-        var menu = screen.getMenu();
-
-        for (int i = 0; i < menu.slots.size(); i++) {
-            Slot slot = menu.slots.get(i);
-            if (slot.container == mc.player.getInventory()) continue;
-
-            int sx = leftPos + slot.x;
-            int sy = topPos + slot.y;
-            boolean isSolution = isSlotSolution(i);
-
-            if (completed) {
-                ctx.fill(sx, sy, sx + 16, sy + 16, COLOR_CORRECT_1);
-            } else if (!isSolution) {
-                ctx.fill(sx, sy, sx + 16, sy + 16, 0xCC000000);
-            } else {
-                int color = getSolutionColor(i);
-                ctx.fill(sx, sy, sx + 16, sy + 16, color);
+    private void drawSlotSized(GuiGraphicsExtractor ctx, float x, float y, int w, int h, int color, int style) {
+        switch (style) {
+            case 1 -> { // Bordered-Rect
+                drawBorder(ctx, x, y, w, h, color, 1);
+                drawRect(ctx, x, y, w, h, (color & 0x00FFFFFF) | (40 << 24));
             }
-        }
-
-        // "Done" overlay when completed
-        if (completed && mc.font != null) {
-            ctx.centeredText(mc.font, "Done", leftPos + imgW / 2, topPos + imgH / 2 - 4, 0xFF55FF55);
-        }
-
-        // Render numbers for ORDER terminal
-        if (!completed && currentType == TerminalType.ORDER && mc.font != null) {
-            for (int i = 0; i < menu.slots.size(); i++) {
-                if (i >= orderCounts.length) break;
-                int count = orderCounts[i];
-                if (count <= 0) continue;
-                Slot slot = menu.slots.get(i);
-                if (slot.container == mc.player.getInventory()) continue;
-                ctx.centeredText(mc.font, String.valueOf(count), leftPos + slot.x + 8, topPos + slot.y + 4, 0xFFFFFFFF);
-            }
-        }
-
-        // Render click counts for RUBIX terminal
-        if (!completed && currentType == TerminalType.RUBIX && mc.font != null) {
-            for (int i = 0; i < menu.slots.size(); i++) {
-                if (i >= rubixClicks.length) break;
-                int clicks = rubixClicks[i];
-                if (clicks == 0) continue;
-                Slot slot = menu.slots.get(i);
-                if (slot.container == mc.player.getInventory()) continue;
-                int display = clicks >= 3 ? clicks - 5 : clicks;
-                int textColor = display > 0 ? 0xFF55FF55 : 0xFFFF8800;
-                ctx.centeredText(mc.font, String.valueOf(display), leftPos + slot.x + 8, topPos + slot.y + 4, textColor);
-            }
+            case 2 -> drawFloatingRect(ctx, (int) x, (int) y, w, h, darker(color)); // Button
+            default -> drawRect(ctx, x, y, w, h, color); // Rect
         }
     }
 
-    /** Returns text to display on a slot in custom mode (ORDER numbers, RUBIX click counts). */
-    private String getSlotText(int slotIndex) {
-        if (currentType == TerminalType.ORDER) {
-            if (slotIndex < orderCounts.length && orderCounts[slotIndex] > 0) {
-                return String.valueOf(orderCounts[slotIndex]);
-            }
-        } else if (currentType == TerminalType.RUBIX) {
-            if (slotIndex < rubixClicks.length && rubixClicks[slotIndex] != 0) {
-                int display = rubixClicks[slotIndex] >= 3 ? rubixClicks[slotIndex] - 5 : rubixClicks[slotIndex];
-                return String.valueOf(display);
-            }
-        }
-        return null;
+    private static void drawRect(GuiGraphicsExtractor ctx, float x, float y, float w, float h, int color) {
+        ctx.fill((int) x, (int) y, (int) (x + w), (int) (y + h), color);
     }
 
-    /** Returns text color for slot overlay text. */
-    private int getSlotTextColor(int slotIndex) {
-        if (currentType == TerminalType.ORDER) return 0xFFFFFFFF;
-        if (currentType == TerminalType.RUBIX && slotIndex < rubixClicks.length) {
-            int display = rubixClicks[slotIndex] >= 3 ? rubixClicks[slotIndex] - 5 : rubixClicks[slotIndex];
-            return display > 0 ? 0xFF55FF55 : 0xFFFF8800;
-        }
-        return 0xFFFFFFFF;
+    private static void drawBorder(GuiGraphicsExtractor ctx, float x, float y, float w, float h, int color, int t) {
+        drawRect(ctx, x, y, w, t, color);
+        drawRect(ctx, x, y + h - t, w, t, color);
+        drawRect(ctx, x, y + t, t, h - t * 2, color);
+        drawRect(ctx, x + w - t, y + t, t, h - t * 2, color);
     }
+
+    private static void drawFloatingRect(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int base) {
+        int light = brighter(base), dark = darker(base);
+        ctx.fill(x, y, x + 1, y + h, light);
+        ctx.fill(x + 1, y, x + w, y + 1, light);
+        ctx.fill(x + w - 1, y + 1, x + w, y + h, dark);
+        ctx.fill(x + 1, y + h - 1, x + w - 1, y + h, dark);
+        ctx.fill(x + 1, y + 1, x + w - 1, y + h - 1, base);
+    }
+
+    private void drawCenteredString(GuiGraphicsExtractor ctx, Font font, String text, float centerX, float y, int color, float scale) {
+        float w = font.width(text) * scale;
+        float x = centerX - w / 2f;
+        if (scale == 1f) {
+            ctx.text(font, text, (int) x, (int) y, color);
+            return;
+        }
+        ctx.pose().pushMatrix();
+        ctx.pose().translate(x, y);
+        ctx.pose().scale(scale, scale);
+        ctx.text(font, text, 0, 0, color);
+        ctx.pose().popMatrix();
+    }
+
+    // ── Solver colours (HUD-derived with automatic offsets, or per-role config) ──
+
+    private static final int SLOT_ALPHA = 0xC8; // opacity used for HUD-derived slot highlights
+
+    /** Parses the HUD accent hex (#RRGGBB) into an opaque ARGB, with a safe fallback. */
+    private static int hudBase(HorizonConfig config) {
+        String hex = config.getHudAccentColor();
+        if (hex != null) {
+            try {
+                String h = hex.startsWith("#") ? hex.substring(1) : hex;
+                return 0xFF000000 | (Integer.parseInt(h, 16) & 0xFFFFFF);
+            } catch (NumberFormatException ignored) {}
+        }
+        return 0xFF55FF55;
+    }
+
+    private int solutionColor(HorizonConfig c) {
+        return c.isTerminalUseHudColor() ? withAlpha(hudBase(c), SLOT_ALPHA) : c.getTermColorSolution();
+    }
+
+    /** Order terminal: 3 shades. HUD mode = base + two darker steps; else the three configured colours. */
+    private int numbersColor(HorizonConfig c, int idx) {
+        if (c.isTerminalUseHudColor()) {
+            int b = withAlpha(hudBase(c), SLOT_ALPHA);
+            return idx <= 0 ? b : idx == 1 ? scaleBrightness(b, 0.72f) : scaleBrightness(b, 0.5f);
+        }
+        return idx <= 0 ? c.getTermColorNumbers1() : idx == 1 ? c.getTermColorNumbers2() : c.getTermColorNumbers3();
+    }
+
+    /** Rubix: 2 distinct colours. HUD mode = base (+) and a hue-shifted contrast (-). */
+    private int rubixColor(HorizonConfig c, boolean positive) {
+        if (c.isTerminalUseHudColor()) {
+            int b = withAlpha(hudBase(c), SLOT_ALPHA);
+            return positive ? b : hueShift(b, 160f);
+        }
+        return positive ? c.getTermColorRubixPos() : c.getTermColorRubixNeg();
+    }
+
+    /** Melody: which = 0 column, 1 indicator, 2 wrong. HUD mode uses hue offsets from the base. */
+    private int melodyColor(HorizonConfig c, int which) {
+        if (c.isTerminalUseHudColor()) {
+            int b = withAlpha(hudBase(c), SLOT_ALPHA);
+            return which == 0 ? b : which == 1 ? hueShift(b, 120f) : hueShift(b, 210f);
+        }
+        return which == 0 ? c.getTermColorMelodyColumn() : which == 1 ? c.getTermColorMelodyIndicator() : c.getTermColorMelodyWrong();
+    }
+
+    private static int withAlpha(int argb, int a) {
+        return (a << 24) | (argb & 0xFFFFFF);
+    }
+
+    private static int scaleBrightness(int argb, float f) {
+        int a = argb >>> 24;
+        int r = Math.min(255, (int) (((argb >> 16) & 0xFF) * f));
+        int g = Math.min(255, (int) (((argb >> 8) & 0xFF) * f));
+        int b = Math.min(255, (int) ((argb & 0xFF) * f));
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private static int hueShift(int argb, float degrees) {
+        int a = argb >>> 24;
+        float[] hsb = java.awt.Color.RGBtoHSB((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF, null);
+        int rgb = java.awt.Color.HSBtoRGB((hsb[0] + degrees / 360f) % 1f, hsb[1], hsb[2]) & 0xFFFFFF;
+        return (a << 24) | rgb;
+    }
+
+    private static int brighter(int argb) {
+        return (argb & 0xFF000000) | scaleChannel(argb, 1.25f);
+    }
+    private static int darker(int argb) {
+        return (argb & 0xFF000000) | scaleChannel(argb, 0.7f);
+    }
+    private static int scaleChannel(int argb, float f) {
+        int r = Math.min(255, (int) (((argb >> 16) & 0xFF) * f));
+        int g = Math.min(255, (int) (((argb >> 8) & 0xFF) * f));
+        int b = Math.min(255, (int) ((argb & 0xFF) * f));
+        return (r << 16) | (g << 8) | b;
+    }
+
+    // ── Click handling ──────────────────────────────────────────────────────────
 
     /**
-     * Maps a mouse click position to a custom mode grid slot index.
-     * Returns -1 if the click is outside the grid.
+     * Handles a mouse click on the overlay. Always returns {@code true} when a terminal is active so
+     * the caller cancels the vanilla click (the chest is fully replaced by the overlay). Only a click
+     * on a valid solution slot is forwarded to the server.
      */
-    public int getCustomModeSlotIndex(double mouseX, double mouseY) {
-        if (!customModeRendering || customScale <= 0) return -1;
-        float bx = (float) ((mouseX - customOriginX) / customScale);
-        float by = (float) ((mouseY - customOriginY) / customScale);
-        int gap = CUSTOM_GAP;
-        int slotSize = CUSTOM_SLOT_SIZE;
-        for (int row = 0; row < customRows; row++) {
-            for (int col = 0; col < customCols; col++) {
-                int sx = col * (slotSize + gap);
-                int sy = row * (slotSize + gap);
-                if (bx >= sx && bx < sx + slotSize && by >= sy && by < sy + slotSize) {
-                    return (customStartRow + row) * 9 + (customStartCol + col);
+    public boolean onOverlayMouseClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY, boolean leftClick, HorizonConfig config) {
+        if (currentType == TerminalType.NONE || !config.isTerminalSolverEnabled()) return false;
+
+        int slot = slotAt(mouseX, mouseY);
+        if (slot < 0 || slot >= windowSizeCache) return true;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.gameMode == null || mc.player == null) return true;
+        int windowId = screen.getMenu().containerId;
+
+        if (currentType == TerminalType.MELODY) {
+            if (slot == 16 || slot == 25 || slot == 34 || slot == 43) sendClickPacket(windowId, slot, 0);
+            return true;
+        }
+
+        TerminalClick click = null;
+        switch (currentType) {
+            case ORDER -> {
+                if (!solution.isEmpty() && solution.get(0).slotId() == slot) click = solution.get(0);
+            }
+            case SAME_COLOR -> {
+                for (TerminalClick c : solution) {
+                    if (c.slotId() == slot) { click = new TerminalClick(slot, c.btn() > 0 ? 0 : 1); break; }
+                }
+            }
+            default -> { // PANES, ITEM_NAME, COLOURED_ITEMS
+                for (TerminalClick c : solution) {
+                    if (c.slotId() == slot) { click = c; break; }
                 }
             }
         }
-        return -1;
+        if (click == null) return true;
+
+        predict(click);
+        sendClickPacket(windowId, click.slotId(), click.btn());
+        if (currentType == TerminalType.ITEM_NAME) pendingSpecialClick = click.slotId();
+        return true;
     }
 
-    /** Returns true when the terminal puzzle is fully solved. */
-    private boolean isCompleted() {
-        return switch (currentType) {
-            case PANES -> {
-                for (boolean b : solutionSlots) if (b) yield false;
-                yield solutionSlots.length > 0;
+    /** Locally advances the solution so the highlight clears instantly (before the server responds). */
+    private void predict(TerminalClick click) {
+        if (currentType == TerminalType.SAME_COLOR) {
+            for (int i = 0; i < solution.size(); i++) {
+                TerminalClick c = solution.get(i);
+                if (c.slotId() != click.slotId()) continue;
+                int change = click.btn() == 0 ? -1 : 1;
+                int newDiff = c.btn() + change;
+                if (newDiff == 0) solution.remove(i);
+                else solution.set(i, new TerminalClick(c.slotId(), newDiff));
+                return;
             }
-            case STARTS_WITH, SELECT_ALL -> {
-                for (boolean b : solutionSlots) if (b) yield false;
-                yield solutionSlots.length > 0;
+        } else {
+            for (int i = 0; i < solution.size(); i++) {
+                if (solution.get(i).slotId() == click.slotId()) { solution.remove(i); return; }
             }
-            case ORDER -> {
-                for (int c : orderCounts) if (c > 0) yield false;
-                yield orderCounts.length > 0;
-            }
-            case RUBIX -> {
-                for (int c : rubixClicks) if (c != 0) yield false;
-                yield rubixClicks.length > 0;
-            }
-            default -> false;
-        };
-    }
-
-    private boolean isSlotPending(int slotIdx) {
-        return slotIdx >= 0 && slotIdx < pendingClickTimes.length && pendingClickTimes[slotIdx] > 0;
-    }
-
-    private boolean isSlotSolution(int slotIdx) {
-        return switch (currentType) {
-            case PANES, STARTS_WITH, SELECT_ALL ->
-                slotIdx < solutionSlots.length && solutionSlots[slotIdx];
-            case ORDER ->
-                slotIdx < orderCounts.length && orderCounts[slotIdx] > 0;
-            case RUBIX ->
-                slotIdx < rubixClicks.length && rubixClicks[slotIdx] > 0;
-            default -> false;
-        };
-    }
-
-    private int getSolutionColor(int slotIdx) {
-        return switch (currentType) {
-            case PANES, STARTS_WITH, SELECT_ALL -> COLOR_CORRECT_1;
-            case ORDER -> {
-                if (slotIdx >= orderCounts.length) yield COLOR_CORRECT_1;
-                int rank = orderCounts[slotIdx] - orderMinCount;
-                yield switch (rank) {
-                    case 0 -> COLOR_CORRECT_1;
-                    case 1 -> COLOR_CORRECT_2;
-                    case 2 -> COLOR_CORRECT_3;
-                    default -> COLOR_OTHER;
-                };
-            }
-            case RUBIX -> {
-                if (slotIdx >= rubixClicks.length) yield COLOR_CORRECT_1;
-                int clicks = rubixClicks[slotIdx];
-                int display = clicks >= 3 ? clicks - 5 : clicks;
-                // Left click (positive) = green, Right click (negative) = blue
-                yield display > 0 ? COLOR_RUBIX_LEFT : COLOR_RUBIX_RIGHT;
-            }
-            default -> COLOR_CORRECT_1;
-        };
-    }
-
-    /** Returns true if the click on the given slot should be blocked. */
-    public boolean shouldBlockClick(int slotIndex, boolean isLeftClick) {
-        return switch (currentType) {
-            case PANES, STARTS_WITH, SELECT_ALL ->
-                slotIndex >= solutionSlots.length || !solutionSlots[slotIndex] || isSlotPending(slotIndex);
-            case ORDER -> slotIndex >= orderCounts.length || orderCounts[slotIndex] == 0;
-            case RUBIX -> {
-                if (slotIndex >= rubixClicks.length) yield true;
-                int clicks = rubixClicks[slotIndex];
-                if (clicks == 0) yield true;
-                // Track click for held-item compensation
-                rubixLastClicked = slotIndex;
-                rubixLastClickWasLeft = isLeftClick;
-                yield false;
-            }
-            default -> false;
-        };
-    }
-
-    /** Overload for backward compatibility. */
-    public boolean shouldBlockClick(int slotIndex) {
-        return shouldBlockClick(slotIndex, true);
-    }
-
-    /** Called after a slot click to mark it as pending server acknowledgment. */
-    public void onSlotClicked(int slotIndex) {
-        if (slotIndex >= 0 && slotIndex < pendingClickTimes.length) {
-            pendingClickTimes[slotIndex] = System.currentTimeMillis();
         }
     }
+
+    private void sendClickPacket(int windowId, int slot, int btn) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.gameMode == null || mc.player == null) return;
+        // btn 0 -> middle-click CLONE (does not move the item client-side, avoids flicker); else PICKUP.
+        mc.gameMode.handleContainerInput(
+            windowId, slot,
+            btn == 0 ? 2 : btn,
+            btn == 0 ? ContainerInput.CLONE : ContainerInput.PICKUP,
+            mc.player);
+    }
+
+    /** Maps a mouse position to a chest slot index in the overlay, or -1 if outside the grid. */
+    private int slotAt(double mouseX, double mouseY) {
+        if (scaleCache <= 0) return -1;
+        double mx = mouseX / scaleCache;
+        double my = mouseY / scaleCache;
+        int slotX = (int) Math.floor((mx - offsetXCache) / 18);
+        int slotY = (int) Math.floor((my - offsetYCache) / 18);
+        if (slotX < 0 || slotX > 8 || slotY < 0) return -1;
+        return slotX + slotY * 9;
+    }
+
+    // ── Lifecycle / queries ──────────────────────────────────────────────────────
 
     public TerminalType getCurrentType() { return currentType; }
 
+    /** True when a solvable terminal is open (same condition that draws the overlay). */
+    public boolean isActiveTerminal() { return currentType != TerminalType.NONE; }
+
     public void reset() {
         currentType = TerminalType.NONE;
-        searchParam = "";
-        solutionSlots = new boolean[0];
-        orderCounts = new int[0];
-        rubixClicks = new int[0];
-        orderInitSlots = null;
-        orderMinCount = 14;
-        rubixLastClicked = -1;
-        rubixLastClickWasLeft = false;
-        pendingClickTimes = new long[0];
-        customModeRendering = false;
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    private static String getItemDisplayName(ItemStack stack) {
-        var customName = stack.get(DataComponents.CUSTOM_NAME);
-        if (customName != null) return customName.getString();
-        return stack.getItemName().getString();
-    }
-
-    private static DyeColor getPaneColor(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return null;
-        if (stack.getItem() instanceof BlockItem bi && bi.getBlock() instanceof StainedGlassPaneBlock pane) {
-            return pane.getColor();
-        }
-        return null;
+        currentTitle = "";
+        currentItems.clear();
+        lastSignature = null;
+        solution.clear();
+        numbersSlotCounts.clear();
+        clickedSlots.clear();
+        pendingSpecialClick = -1;
+        melodyCorrect = melodyButton = melodyCurrent = null;
+        scaleCache = 1f;
     }
 }

@@ -19,13 +19,22 @@ public final class DungeonStateService {
     private static final Pattern FLOOR_MASTER = Pattern.compile("master\\s+mode.*?m([1-7])", Pattern.CASE_INSENSITIVE);
     private static final Pattern FLOOR_MASTER_ALT = Pattern.compile("m([1-7])\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern FLOOR_F_NUMBER = Pattern.compile("\\bf([1-7])\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern FLOOR_DIGIT = Pattern.compile("floor\\s*:?\\s*([0-7])", Pattern.CASE_INSENSITIVE);
 
     public enum F7Phase { NONE, P1, P2, P3, P4, P5 }
 
     private boolean inDungeon;
     private boolean inBoss;
+    // True only once the actual floor-boss fight begins (a "[BOSS] <Name>:" chat line that
+    // is NOT the Watcher). The blood room is NOT the boss, so this stays false through
+    // blood — the score HUD uses it so the calc only disappears when the boss starts.
+    private boolean bossFightStarted;
     private int currentFloor = 0;
     private boolean isMasterMode = false;
+    // Only true once we positively identify the Entrance floor. Prevents the
+    // score's 0.7 entrance factor from wrongly applying when the floor is simply
+    // not detected yet (default 0). See DungeonScoreService.isEntrance.
+    private boolean entranceConfirmed = false;
     private F7Phase f7Phase = F7Phase.NONE;
     private int ticksSinceDungeonSeen = Integer.MAX_VALUE;
     private int ticksSinceBossSeen = Integer.MAX_VALUE;
@@ -96,6 +105,7 @@ public final class DungeonStateService {
             && !normalized.contains("the watcher")) {
             inDungeon = true;
             inBoss = true;
+            bossFightStarted = true; // a real floor boss is speaking (not the blood Watcher)
             ticksSinceDungeonSeen = 0;
             ticksSinceBossSeen = 0;
         }
@@ -168,12 +178,22 @@ public final class DungeonStateService {
         return inBoss;
     }
 
+    /** True once the actual floor-boss fight has started (not the blood room). */
+    public boolean isBossFightStarted() {
+        return bossFightStarted;
+    }
+
     public int getCurrentFloor() {
         return currentFloor;
     }
 
     public boolean isMasterMode() {
         return isMasterMode;
+    }
+
+    /** True only when the Entrance floor was positively detected (not an undetected default). */
+    public boolean isEntranceFloor() {
+        return entranceConfirmed;
     }
 
     public F7Phase getF7Phase() {
@@ -236,11 +256,20 @@ public final class DungeonStateService {
 
     private void detectFloorFromScoreboard(String normalized) {
         if (!normalized.contains("catacombs")) return;
+        // Entrance floor: positively identified so the score's entrance factor
+        // only applies here, never on an undetected floor.
+        if (normalized.contains("entrance") || normalized.contains("(f0)") || normalized.contains("floor 0")) {
+            isMasterMode = false;
+            currentFloor = 0;
+            entranceConfirmed = true;
+            return;
+        }
         // Master mode: "m7" etc. (only when "master" is present)
         Matcher masterAlt = FLOOR_MASTER_ALT.matcher(normalized);
         if (normalized.contains("master") && masterAlt.find()) {
             isMasterMode = true;
             currentFloor = Integer.parseInt(masterAlt.group(1));
+            entranceConfirmed = false;
             return;
         }
         // Normal floor: "floor vii", "floor vi", etc.
@@ -248,13 +277,23 @@ public final class DungeonStateService {
         if (roman.find()) {
             isMasterMode = normalized.contains("master");
             currentFloor = romanToInt(roman.group(1));
+            entranceConfirmed = false;
             return;
         }
-        // Fallback: "(f7)", "f7" etc. — sidebar title format
+        // "(f7)", "f7" — sidebar location format
         Matcher fNum = FLOOR_F_NUMBER.matcher(normalized);
         if (fNum.find()) {
             isMasterMode = false;
             currentFloor = Integer.parseInt(fNum.group(1));
+            entranceConfirmed = false;
+            return;
+        }
+        // Digit format: "floor: 7", "floor 7"
+        Matcher digit = FLOOR_DIGIT.matcher(normalized);
+        if (digit.find()) {
+            int f = Integer.parseInt(digit.group(1));
+            currentFloor = f;
+            entranceConfirmed = f == 0;
             return;
         }
         // Master mode fallback without "master" keyword: "m7" in sidebar
@@ -262,6 +301,7 @@ public final class DungeonStateService {
         if (masterAlt.find()) {
             isMasterMode = true;
             currentFloor = Integer.parseInt(masterAlt.group(1));
+            entranceConfirmed = false;
         }
     }
 
@@ -281,8 +321,10 @@ public final class DungeonStateService {
     private void reset() {
         inDungeon = false;
         inBoss = false;
+        bossFightStarted = false;
         currentFloor = 0;
         isMasterMode = false;
+        entranceConfirmed = false;
         f7Phase = F7Phase.NONE;
         ticksSinceDungeonSeen = Integer.MAX_VALUE;
         ticksSinceBossSeen = Integer.MAX_VALUE;

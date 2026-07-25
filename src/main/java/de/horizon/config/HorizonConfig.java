@@ -155,6 +155,10 @@ public final class HorizonConfig {
     public void setBloodDoorEspEnabled(boolean v) { dungeon.bloodDoorEspEnabled = v; }
     public int getBloodDoorColor() { return dungeon.bloodDoorColor; }
     public void setBloodDoorColor(int v) { dungeon.bloodDoorColor = v; }
+    public int getDoorColorHasKey() { return dungeon.doorColorHasKey; }
+    public void setDoorColorHasKey(int v) { dungeon.doorColorHasKey = v; }
+    public int getDoorColorNoKey() { return dungeon.doorColorNoKey; }
+    public void setDoorColorNoKey(int v) { dungeon.doorColorNoKey = v; }
     public boolean isDoorKeyHighlightEnabled() { return dungeon.doorKeyHighlightEnabled; }
     public void setDoorKeyHighlightEnabled(boolean v) { dungeon.doorKeyHighlightEnabled = v; }
 
@@ -246,8 +250,42 @@ public final class HorizonConfig {
     public void setTerminalSolverEnabled(boolean v) { dungeon.terminalSolverEnabled = v; }
     public boolean isTerminalSolverBlockWrongClicks() { return dungeon.terminalSolverBlockWrongClicks; }
     public void setTerminalSolverBlockWrongClicks(boolean v) { dungeon.terminalSolverBlockWrongClicks = v; }
-    public boolean isTerminalSolverCustomMode() { return dungeon.terminalSolverCustomMode; }
-    public void setTerminalSolverCustomMode(boolean v) { dungeon.terminalSolverCustomMode = v; }
+    public boolean isTerminalShowNumbers() { return dungeon.terminalShowNumbers; }
+    public void setTerminalShowNumbers(boolean v) { dungeon.terminalShowNumbers = v; }
+    public int getTerminalSlotStyle() { return dungeon.terminalSlotStyle; }
+    public void setTerminalSlotStyle(int v) { dungeon.terminalSlotStyle = ((v % 3) + 3) % 3; }
+    public boolean isTerminalUseHudColor() { return dungeon.terminalUseHudColor; }
+    public void setTerminalUseHudColor(boolean v) { dungeon.terminalUseHudColor = v; }
+    public int getTermColorSolution() { return dungeon.termColorSolution; }
+    public void setTermColorSolution(int v) { dungeon.termColorSolution = v; }
+    public int getTermColorNumbers1() { return dungeon.termColorNumbers1; }
+    public void setTermColorNumbers1(int v) { dungeon.termColorNumbers1 = v; }
+    public int getTermColorNumbers2() { return dungeon.termColorNumbers2; }
+    public void setTermColorNumbers2(int v) { dungeon.termColorNumbers2 = v; }
+    public int getTermColorNumbers3() { return dungeon.termColorNumbers3; }
+    public void setTermColorNumbers3(int v) { dungeon.termColorNumbers3 = v; }
+    public int getTermColorRubixPos() { return dungeon.termColorRubixPos; }
+    public void setTermColorRubixPos(int v) { dungeon.termColorRubixPos = v; }
+    public int getTermColorRubixNeg() { return dungeon.termColorRubixNeg; }
+    public void setTermColorRubixNeg(int v) { dungeon.termColorRubixNeg = v; }
+    public int getTermColorMelodyColumn() { return dungeon.termColorMelodyColumn; }
+    public void setTermColorMelodyColumn(int v) { dungeon.termColorMelodyColumn = v; }
+    public int getTermColorMelodyIndicator() { return dungeon.termColorMelodyIndicator; }
+    public void setTermColorMelodyIndicator(int v) { dungeon.termColorMelodyIndicator = v; }
+    public int getTermColorMelodyWrong() { return dungeon.termColorMelodyWrong; }
+    public void setTermColorMelodyWrong(int v) { dungeon.termColorMelodyWrong = v; }
+    public int getTermColorBackground() { return dungeon.termColorBackground; }
+    public void setTermColorBackground(int v) { dungeon.termColorBackground = v; }
+    public int getTermColorBorder() { return dungeon.termColorBorder; }
+    public void setTermColorBorder(int v) { dungeon.termColorBorder = v; }
+    public int getTermColorTitle() { return dungeon.termColorTitle; }
+    public void setTermColorTitle(int v) { dungeon.termColorTitle = v; }
+    public int getTermColorOverlayText() { return dungeon.termColorOverlayText; }
+    public void setTermColorOverlayText(int v) { dungeon.termColorOverlayText = v; }
+    public boolean isTerminalWaypointsEnabled() { return dungeon.terminalWaypointsEnabled; }
+    public void setTerminalWaypointsEnabled(boolean v) { dungeon.terminalWaypointsEnabled = v; }
+    public boolean isTerminalTitleEnabled() { return dungeon.terminalTitleEnabled; }
+    public void setTerminalTitleEnabled(boolean v) { dungeon.terminalTitleEnabled = v; }
 
     public boolean isSimonSaysEnabled() { return dungeon.simonSaysEnabled; }
     public void setSimonSaysEnabled(boolean v) { dungeon.simonSaysEnabled = v; }
@@ -255,8 +293,24 @@ public final class HorizonConfig {
     public void setSimonSaysBlockWrongClicks(boolean v) { dungeon.simonSaysBlockWrongClicks = v; }
     public boolean isArrowAlignEnabled() { return dungeon.arrowAlignEnabled; }
     public void setArrowAlignEnabled(boolean v) { dungeon.arrowAlignEnabled = v; }
+    public int getArrowAlignColorStyle() { return dungeon.arrowAlignColorStyle; }
+    public void setArrowAlignColorStyle(int v) { dungeon.arrowAlignColorStyle = ((v % 2) + 2) % 2; }
+    public int getArrowAlignTextColor() { return dungeon.arrowAlignTextColor; }
+    public void setArrowAlignTextColor(int v) { dungeon.arrowAlignTextColor = v; }
+    public boolean isArrowAlignBlockWrongClicks() { return dungeon.arrowAlignBlockWrongClicks; }
+    public void setArrowAlignBlockWrongClicks(boolean v) { dungeon.arrowAlignBlockWrongClicks = v; }
+    public boolean isArrowAlignInvertSneak() { return dungeon.arrowAlignInvertSneak; }
+    public void setArrowAlignInvertSneak(boolean v) { dungeon.arrowAlignInvertSneak = v; }
     public boolean isSharpShooterEnabled() { return dungeon.sharpShooterEnabled; }
     public void setSharpShooterEnabled(boolean v) { dungeon.sharpShooterEnabled = v; }
+    public boolean isSharpShooterDoneEnabled() { return dungeon.sharpShooterDoneEnabled; }
+    public void setSharpShooterDoneEnabled(boolean v) { dungeon.sharpShooterDoneEnabled = v; }
+    public boolean isSharpShooterDoneTitleEnabled() { return dungeon.sharpShooterDoneTitleEnabled; }
+    public void setSharpShooterDoneTitleEnabled(boolean v) { dungeon.sharpShooterDoneTitleEnabled = v; }
+    public int getSharpShooterDoneColor() { return dungeon.sharpShooterDoneColor; }
+    public void setSharpShooterDoneColor(int v) { dungeon.sharpShooterDoneColor = v; }
+    public float getSharpShooterDoneScale() { return dungeon.sharpShooterDoneScale; }
+    public void setSharpShooterDoneScale(float v) { dungeon.sharpShooterDoneScale = Math.max(0.5f, Math.min(12f, v)); }
     public boolean isPurplePadTimerEnabled() { return dungeon.purplePadTimerEnabled; }
     public void setPurplePadTimerEnabled(boolean v) { dungeon.purplePadTimerEnabled = v; }
 
@@ -299,8 +353,76 @@ public final class HorizonConfig {
     public boolean isBloodCamperEnabled() { return dungeon.bloodCamperEnabled; }
     public void setBloodCamperEnabled(boolean v) { dungeon.bloodCamperEnabled = v; }
 
+    public boolean isSecretWaypointsEnabled() { return dungeon.secretWaypointsEnabled; }
+    public void setSecretWaypointsEnabled(boolean v) { dungeon.secretWaypointsEnabled = v; }
+    public boolean isSecretShowChest() { return dungeon.secretShowChest; }
+    public void setSecretShowChest(boolean v) { dungeon.secretShowChest = v; }
+    public boolean isSecretShowItem() { return dungeon.secretShowItem; }
+    public void setSecretShowItem(boolean v) { dungeon.secretShowItem = v; }
+    public boolean isSecretShowEssence() { return dungeon.secretShowEssence; }
+    public void setSecretShowEssence(boolean v) { dungeon.secretShowEssence = v; }
+    public boolean isSecretShowBat() { return dungeon.secretShowBat; }
+    public void setSecretShowBat(boolean v) { dungeon.secretShowBat = v; }
+    public boolean isSecretShowRedstone() { return dungeon.secretShowRedstone; }
+    public void setSecretShowRedstone(boolean v) { dungeon.secretShowRedstone = v; }
+    public boolean isSecretShowLever() { return dungeon.secretShowLever; }
+    public void setSecretShowLever(boolean v) { dungeon.secretShowLever = v; }
+    public boolean isSecretWaypointsThroughWalls() { return dungeon.secretWaypointsThroughWalls; }
+    public void setSecretWaypointsThroughWalls(boolean v) { dungeon.secretWaypointsThroughWalls = v; }
+
+    public boolean isSecretCategoryEnabled(de.horizon.feature.dungeon.secret.SecretType type) {
+        return switch (type) {
+            case CHEST -> dungeon.secretShowChest;
+            case ITEM -> dungeon.secretShowItem;
+            case ESSENCE -> dungeon.secretShowEssence;
+            case BAT -> dungeon.secretShowBat;
+            case REDSTONE -> dungeon.secretShowRedstone;
+            case LEVER -> dungeon.secretShowLever;
+        };
+    }
+
+    public int getSecretColorChest() { return dungeon.secretColorChest; }
+    public void setSecretColorChest(int v) { dungeon.secretColorChest = v; }
+    public int getSecretColorItem() { return dungeon.secretColorItem; }
+    public void setSecretColorItem(int v) { dungeon.secretColorItem = v; }
+    public int getSecretColorEssence() { return dungeon.secretColorEssence; }
+    public void setSecretColorEssence(int v) { dungeon.secretColorEssence = v; }
+    public int getSecretColorBat() { return dungeon.secretColorBat; }
+    public void setSecretColorBat(int v) { dungeon.secretColorBat = v; }
+    public int getSecretColorRedstone() { return dungeon.secretColorRedstone; }
+    public void setSecretColorRedstone(int v) { dungeon.secretColorRedstone = v; }
+    public int getSecretColorLever() { return dungeon.secretColorLever; }
+    public void setSecretColorLever(int v) { dungeon.secretColorLever = v; }
+
+    /** Configured waypoint colour (ARGB) for a secret category. */
+    public int getSecretCategoryColor(de.horizon.feature.dungeon.secret.SecretType type) {
+        return switch (type) {
+            case CHEST -> dungeon.secretColorChest;
+            case ITEM -> dungeon.secretColorItem;
+            case ESSENCE -> dungeon.secretColorEssence;
+            case BAT -> dungeon.secretColorBat;
+            case REDSTONE -> dungeon.secretColorRedstone;
+            case LEVER -> dungeon.secretColorLever;
+        };
+    }
+
+    public void setSecretCategoryColor(de.horizon.feature.dungeon.secret.SecretType type, int v) {
+        switch (type) {
+            case CHEST -> dungeon.secretColorChest = v;
+            case ITEM -> dungeon.secretColorItem = v;
+            case ESSENCE -> dungeon.secretColorEssence = v;
+            case BAT -> dungeon.secretColorBat = v;
+            case REDSTONE -> dungeon.secretColorRedstone = v;
+            case LEVER -> dungeon.secretColorLever = v;
+        }
+    }
+
     public boolean isDungeonScoreEnabled() { return dungeon.dungeonScoreEnabled; }
     public void setDungeonScoreEnabled(boolean v) { dungeon.dungeonScoreEnabled = v; }
+    public boolean isDungeonScoreTitle() { return dungeon.dungeonScoreTitle; }
+    public void setDungeonScoreTitle(boolean v) { dungeon.dungeonScoreTitle = v; }
+    public boolean isDungeonScoreShowInBoss() { return dungeon.dungeonScoreShowInBoss; }
+    public void setDungeonScoreShowInBoss(boolean v) { dungeon.dungeonScoreShowInBoss = v; }
 
     public boolean isDragonEnabled() { return dungeon.dragonEnabled; }
     public void setDragonEnabled(boolean v) { dungeon.dragonEnabled = v; }
@@ -312,6 +434,10 @@ public final class HorizonConfig {
     public void setDragonSpawnAlert(boolean v) { dungeon.dragonSpawnAlert = v; }
     public boolean isDragonPriority() { return dungeon.dragonPriority; }
     public void setDragonPriority(boolean v) { dungeon.dragonPriority = v; }
+    public boolean isDragonHealth() { return dungeon.dragonHealth; }
+    public void setDragonHealth(boolean v) { dungeon.dragonHealth = v; }
+    public boolean isDragonTracer() { return dungeon.dragonTracer; }
+    public void setDragonTracer(boolean v) { dungeon.dragonTracer = v; }
     public String getDragonSplitPrio() { return dungeon.dragonSplitPrio == null ? "ogrbp" : dungeon.dragonSplitPrio; }
     public void setDragonSplitPrio(String v) { dungeon.dragonSplitPrio = v == null ? "ogrbp" : v; }
     public String getDragonNoSplitPrio() { return dungeon.dragonNoSplitPrio == null ? "robpg" : dungeon.dragonNoSplitPrio; }
@@ -678,6 +804,10 @@ public final class HorizonConfig {
 
     public float getHurtCamIntensity() { return display.hurtCamIntensity; }
     public void setHurtCamIntensity(float v) { display.hurtCamIntensity = (float) clamp(v, 0.0, 1.0); }
+    public boolean isFrontCamDisabled() { return display.frontCamDisabled; }
+    public void setFrontCamDisabled(boolean v) { display.frontCamDisabled = v; }
+    public boolean isSoulweaverSkullsHidden() { return display.soulweaverSkullsHidden; }
+    public void setSoulweaverSkullsHidden(boolean v) { display.soulweaverSkullsHidden = v; }
 
     private static double clamp(double v, double min, double max) {
         return Math.max(min, Math.min(max, v));
