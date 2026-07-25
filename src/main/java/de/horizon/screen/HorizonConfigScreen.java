@@ -61,6 +61,10 @@ public final class HorizonConfigScreen extends Screen {
         {"promote",  "Party Promote"},
         {"demote",   "Party Demote"},
         {"transfer", "Party Transfer"},
+        {"pt",       "Transfer to Me"},
+        {"ai",       "All-Invite Toggle"},
+        {"f",        "Join Floor"},
+        {"m",        "Join Master Floor"},
         {"coords",   "Coords"},
         {"here",     "Here"},
         {"fps",      "FPS"},
@@ -71,6 +75,7 @@ public final class HorizonConfigScreen extends Screen {
         {"cf",       "Coin Flip"},
         {"dice",     "Dice Roll"},
         {"8ball",    "8-Ball"},
+        {"gay",      "Gay %"},
         {"song",     "Song (Spotify)"},
     };
 

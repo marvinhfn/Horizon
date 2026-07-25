@@ -56,6 +56,26 @@ public final class SpotifyService {
         return playbackState;
     }
 
+    /**
+     * Fetches the current playback state from the API off-thread and delivers it to {@code callback}
+     * (on the async thread). Used by the {@code !song} chat command, which needs a fresh value even
+     * when the overlay isn't open to refresh the cached state.
+     */
+    public void fetchNowPlayingAsync(java.util.function.Consumer<SpotifyPlaybackState> callback) {
+        CompletableFuture.runAsync(() -> {
+            SpotifyPlaybackState state;
+            try {
+                state = fetchPlaybackState();
+                playbackState = state;
+                lastStateFetch = Instant.now().toEpochMilli();
+            } catch (Exception exception) {
+                HorizonMod.LOGGER.debug("Spotify now-playing fetch failed", exception);
+                state = playbackState;
+            }
+            callback.accept(state);
+        });
+    }
+
     public List<SpotifyPlaylist> getRecentPlaylists() {
         return recentPlaylists;
     }
