@@ -47,7 +47,7 @@ public final class SharpShooterService {
     private final CopyOnWriteArraySet<BlockPos> hitBlocks = new CopyOnWriteArraySet<>();
     private volatile boolean deviceActive = false; // true once the plate shows "Device Active" = done
 
-    public void onBlockUpdate(BlockPos pos, BlockState oldState, BlockState newState) {
+    public void onBlockUpdate(BlockPos pos, BlockState oldState, BlockState newState, HorizonConfig config) {
         // Emerald appears → track it as a target (green). Only when the local player is at the base,
         // so a teammate's device doesn't light up. A fresh emerald after completion = a NEW run.
         if (newState.is(Blocks.EMERALD_BLOCK) && isDevicePos(pos)) {
@@ -62,7 +62,9 @@ public final class SharpShooterService {
         }
         // Emerald → blue terracotta = a hit (red box while solving).
         if (newState.is(Blocks.BLUE_TERRACOTTA) && isDevicePos(pos)) {
-            hitBlocks.add(new BlockPos(pos));
+            if (hitBlocks.add(new BlockPos(pos)) && config != null) {
+                de.horizon.feature.misc.CustomSoundPlayer.play(config.getSharpShooterSound());
+            }
         }
     }
 
@@ -71,30 +73,61 @@ public final class SharpShooterService {
         return false;
     }
 
-    /** Detect the "Device Active" hologram at the I4 plate → completion; fire the title on the edge. */
+    /** Detect the I4 plate state hologram → completion; fire the title on the edge. */
     public void tick(Minecraft mc, HorizonConfig config) {
         if (!config.isSharpShooterEnabled() || mc == null || mc.level == null) return;
 
+        // The state hologram sits at the plate (~63,125-126,34). Hypixel splits it into TWO armor
+        // stands — one named "Inactive"/"Active" (the state), one named "Device" (the label) — so the
+        // old single-entity "device active" match never fired here. We now look for a stand named
+        // "Active" (but not "Inactive"/"Not Activated") in a tight box around the plate. Uses an AABB
+        // query (not entitiesForRendering, which is frustum-culled).
         boolean active = false;
-        for (Entity e : mc.level.entitiesForRendering()) {
-            if (!e.hasCustomName()) continue;
-            if (e.distanceToSqr(BASE_POSITION.getX() + 0.5, BASE_POSITION.getY() + 0.5, BASE_POSITION.getZ() + 0.5) > ACTIVE_RANGE_SQ) continue;
-            String name = e.getCustomName().getString().toLowerCase();
-            // Phrase match: "device inactive" must NOT trigger (it contains "active" as a substring).
-            if (name.contains("device active")) { active = true; break; }
+        AABB area = new AABB(58, 120, 30, 68, 133, 40);
+        for (Entity e : mc.level.getEntitiesOfClass(Entity.class, area, e -> e.hasCustomName())) {
+            String name = e.getCustomName().getString().toLowerCase(java.util.Locale.ROOT);
+            // "active" matches "Active" and "Device Active"; excludes "inactive". "activated" (in
+            // "Not Activated") does NOT contain "active" as a substring, so it's safely ignored.
+            if (name.contains("active") && !name.contains("inactive")) { active = true; break; }
         }
 
         // Only title when *I* did the device: the local player must be standing on the golden
         // pressure plate (at the base) as it completes — not when a teammate finishes it remotely.
         boolean onPlate = mc.player != null
             && mc.player.distanceToSqr(BASE_POSITION.getX() + 0.5, mc.player.getY(), BASE_POSITION.getZ() + 0.5) <= 2.25;
-        if (active && !deviceActive && onPlate && config.isSharpShooterDoneTitleEnabled()) {
-            int rgb = config.getSharpShooterDoneColor() & 0xFFFFFF;
-            mc.gui.setTitle(Component.literal("I4 Done!").setStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)).withBold(true)));
-            mc.gui.setSubtitle(Component.empty());
-            mc.gui.setTimes(2, 40, 8);
+        // LATCH: once active (via hologram scan here OR the chat trigger) stay active until a fresh
+        // emerald spawns (new run, onBlockUpdate resets it) — don't let a missed hologram scan flip it
+        // back off, which was re-showing the red hit boxes after "Done".
+        if (active && onPlate) {
+            if (!deviceActive) fireDoneTitle(mc, config);
+            deviceActive = true;
         }
-        deviceActive = active;
+    }
+
+    private void fireDoneTitle(Minecraft mc, HorizonConfig config) {
+        if (mc == null || mc.gui == null || !config.isSharpShooterDoneTitleEnabled()) return;
+        int rgb = config.getSharpShooterDoneColor() & 0xFFFFFF;
+        mc.gui.setTitle(Component.literal("I4 Done!").setStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)).withBold(true)));
+        mc.gui.setSubtitle(Component.empty());
+        mc.gui.setTimes(2, 40, 8);
+    }
+
+    /**
+     * Fires the I4 Done title/text as soon as the "activated a device" chat line arrives while the
+     * player stands on the golden plate — faster than waiting for the hologram scan. Also marks the
+     * device active so the boxes hide and the "Done" world text shows immediately.
+     */
+    public void handleChatMessage(String rawMessage, HorizonConfig config) {
+        if (rawMessage == null || !config.isSharpShooterEnabled()) return;
+        String lower = rawMessage.toLowerCase(java.util.Locale.ROOT).replaceAll("(?i)\\u00a7[0-9a-fk-or]", "");
+        if (!lower.contains("activated a device")) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return;
+        boolean onPlate = mc.player.distanceToSqr(
+            BASE_POSITION.getX() + 0.5, mc.player.getY(), BASE_POSITION.getZ() + 0.5) <= 2.25;
+        if (!onPlate) return;
+        if (!deviceActive) fireDoneTitle(mc, config);
+        deviceActive = true; // hide boxes + show "Done" world text right away
     }
 
     public void renderWorld(LevelRenderContext ctx, HorizonConfig config) {

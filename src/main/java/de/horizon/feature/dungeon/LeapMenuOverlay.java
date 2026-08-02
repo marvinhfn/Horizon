@@ -73,11 +73,7 @@ public final class LeapMenuOverlay {
 
         refreshFromTablist(mc, config);
 
-        // Full-screen opaque backdrop so nothing of the vanilla chest shows behind the quadrants —
-        // the container contents are already cancelled (HorizonClient.shouldHideVanillaContainer),
-        // this covers the remaining dimmed/blurred vanilla background, like the terminal overlay.
-        ctx.fill(0, 0, screen.width, screen.height, 0xF0121216);
-
+        // No opaque backdrop — only the standard vanilla screen dim shows behind the quadrants.
         int halfW = screen.width / 2;
         int halfH = screen.height / 2;
 
@@ -104,11 +100,21 @@ public final class LeapMenuOverlay {
                 int classColor = player.classIndex >= 0 && player.classIndex < CLASS_COLORS.length
                     ? CLASS_COLORS[player.classIndex] : 0xFFFFFFFF;
 
-                // Player face
+                // Player face (base) + explicit overlay/hat layer so accessories show.
                 int faceSize = (int)(BOX_HEIGHT * 0.65);
                 if (player.skin != null) {
+                    int faceX = boxX + 8;
+                    int faceY = boxY + (BOX_HEIGHT - faceSize) / 2;
                     net.minecraft.client.gui.components.PlayerFaceExtractor.extractRenderState(
-                        ctx, player.skin, boxX + 8, boxY + (BOX_HEIGHT - faceSize) / 2, faceSize);
+                        ctx, player.skin, faceX, faceY, faceSize);
+                    var tex = player.skin.body().texturePath();
+                    if (tex != null) {
+                        ctx.pose().pushMatrix();
+                        ctx.pose().translate(faceX, faceY);
+                        ctx.pose().scale(faceSize / 8f, faceSize / 8f);
+                        ctx.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, tex, 0, 0, 40f, 8f, 8, 8, 64, 64);
+                        ctx.pose().popMatrix();
+                    }
                 }
 
                 // Name
@@ -121,7 +127,7 @@ public final class LeapMenuOverlay {
                 if (player.dead) {
                     ctx.text(mc.font, "DEAD", textX, classY, DEAD_COLOR, true);
                 } else if (player.classIndex >= 0 && player.classIndex < CLASS_NAMES.length) {
-                    ctx.text(mc.font, CLASS_NAMES[player.classIndex], textX, classY, 0xFFFFFFFF, true);
+                    ctx.text(mc.font, CLASS_NAMES[player.classIndex], textX, classY, classColor, true);
                 }
             }
         }
@@ -171,6 +177,16 @@ public final class LeapMenuOverlay {
             }
         }
         return -1;
+    }
+
+    /** The player name in the clicked quadrant (for the leap announce message), or null. */
+    public String getClickedPlayerName(AbstractContainerScreen<?> screen, int mouseX, int mouseY) {
+        int halfW = screen.width / 2;
+        int halfH = screen.height / 2;
+        int quadrant = (mouseY >= halfH ? 2 : 0) + (mouseX >= halfW ? 1 : 0);
+        if (quadrant >= sortedPlayers.size()) return null;
+        LeapPlayer player = sortedPlayers.get(quadrant);
+        return player.dead ? null : player.name;
     }
 
     public int getQuadrantIndex(AbstractContainerScreen<?> screen, int mouseX, int mouseY) {

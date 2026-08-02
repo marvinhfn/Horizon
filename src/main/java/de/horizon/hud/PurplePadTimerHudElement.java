@@ -21,7 +21,8 @@ public final class PurplePadTimerHudElement implements HudElement {
 
     @Override
     public int width(Minecraft client, HudPosition position) {
-        return (int) Math.ceil(client.font.width("4.80s") * position.getScale());
+        String sample = timerService.isActive() ? timerService.getDisplayText() : "PY: 3.75s";
+        return (int) Math.ceil(client.font.width(sample) * position.getScale());
     }
 
     @Override
@@ -38,10 +39,9 @@ public final class PurplePadTimerHudElement implements HudElement {
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
 
         if (editorMode) {
-            drawContext.text(client.font, "\u00a7d4.80s", 0, 0, HudStyle.accent(), true);
+            drawContext.text(client.font, "\u00a75PY: \u00a7a3.75s", 0, 0, HudStyle.accent(), true);
         } else {
-            String text = "\u00a7d" + PurplePadTimerService.formatSeconds(timerService.getSecondsRemaining());
-            drawContext.text(client.font, text, 0, 0, 0xFFFFFFFF, true);
+            drawContext.text(client.font, timerService.getDisplayText(), 0, 0, 0xFFFFFFFF, true);
         }
 
         drawContext.pose().popMatrix();

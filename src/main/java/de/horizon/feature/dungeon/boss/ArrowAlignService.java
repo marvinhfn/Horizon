@@ -122,6 +122,7 @@ public final class ArrowAlignService {
         clickTimestamps.put(index, System.currentTimeMillis());
         frameRotations[index] = (frameRotations[index] + 1) % 8;
         if (solution != null && clicks(frameRotations[index], solution[index]) == 0) clicksRemaining.remove(index);
+        de.horizon.feature.misc.CustomSoundPlayer.play(config.getArrowAlignSound());
         return false;
     }
 

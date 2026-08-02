@@ -36,8 +36,8 @@ public final class DungeonScoreService {
     private static final Pattern TAB_COMPLETED_ROOMS = Pattern.compile("Completed Rooms: (\\d+)");
     private static final Pattern TAB_CRYPTS = Pattern.compile("Crypts: (\\d+)");
 
-    // Deaths come straight from the tab "Team Deaths: N" line, matching the
-    // reference implementation (the tab value is authoritative and cumulative).
+    // Deaths come straight from the tab "Team Deaths: N" line (the tab value is
+    // authoritative and cumulative).
     private static final Pattern TAB_TEAM_DEATHS = Pattern.compile("Team Deaths: (\\d+)");
     private static final Pattern TAB_PUZZLES_COUNT = Pattern.compile("Puzzles: \\((\\d+)\\)");
     private static final Pattern TAB_PUZZLE_STATUS = Pattern.compile("(.+): \\[(\u2726|\u2714|\u2716)\\]");
@@ -62,7 +62,7 @@ public final class DungeonScoreService {
     private boolean bloodCleared = false;
     private boolean active = false;
 
-    // Total-rooms estimate via a histogram of guesses, like the reference: each time
+    // Total-rooms estimate via a histogram of guesses: each time
     // completedRooms or clearedPercent changes we push guess = round(100*rooms/clear)
     // and take the mode (tie-break to the higher room count). Far more stable than an
     // instantaneous divide, which is what made the early score jump around.
@@ -142,7 +142,7 @@ public final class DungeonScoreService {
         if (rawMessage == null) return;
         String plain = FORMATTING.matcher(rawMessage).replaceAll("").strip();
         String lower = plain.toLowerCase(Locale.ROOT);
-        // Deaths are read from the tab (Team Deaths), matching the reference.
+        // Deaths are read from the tab (Team Deaths).
         // Mimic kill via party chat (community convention)
         if (lower.contains("mimic killed!")) {
             mimicKilled = true;
@@ -252,8 +252,8 @@ public final class DungeonScoreService {
     }
 
     // --- Derived values ---
-    // The score formula mirrors the reference implementation exactly (derived-state
-    // model): a histogram total-rooms estimate, full room projection (blood + boss
+    // The score formula uses a derived-state model: a histogram total-rooms
+    // estimate, full room projection (blood + boss
     // room always counted, so the live score never dips when they clear), count-based
     // secret score, and the staged speed curve. All components are truncated to int.
 
@@ -271,12 +271,12 @@ public final class DungeonScoreService {
     /**
      * Pushes a new total-rooms guess into the histogram whenever completedRooms or
      * clearedPercent changes, then takes the mode (tie-break to the higher room count).
-     * guess = round(100 * completedRooms / clearedPercent). Matches the reference.
+     * guess = round(100 * completedRooms / clearedPercent).
      */
     private void updateTotalRooms() {
         if (completedRooms <= 0 || clearedPercent <= 0) return;
-        // Sample once per genuine change of either input (a room clear or a %-tick),
-        // like the reference's event model — the change-guard keeps polling jitter out.
+        // Sample once per genuine change of either input (a room clear or a %-tick) —
+        // the change-guard keeps polling jitter out.
         if (completedRooms == lastHistoCompleted && clearedPercent == lastHistoCleared) return;
         lastHistoCompleted = completedRooms;
         lastHistoCleared = clearedPercent;
@@ -299,7 +299,7 @@ public final class DungeonScoreService {
      * Completed rooms with the blood room and boss room both projected ahead: each is
      * counted from the start of the run and swaps to a real completed room once cleared
      * / entered. Because +1 projection and +1 real room cancel exactly at the moment of
-     * transition, the live score stays smooth (no dip). Matches the reference.
+     * transition, the live score stays smooth (no dip).
      */
     private int actualCompletedRooms(boolean inBoss) {
         return completedRooms + (inBoss ? 0 : 1) + (bloodCleared ? 0 : 1);
@@ -333,7 +333,7 @@ public final class DungeonScoreService {
         return 10 * Math.max(0, totalPuzzles - completedPuzzles);
     }
 
-    // --- Score components (exact reference formula) ---
+    // --- Score components ---
 
     public int getSkillScore(int floor, boolean master, boolean inBoss) {
         double penalty = deathPenalty() + puzzlePenalty();

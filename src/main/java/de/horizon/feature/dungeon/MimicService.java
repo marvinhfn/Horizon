@@ -32,8 +32,8 @@ public final class MimicService {
         if (mimicKilled) return;
         if (!config.isMimicDetectionEnabled()) return;
         // Mimics only exist on floors 6+ and never inside the boss room. Gating here
-        // (mirrors the reference score mods) prevents a stray baby zombie on a lower
-        // floor from ever flagging a mimic kill and inflating the bonus score.
+        // prevents a stray baby zombie on a lower floor from ever flagging a mimic
+        // kill and inflating the bonus score.
         if (state.getCurrentFloor() <= 5) return;
         if (state.isInBoss()) return;
 

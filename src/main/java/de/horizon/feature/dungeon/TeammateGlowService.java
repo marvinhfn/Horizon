@@ -46,7 +46,9 @@ public final class TeammateGlowService {
 
     public record Teammate(String name, UUID uuid, DungeonClass dungeonClass, boolean dead) {}
 
-    private final Map<UUID, Teammate> teammates = new HashMap<>();
+    // LinkedHashMap keeps tab-list insertion order — the map's "icon-N" decoration key indexes into
+    // the living teammates in this same order, so player heads land on the right party member.
+    private final Map<UUID, Teammate> teammates = new java.util.LinkedHashMap<>();
     private DungeonClass selfClass;
     private long lastScanTick = -1;
 
@@ -124,5 +126,12 @@ public final class TeammateGlowService {
 
     public Collection<Teammate> getTeammates() {
         return teammates.values();
+    }
+
+    /** Living (non-dead) teammates in tab-list order — index matches the map's "icon-N" decoration key. */
+    public java.util.List<Teammate> getLivingTeammatesOrdered() {
+        java.util.List<Teammate> out = new java.util.ArrayList<>();
+        for (Teammate t : teammates.values()) if (!t.dead()) out.add(t);
+        return out;
     }
 }

@@ -135,6 +135,18 @@ public final class QuizSolver {
         return Component.literal(plain).withStyle(color);
     }
 
+    /** True if {@code worldPos} is one of the two WRONG answer blocks (right-click should be cancelled). */
+    public boolean shouldBlockInteract(BlockPos worldPos) {
+        if (currentAnswer == null || currentRoom == null || currentDetector == null) return false;
+        for (var entry : TYPE_BLOCKS.entrySet()) {
+            if (entry.getKey().equals(currentAnswer)) continue; // the correct block — allow
+            int[] rel = entry.getValue();
+            BlockPos w = currentDetector.relativeToWorld(currentRoom, new BlockPos(rel[0], 70, rel[1]));
+            if (w.getX() == worldPos.getX() && w.getZ() == worldPos.getZ()) return true;
+        }
+        return false;
+    }
+
     public void renderWorld(LevelRenderContext ctx, int style) {
         if (currentAnswer == null || currentRoom == null || currentDetector == null) return;
         int[] pos = TYPE_BLOCKS.get(currentAnswer);

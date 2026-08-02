@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.io.InputStream;
@@ -34,11 +35,6 @@ public final class WaterSolver {
         final int cx, cz;
         WoolColor(int cx, int cz) { this.cx = cx; this.cz = cz; }
     }
-
-    // Wool block types for Y=57 detection (fallback)
-    private static final Block[] WOOL_BLOCKS = {
-        Blocks.PURPLE_WOOL, Blocks.ORANGE_WOOL, Blocks.BLUE_WOOL, Blocks.LIME_WOOL, Blocks.RED_WOOL
-    };
 
     // Lever types with relative positions
     private enum LeverBlock {
@@ -81,6 +77,18 @@ public final class WaterSolver {
         scan(mc);
     }
 
+    /**
+     * Re-seed the room/detector without wiping an in-progress solution. The room detector flickers to
+     * null while standing in the room, which was clearing {@code currentRoom} and stopping the scan;
+     * this restores it from the cached (stable) room so {@link #tick} can keep scanning.
+     */
+    public void ensureRoom(DetectedDungeonRoom room, DungeonRoomDetector detector) {
+        if (currentRoom == null || currentDetector == null) {
+            currentRoom = room;
+            currentDetector = detector;
+        }
+    }
+
     public boolean tryAutoDetect(DetectedDungeonRoom room, DungeonRoomDetector detector, Minecraft mc) {
         if (!solutions.isEmpty() || patternIdentifier != -1) return true;
         currentRoom = room;
@@ -96,83 +104,60 @@ public final class WaterSolver {
         if (mc.level == null || currentRoom == null || currentDetector == null) return;
         if (patternIdentifier != -1) return;
 
-        // Detect subvariant: which 3 wool positions are extended (missing)
-        String extendedSlots = detectExtendedSlots(mc);
-        if (extendedSlots == null) return;
-
-        // Detect variant from specific block positions
-        // Try primary positions first (Z=27), then fallback positions (Z=26)
+        // Variant comes from STATIC blocks (present from room-load) → detectable immediately, unlike
+        // the animated wool row. Try primary (Z=27), then fallback (Z=26).
         Integer variant = detectVariantPrimary(mc);
         if (variant == null) variant = detectVariantFallback(mc);
         if (variant == null) return;
 
-        patternIdentifier = variant;
-
-        // Build solutions from JSON (use standard "false" solutions)
-        solutions.clear();
-        if (SOLUTIONS == null) return;
-        var optMap = SOLUTIONS.get("false");
-        if (optMap == null) return;
-        var varMap = optMap.get(String.valueOf(patternIdentifier));
+        var optMap = SOLUTIONS == null ? null : SOLUTIONS.get("false");
+        var varMap = optMap == null ? null : optMap.get(String.valueOf(variant));
         if (varMap == null) return;
-        var leverMap = varMap.get(extendedSlots);
-        if (leverMap == null) return;
 
-        for (var entry : leverMap.entrySet()) {
-            LeverBlock lever = LeverBlock.fromKey(entry.getKey());
-            if (lever == LeverBlock.NONE) continue;
-            double[] times = entry.getValue().stream().mapToDouble(Double::doubleValue).toArray();
-            solutions.put(lever, times);
+        // Gate/subvariant: instead of a rigid "exactly 3 air" heuristic (only true once the pistons
+        // animate as the water flows — far too late), read the STABLE gate state and try every
+        // plausible 3-gate key against the JSON, latching the instant one matches. Candidates: gates
+        // WITH wool at Y56/Y57 and their complements — whichever set is the real 3-gate key hits.
+        for (String key : gateKeyCandidates(mc)) {
+            var leverMap = varMap.get(key);
+            if (leverMap == null) continue;
+            patternIdentifier = variant;
+            solutions.clear();
+            for (var entry : leverMap.entrySet()) {
+                LeverBlock lever = LeverBlock.fromKey(entry.getKey());
+                if (lever == LeverBlock.NONE) continue;
+                double[] times = entry.getValue().stream().mapToDouble(Double::doubleValue).toArray();
+                solutions.put(lever, times);
+            }
+            return;
         }
     }
 
-    /** Detect extended wool positions. Returns 3-char string or null. */
-    private String detectExtendedSlots(Minecraft mc) {
-        // Method 1: check Y=56 for AIR
-        StringBuilder extended56 = new StringBuilder();
-        for (WoolColor wc : WoolColor.values()) {
-            BlockPos worldPos = currentDetector.relativeToWorld(currentRoom,
-                new BlockPos(wc.cx, 56, wc.cz));
-            if (mc.level.getBlockState(worldPos).isAir()) {
-                extended56.append(wc.ordinal());
+    /** All plausible 3-gate JSON keys from the current wool state (gates with wool + complements). */
+    private java.util.List<String> gateKeyCandidates(Minecraft mc) {
+        java.util.LinkedHashSet<String> keys = new java.util.LinkedHashSet<>();
+        for (int y : new int[]{56, 57}) {
+            java.util.TreeSet<Integer> wool = new java.util.TreeSet<>();
+            for (WoolColor wc : WoolColor.values()) {
+                BlockPos p = currentDetector.relativeToWorld(currentRoom, new BlockPos(wc.cx, y, wc.cz));
+                if (isWool(mc.level.getBlockState(p))) wool.add(wc.ordinal());
             }
+            java.util.TreeSet<Integer> air = new java.util.TreeSet<>(java.util.Set.of(0, 1, 2, 3, 4));
+            air.removeAll(wool);
+            if (wool.size() == 3) keys.add(joinOrdinals(wool));
+            if (air.size() == 3) keys.add(joinOrdinals(air));
         }
-        if (extended56.length() == 3) return extended56.toString();
+        return new java.util.ArrayList<>(keys);
+    }
 
-        // Method 2: Check Y=57 for present wool, compute complement
-        Set<Integer> present = new TreeSet<>();
-        for (WoolColor wc : WoolColor.values()) {
-            BlockPos worldPos = currentDetector.relativeToWorld(currentRoom,
-                new BlockPos(wc.cx, 57, wc.cz));
-            var state = mc.level.getBlockState(worldPos);
-            for (int c = 0; c < WOOL_BLOCKS.length; c++) {
-                if (state.is(WOOL_BLOCKS[c])) {
-                    present.add(c);
-                    break;
-                }
-            }
-        }
-        // Extended = all colors minus present colors
-        Set<Integer> allColors = new TreeSet<>(Set.of(0, 1, 2, 3, 4));
-        allColors.removeAll(present);
-        if (allColors.size() == 3) {
-            StringBuilder sb = new StringBuilder();
-            for (int c : allColors) sb.append(c);
-            return sb.toString();
-        }
+    private static boolean isWool(net.minecraft.world.level.block.state.BlockState state) {
+        return state.is(net.minecraft.tags.BlockTags.WOOL);
+    }
 
-        // Method 3: Y=57, check for AIR directly
-        StringBuilder extended57 = new StringBuilder();
-        for (WoolColor wc : WoolColor.values()) {
-            BlockPos worldPos = currentDetector.relativeToWorld(currentRoom,
-                new BlockPos(wc.cx, 57, wc.cz));
-            if (mc.level.getBlockState(worldPos).isAir()) {
-                extended57.append(wc.ordinal());
-            }
-        }
-        if (extended57.length() == 3) return extended57.toString();
-
-        return null;
+    private static String joinOrdinals(java.util.Collection<Integer> ords) {
+        StringBuilder sb = new StringBuilder();
+        for (int o : ords) sb.append(o);
+        return sb.toString();
     }
 
     /** Primary variant detection: single blocks at Z=27 */
@@ -208,9 +193,7 @@ public final class WaterSolver {
     public void tick(Minecraft mc) {
         tickCounter++;
         if (currentRoom == null || currentDetector == null || mc.level == null) return;
-        if (patternIdentifier == -1) {
-            scan(mc);
-        }
+        if (patternIdentifier == -1) scan(mc);
     }
 
     private List<int[]> buildSortedList() {
@@ -232,73 +215,52 @@ public final class WaterSolver {
     public void renderWorld(LevelRenderContext ctx, int style) {
         if (patternIdentifier == -1 || solutions.isEmpty() || currentDetector == null || currentRoom == null) return;
 
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null) return;
-
-        // Build sorted solution list for tracer/line
-        List<double[]> sortedEntries = new ArrayList<>();
+        // Pending clicks, sorted by their scheduled time (0-time = pull immediately, in lever order).
+        List<double[]> sorted = new ArrayList<>();
         for (var entry : solutions.entrySet()) {
-            LeverBlock lever = entry.getKey();
             double[] times = entry.getValue();
-            for (int i = lever.clickCount; i < times.length; i++) {
-                sortedEntries.add(new double[]{lever.ordinal(), times[i]});
+            for (int i = entry.getKey().clickCount; i < times.length; i++) {
+                sorted.add(new double[]{entry.getKey().ordinal(), times[i]});
             }
         }
-        sortedEntries.sort(Comparator.<double[], Boolean>comparing(e -> e[1] != 0.0)
+        sorted.sort(Comparator.<double[], Boolean>comparing(e -> e[1] != 0.0)
             .thenComparingInt(e -> e[1] == 0.0 ? (int) e[0] : Integer.MAX_VALUE)
             .thenComparingDouble(e -> e[1] != 0.0 ? e[1] : 0.0));
+        if (sorted.isEmpty()) return;
 
-        if (sortedEntries.isEmpty()) return;
-
-        // First lever in sorted order
-        LeverBlock firstLever = LeverBlock.values()[(int) sortedEntries.get(0)[0]];
-        BlockPos firstWorldPos = currentDetector.relativeToWorld(currentRoom,
-            new BlockPos(firstLever.cx, firstLever.cy, firstLever.cz));
-        Vec3 firstCenter = Vec3.atCenterOf(firstWorldPos);
-
-        // Tracer from crosshair to first lever
-        if (mc.player != null) {
-            Vec3 eyePos = mc.player.getEyePosition(1.0f);
-            DungeonRenderUtil.drawLine(ctx, List.of(eyePos, firstCenter), 0xFF00FF00, true);
-        }
-
-        // Line between first and second lever if different
-        if (sortedEntries.size() > 1) {
-            LeverBlock secondLever = LeverBlock.values()[(int) sortedEntries.get(1)[0]];
-            BlockPos secondWorldPos = currentDetector.relativeToWorld(currentRoom,
-                new BlockPos(secondLever.cx, secondLever.cy, secondLever.cz));
-            if (!firstWorldPos.equals(secondWorldPos)) {
-                Vec3 secondCenter = Vec3.atCenterOf(secondWorldPos);
-                DungeonRenderUtil.drawLine(ctx, List.of(firstCenter, secondCenter), 0xFFFFA500, true);
+        // Box the next lever (green) and the one after (orange); line between them.
+        BlockPos nextPos = leverWorld(LeverBlock.values()[(int) sorted.get(0)[0]]);
+        DungeonRenderUtil.drawBox(ctx, new AABB(nextPos), 0xFF00FF00, style, true);
+        Vec3 nextCenter = Vec3.atCenterOf(nextPos);
+        if (sorted.size() > 1) {
+            BlockPos secondPos = leverWorld(LeverBlock.values()[(int) sorted.get(1)[0]]);
+            if (!secondPos.equals(nextPos)) {
+                DungeonRenderUtil.drawBox(ctx, new AABB(secondPos), 0xFFFFA500, style, true);
+                DungeonRenderUtil.drawLine(ctx, List.of(nextCenter, Vec3.atCenterOf(secondPos)), 0xFFFFA500, true);
             }
         }
 
-        // Render text at each lever position
+        // Countdown numbers above each pending lever \u2014 clear, billboarded, coloured by urgency.
+        List<DungeonRenderUtil.ColoredStringSpec> labels = new ArrayList<>();
         for (var entry : solutions.entrySet()) {
             LeverBlock lever = entry.getKey();
             double[] times = entry.getValue();
-            BlockPos leverWorld = currentDetector.relativeToWorld(currentRoom,
-                new BlockPos(lever.cx, lever.cy, lever.cz));
-            Vec3 leverCenter = Vec3.atCenterOf(leverWorld);
-
+            Vec3 center = Vec3.atCenterOf(leverWorld(lever));
             for (int i = lever.clickCount; i < times.length; i++) {
-                double time = times[i];
-                int timeInTicks = (int)(time * 20);
-                String text;
-                if (openedWaterTicks == -1) {
-                    text = timeInTicks == 0 ? "\u00a7a\u00a7lCLICK ME!" : "\u00a7e" + time + "s";
-                } else {
-                    int remaining = openedWaterTicks + timeInTicks - tickCounter;
-                    if (remaining > 0) {
-                        text = "\u00a7e" + String.format("%.1fs", remaining / 20f);
-                    } else {
-                        text = "\u00a7a\u00a7lCLICK ME!";
-                    }
-                }
-                DungeonRenderUtil.drawString(ctx, text,
-                    leverCenter.x, leverCenter.y + (i - lever.clickCount) * 0.5 + 1.0, leverCenter.z);
+                double remaining = openedWaterTicks == -1
+                    ? times[i]
+                    : (openedWaterTicks + times[i] * 20 - tickCounter) / 20.0;
+                String text = remaining <= 0.05 ? "NOW" : String.format("%.1f", remaining);
+                int color = remaining < 2 ? 0xFFFF5555 : remaining < 6 ? 0xFFFFFF55 : 0xFF55FF55;
+                double y = center.y + 1.0 + (i - lever.clickCount) * 0.4;
+                labels.add(new DungeonRenderUtil.ColoredStringSpec(text, center.x, y, center.z, color));
             }
         }
+        DungeonRenderUtil.drawColoredStringsBatched(ctx, labels);
+    }
+
+    private BlockPos leverWorld(LeverBlock lever) {
+        return currentDetector.relativeToWorld(currentRoom, new BlockPos(lever.cx, lever.cy, lever.cz));
     }
 
     public void onLeverClick(BlockPos worldPos, int y) {

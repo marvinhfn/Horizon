@@ -33,6 +33,9 @@ public final class PuzzleSolverService {
     // Debounce: don't reset solvers just because the room scanner temporarily loses the room
     private int roomNullTicks = 0;
     private static final int ROOM_NULL_THRESHOLD = 60; // 3 seconds
+    // The room detector flickers to null while standing in a room; cache the last Water Board room
+    // (its origin/rotation is stable) so the scan can keep running instead of losing its seed.
+    private DetectedDungeonRoom cachedWaterRoom = null;
 
     public void tick(Minecraft mc, DungeonStateService state, DungeonRoomDetector roomDetector, HorizonConfig config) {
         if (!config.isPuzzleSolverEnabled()) return;
@@ -47,7 +50,12 @@ public final class PuzzleSolverService {
         icePath.tick(mc);
         String lowerRoom = lastRoomName != null ? lastRoomName.toLowerCase(Locale.ROOT) : null;
         if ("tic tac toe".equals(lowerRoom)) ttt.tick(mc);
-        if ("water board".equals(lowerRoom)) water.tick(mc);
+        if ("water board".equals(lowerRoom)) {
+            // Re-seed the room every tick from the cache — the detector keeps flickering to null,
+            // which was nulling the solver's room so the scan never ran (log: "tick idle room=false").
+            if (cachedWaterRoom != null) water.ensureRoom(cachedWaterRoom, roomDetector);
+            water.tick(mc);
+        }
         if ("ice fill".equals(lowerRoom)) iceFill.tick(mc);
         // Water board auto-detection: tick even when room name doesn't match
         if (water.hasSolution() && !"water board".equals(lowerRoom)) water.tick(mc);
@@ -57,8 +65,12 @@ public final class PuzzleSolverService {
 
         if (roomName != null) {
             roomNullTicks = 0;
+            if ("water board".equalsIgnoreCase(roomName)) cachedWaterRoom = roomOpt.get();
             if (!Objects.equals(roomName, lastRoomName)) {
-                boulder.reset(); beams.reset(); iceFill.reset(); icePath.reset(); quiz.reset();
+                boulder.reset(); beams.reset(); iceFill.reset(); icePath.reset();
+                // Keep the quiz solution when ENTERING the quiz room — it may have been detected
+                // from the Oruo chat before we walked in; resetting here wiped the highlight.
+                if (!"quiz".equalsIgnoreCase(roomName)) quiz.reset();
                 weirdos.reset(); ttt.reset(); maze.reset();
                 // Only reset water if entering a genuinely different room (not a scanner glitch)
                 if (!water.hasSolution()) water.reset();
@@ -127,11 +139,18 @@ public final class PuzzleSolverService {
         }
     }
 
-    /** Called when player clicks a block — used by Water Board lever tracking. */
-    public void onBlockInteract(BlockPos pos) {
-        if (water.hasSolution()) {
-            water.onLeverClick(pos, pos.getY());
+    /**
+     * Called when the player right-clicks a block. Tracks Water Board lever clicks and returns true
+     * when the click should be cancelled (wrong quiz answer block, if block-wrong-clicks is enabled).
+     */
+    public boolean onBlockInteract(BlockPos pos, HorizonConfig config) {
+        if (water.hasSolution()) water.onLeverClick(pos, pos.getY());
+        if (config.isPuzzleBlockWrongClicks()
+                && "quiz".equalsIgnoreCase(lastRoomName)
+                && quiz.shouldBlockInteract(pos)) {
+            return true;
         }
+        return false;
     }
 
     /** Called on block state change — used by Creeper Beams and Boulder. */
@@ -156,6 +175,7 @@ public final class PuzzleSolverService {
         weirdos.reset(); ttt.reset(); water.reset(); maze.reset();
         lastRoomName = null;
         roomNullTicks = 0;
+        cachedWaterRoom = null;
     }
 
     private void resetAllExceptWater() {

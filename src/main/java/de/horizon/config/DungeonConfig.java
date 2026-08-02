@@ -35,6 +35,7 @@ public final class DungeonConfig {
     // Leap Menu
     boolean leapMenuEnabled = true;
     boolean leapMenuAnnounce = false;
+    String leapMenuMessage = "[HRZN] Watch the sunset with me {playername}!";
     int leapMenuSortMode = 0; // 0=Quadrant, 1=A-Z Class, 2=A-Z Name
 
     // Etherwarp Helper
@@ -43,12 +44,13 @@ public final class DungeonConfig {
     boolean etherwarpSoundEnabled = true;
     boolean etherwarpSneakOnly = true;
     int etherwarpRenderStyle = 2; // 0=Filled, 1=Outline, 2=FilledOutline
-    int etherwarpSoundIndex = 0;  // 0=Ender Dragon Hurt, 1=Chorus Fruit
-    float etherwarpSoundVolume = 1.0f;
-    float etherwarpSoundPitch = 0.53968257f;
+    int etherwarpSoundIndex = 0;  // 0=Experience Orb Pickup, 1=Chorus Fruit
+    float etherwarpSoundVolume = 0.5f;
+    float etherwarpSoundPitch = 1.0f;
 
     // Wardrobe Keybinds
     boolean wardrobeKeybindsEnabled = true;
+    boolean loadoutKeybindsEnabled = true;
 
     // Slot Binds
     boolean slotBindsEnabled = true;
@@ -69,14 +71,28 @@ public final class DungeonConfig {
     int commandKeybindPets = -1;
     int commandKeybindEquipment = -1;
     int commandKeybindWardrobe = -1;
+    int commandKeybindLoadouts = -1;
+    int commandKeybindStats = -1;
+
+    // User-defined command keybinds (own command text + key)
+    public static final class CustomCmd {
+        public String command = "";
+        public int key = -1;
+    }
+    java.util.List<CustomCmd> customCommandKeybinds = new java.util.ArrayList<>();
 
     // Tick Timer
     boolean tickTimerEnabled = true;
     boolean tickTimerSendToChat = false;
+    boolean tickTimerMaxor = true;
+    boolean tickTimerStorm = true;
+    boolean tickTimerGoldor = true;
+    boolean tickTimerNecron = true;
 
     // Puzzle Solver
     boolean puzzleSolverEnabled = true;
     int puzzleSolverStyle = 2; // 0=Filled, 1=Outline, 2=FilledOutline
+    boolean puzzleBlockWrongClicks = true; // cancel right-clicks on wrong quiz answer blocks
 
     // Terminal Solver (custom overlay)
     boolean terminalSolverEnabled = false;
@@ -105,6 +121,7 @@ public final class DungeonConfig {
     // Boss Solver
     boolean simonSaysEnabled = true;
     boolean simonSaysBlockWrongClicks = false;
+    boolean simonSaysInvertSneak = false; // sneak overrides the block (default: sneak = allow click)
     boolean arrowAlignEnabled = true;
     int arrowAlignColorStyle = 0;             // 0=Dynamic (green/orange/red by clicks), 1=Custom
     int arrowAlignTextColor = 0xFFFFFFFF;     // custom text colour
@@ -116,6 +133,28 @@ public final class DungeonConfig {
     int sharpShooterDoneColor = 0xFF55FF55;   // "Done" text colour (default green)
     float sharpShooterDoneScale = 4.0f;       // "Done" text size multiplier (1.0 = old baseline)
     boolean purplePadTimerEnabled = true;
+    boolean padTimerEnabled = true;
+
+    // Configurable action sounds. Default = a note-block sound; enabled by default.
+    public static final class CustomSound {
+        public String sound = "block.note_block.pling";
+        public float volume = 1.0f;
+        public float pitch = 1.0f;
+        public boolean enabled = true;
+        public CustomSound() {}
+        public CustomSound(String s, float v, float p) { this.sound = s; this.volume = v; this.pitch = p; }
+    }
+    CustomSound secretSound = new CustomSound();
+    CustomSound terminalClickSound = new CustomSound();
+    CustomSound simonSaysSound = new CustomSound();
+    CustomSound leverSound = new CustomSound();
+    CustomSound arrowAlignSound = new CustomSound();
+    CustomSound sharpShooterSound = new CustomSound();
+    CustomSound etherwarpSound = new CustomSound(); // default note_block.pling (see CustomSound ctor)
+
+    // Melody terminal progress announce ({%} = progress, {coords} = player coords)
+    boolean melodyAnnounceEnabled = false;
+    String melodyAnnounceMessage = "Melody {%}";
 
     // Dungeon Map
     boolean dungeonMapEnabled = false;
@@ -149,6 +188,7 @@ public final class DungeonConfig {
     boolean secretShowRedstone = true;
     boolean secretShowLever = true;
     boolean secretWaypointsThroughWalls = true;
+    boolean secretWaypointText = true; // draw the category label text above each waypoint box
     // Waypoint colours per category (ARGB hex)
     int secretColorChest    = 0xFFFFAA00;
     int secretColorItem     = 0xFF55FFFF;
@@ -162,6 +202,7 @@ public final class DungeonConfig {
 
     // Dungeon Score
     boolean dungeonScoreEnabled = true;
+    boolean blessingHudEnabled = false;
     boolean dungeonScoreTitle = true; // Title bei S / S+ (270 / 300)
     boolean dungeonScoreShowInBoss = false; // true = Anzeige bleibt im Bosskampf sichtbar; false = verschwindet beim Boss-Start
 
@@ -175,9 +216,15 @@ public final class DungeonConfig {
     boolean dragonTracer = true;     // draw a tracer line to the priority dragon
     String dragonSplitPrio = "ogrbp";   // priority letters: o=orange, g=green, r=red, b=blue, p=purple
     String dragonNoSplitPrio = "robpg";
+    // Power-based priority (used when dragonPriority is on)
+    float dragonNormalPower = 0f;       // power threshold for the "power" order
+    float dragonEasyPower = 0f;         // lower threshold, applies when a Purple/Soul is in the split
+    int dragonSoloDebuff = 0;           // who takes the purple solo-debuff: 0 = Tank, 1 = Healer
+    boolean dragonSoloDebuffOnAll = true;
 
     // Relic Timer
     boolean relicTimerEnabled = true;
+    boolean relicPlaceTimerEnabled = true;  // chat report of how long each relic took to place
 
     // Spirit Bear (F4/M4)
     boolean spiritBearTimerEnabled = true;

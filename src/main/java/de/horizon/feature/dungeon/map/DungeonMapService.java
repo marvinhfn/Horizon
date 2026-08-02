@@ -371,7 +371,7 @@ public final class DungeonMapService {
     // ── Packet map data ────────────────────────────────────────────────────
 
     /** Called by ClientPlayNetworkHandlerMixin when a dungeon map data packet arrives. */
-    public void onMapData(byte[] colors, Iterable<MapDecoration> decorations, int centerX, int centerZ, byte scale) {
+    public void onMapData(byte[] colors, java.util.Map<String, MapDecoration> decorations, int centerX, int centerZ, byte scale) {
         if (colors != null && colors.length == 128 * 128) {
             this.mapColors = colors.clone();
         }
@@ -380,9 +380,11 @@ public final class DungeonMapService {
         this.scale = scale;
         playerMarkers.clear();
         if (decorations != null) {
-            for (MapDecoration dec : decorations) {
-                playerMarkers.add(new PlayerMarker(dec.x(), dec.y(), dec.rot(),
-                    dec.name().map(net.minecraft.network.chat.Component::getString).orElse("")));
+            for (var e : decorations.entrySet()) {
+                MapDecoration dec = e.getValue();
+                boolean frame = dec.type().value() == net.minecraft.world.level.saveddata.maps.MapDecorationTypes.FRAME.value();
+                playerMarkers.add(new PlayerMarker(e.getKey(), dec.x(), dec.y(), dec.rot(),
+                    dec.name().map(net.minecraft.network.chat.Component::getString).orElse(""), frame));
             }
         }
     }
@@ -393,6 +395,13 @@ public final class DungeonMapService {
     public int getCenterX() { return centerX; }
     public int getCenterZ() { return centerZ; }
     public byte getScale() { return scale; }
+
+    // Map calibration (pixel grid on the 128x128 map) — used to place player-marker decorations at
+    // the SAME positions the rooms are scanned from, instead of via Hypixel's (custom, wrong) map centre.
+    public int getMapStartX() { return mapStartX; }
+    public int getMapStartY() { return mapStartY; }
+    public int getRoomGap() { return roomGap; }
+    public int getRoomSizePx() { return roomSizePx; }
 
     public void reset() {
         mapColors = null;
@@ -410,5 +419,5 @@ public final class DungeonMapService {
         lastFloor = -1;
     }
 
-    public record PlayerMarker(byte mapX, byte mapY, byte rotation, String name) {}
+    public record PlayerMarker(String key, byte mapX, byte mapY, byte rotation, String name, boolean frame) {}
 }

@@ -95,6 +95,30 @@ public final class TerminalSolverService {
 
     // Melody state.
     private Integer melodyCorrect, melodyButton, melodyCurrent;
+    private int melodyLastAnnouncedRow = -1; // last lane whose progress was announced
+
+    /**
+     * If the Melody terminal's progress advanced to a new lane, returns the announce message (with
+     * {@code {%}}/{@code {coords}} substituted), else null. Polled by HorizonClient which sends it.
+     */
+    public String pollMelodyAnnounce(de.horizon.config.HorizonConfig config) {
+        if (!config.isMelodyAnnounceEnabled() || currentType != TerminalType.MELODY || melodyButton == null) {
+            return null;
+        }
+        int row = melodyButton; // 0..3 = lanes completed
+        if (row == melodyLastAnnouncedRow) return null;
+        melodyLastAnnouncedRow = row;
+        if (row <= 0) return null; // don't announce 0%
+        int percent = Math.round(row / 4.0f * 100f); // 4 lanes → 25/50/75
+        String msg = config.getMelodyAnnounceMessage().replace("{%}", percent + "%");
+        if (msg.contains("{coords}")) {
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            String c = (mc != null && mc.player != null)
+                ? ((int) mc.player.getX() + " " + (int) mc.player.getY() + " " + (int) mc.player.getZ()) : "";
+            msg = msg.replace("{coords}", c);
+        }
+        return msg;
+    }
 
     // Custom-overlay geometry cache for click mapping (screen-space, before user scale).
     private float scaleCache = 1f, offsetXCache, offsetYCache;
@@ -567,6 +591,7 @@ public final class TerminalSolverService {
         clickedSlots.clear();
         pendingSpecialClick = -1;
         melodyCorrect = melodyButton = melodyCurrent = null;
+        melodyLastAnnouncedRow = -1;
         scaleCache = 1f;
     }
 }

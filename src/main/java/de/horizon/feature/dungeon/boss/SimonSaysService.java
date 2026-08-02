@@ -132,24 +132,23 @@ public final class SimonSaysService {
         if (solution.isEmpty()) return false;
         if (!isValidButtonLocation(pos)) return false;
 
-        // Correct button: remove from solution
-        if (!solution.isEmpty() && solution.get(0).equals(pos)) {
-            solution.remove(0);
+        // If the clicked button is ANYWHERE in the highlighted solution it's valid — advance the
+        // solution up to (and including) it. This handles a "skip" where the first shown button was
+        // already pressed: clicking the orange one discards the green one and never gets blocked.
+        int idx = solution.indexOf(pos);
+        if (idx >= 0) {
+            for (int i = 0; i <= idx; i++) solution.remove(0);
+            de.horizon.feature.misc.CustomSoundPlayer.play(config.getSimonSaysSound());
             return false;
         }
 
-        // Wrong button: block if configured
+        // Genuinely wrong button (not part of the shown sequence): block if configured. Sneak
+        // overrides the block (invert flips which state blocks) — hold shift to click it anyway.
         if (config.isSimonSaysBlockWrongClicks()) {
-            return true;
+            Minecraft mc = Minecraft.getInstance();
+            boolean crouching = mc != null && mc.player != null && mc.player.isCrouching();
+            if (crouching != config.isSimonSaysInvertSneak()) return true;
         }
-
-        // Not blocking: skip ahead in solution
-        while (!solution.isEmpty()) {
-            BlockPos next = solution.get(0);
-            if (next.equals(pos)) break;
-            solution.remove(0);
-        }
-        if (!solution.isEmpty()) solution.remove(0);
         return false;
     }
 

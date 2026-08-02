@@ -24,7 +24,8 @@ public final class TickTimerHudElement implements HudElement {
 
     @Override
     public int width(Minecraft client, HudPosition position) {
-        return (int) Math.ceil(client.font.width("3.00s") * position.getScale());
+        String sample = timerService.isActive() ? timerService.getDisplayText() : "Goldor: 3.00s";
+        return (int) Math.ceil(client.font.width(sample) * position.getScale());
     }
 
     @Override
@@ -41,22 +42,11 @@ public final class TickTimerHudElement implements HudElement {
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
 
         if (editorMode) {
-            drawContext.text(client.font, "\u00a7d1.95s", 0, 0, HudStyle.accent(), true);
+            drawContext.text(client.font, "\u00a7bGoldor: \u00a7a1.95s", 0, 0, HudStyle.accent(), true);
         } else {
-            float seconds = timerService.getSecondsRemaining();
-            int ticks = timerService.getTicksUntil();
-            int maxTicks = timerService.getMaxTicks();
-            String color = colorForNumber(ticks, maxTicks);
-            drawContext.text(client.font, color + TickTimerService.formatSeconds(seconds), 0, 0, 0xFFFFFFFF, true);
+            drawContext.text(client.font, timerService.getDisplayText(), 0, 0, 0xFFFFFFFF, true);
         }
 
         drawContext.pose().popMatrix();
-    }
-
-    private static String colorForNumber(int value, int max) {
-        float ratio = (float) value / max;
-        if (ratio > 0.66f) return "\u00a7a"; // green
-        if (ratio > 0.33f) return "\u00a7e"; // yellow
-        return "\u00a7c"; // red
     }
 }

@@ -50,6 +50,22 @@ public final class DungeonMapHudElement implements HudElement {
     private final DungeonStateService dungeonStateService;
     private final de.horizon.feature.dungeon.TeammateGlowService teammateGlowService;
 
+    // Per party member: linear interpolation between the last two target positions over the ACTUAL
+    // update interval, so both near (per-frame entity) and far (per-map-packet, ~1/s) heads glide at
+    // constant velocity instead of snapping-then-waiting (the old ease-out lerp stuttered far mates).
+    private final java.util.Map<java.util.UUID, Interp> smooth = new java.util.HashMap<>();
+
+    private static final class Interp {
+        float fromX, fromZ, fromYaw, toX, toZ, toYaw;
+        long startMs, durationMs;
+    }
+    // Which player each map-decoration key belongs to. Hypixel's decoration keys/names (e.g. "!A-f")
+    // don't encode the player, so we LEARN the binding while a player is loaded near the marker, then
+    // keep it when they run out of range (the same key keeps updating live).
+    private final java.util.Map<String, java.util.UUID> keyToUuid = new java.util.HashMap<>();
+    private boolean wasInDungeon = false;
+
+
     public DungeonMapHudElement(DungeonMapService mapService, DungeonStateService dungeonStateService,
                                de.horizon.feature.dungeon.TeammateGlowService teammateGlowService) {
         this.mapService = mapService;
@@ -148,8 +164,10 @@ public final class DungeonMapHudElement implements HudElement {
                         ctx.fill(xo, yo, xo + ROOM_SIZE, yo + ROOM_SIZE, color);
                     }
                 } else if (!xEven && !zEven) {
-                    // 2x2 room center — fill the whole joining block.
-                    ctx.fill(xo, yo, xo + CELL, yo + CELL, color);
+                    // 2x2 / L room joint — fill ONLY the small middle square where the four cells meet.
+                    // Filling the whole CELL here overlapped the top-left room cell, which double-draws
+                    // and shows as a darker corner when the room colour is semi-transparent.
+                    ctx.fill(xo + ROOM_SIZE, yo + ROOM_SIZE, xo + CELL, yo + CELL, color);
                 } else {
                     drawConnector(ctx, xo, yo, tile instanceof DungeonDoor, !xEven, color);
                 }
@@ -367,60 +385,156 @@ public final class DungeonMapHudElement implements HudElement {
     // ── Player heads ─────────────────────────────────────────────────────────
 
     private void renderPlayers(GuiGraphicsExtractor ctx, Minecraft mc, HorizonConfig config) {
-        if (mc == null || mc.level == null) return;
+        if (mc == null || mc.level == null || mc.player == null) return;
         var connection = mc.getConnection();
-        if (connection == null) return;
+        if (connection == null || mapService == null || teammateGlowService == null) return;
         boolean showNames = config != null && config.isMapShowPlayerNames();
-        List<AbstractClientPlayer> players = new ArrayList<>(mc.level.players());
-        for (AbstractClientPlayer player : players) {
-            // Only real players — dungeon mobs are player-type NPCs with version-2
-            // UUIDs and are absent from the tab list.
-            if (player.getUUID().version() != 4) continue;
-            if (connection.getPlayerInfo(player.getUUID()) == null) continue;
-            float[] px = worldToPixel(player.getX(), player.getZ());
-            if (px == null) continue;
 
-            Identifier skin = player.getSkin().body().texturePath();
-            float yaw = player.getYRot();
-            int classColor = classColor(player, config);
+        int mapStartX = mapService.getMapStartX();
+        int mapStartY = mapService.getMapStartY();
+        double roomGap = mapService.getRoomGap();
+        double roomHalf = mapService.getRoomSizePx() / 2.0;
 
-            ctx.pose().pushMatrix();
-            ctx.pose().translate(px[0], px[1]);
-            ctx.pose().rotate((float) Math.toRadians(yaw + 180f));
-            if (skin != null) {
-                ctx.pose().scale(1.4f, 1.4f);
-                // Class-coloured ring behind the head so team roles stay readable.
-                ctx.fill(-5, -5, 5, 5, classColor);
-                ctx.blit(RenderPipelines.GUI_TEXTURED, skin, -4, -4, 8f, 8f, 8, 8, 64, 64);
-            } else {
-                // Fallback marker uses the dungeon class colour instead of a fixed square.
-                ctx.fill(-3, -3, 3, 3, 0xFF000000);
-                ctx.fill(-2, -2, 2, 2, classColor);
+        // Reset the learned key->player bindings when leaving a dungeon (new run = new map).
+        boolean inDungeon = dungeonStateService != null && dungeonStateService.isInDungeon();
+        if (wasInDungeon && !inDungeon) { keyToUuid.clear(); smooth.clear(); }
+        wasInDungeon = inDungeon;
+
+        // Loaded party entities: their real position is exact and is used to LEARN which player each
+        // decoration key belongs to (by nearest converted pixel), and to draw them while in range.
+        java.util.Map<java.util.UUID, AbstractClientPlayer> loaded = new java.util.HashMap<>();
+        for (AbstractClientPlayer p : mc.level.players()) {
+            if (p.getUUID().version() == 4 && connection.getPlayerInfo(p.getUUID()) != null) loaded.put(p.getUUID(), p);
+        }
+
+        java.util.Set<java.util.UUID> drawn = new java.util.HashSet<>();
+        drawn.add(mc.player.getUUID()); // reserve self; drawn LAST so it sits on top of teammate heads
+
+        // Teammate heads first (self is drawn afterwards, on top).
+        for (DungeonMapService.PlayerMarker m : mapService.getPlayerMarkers()) {
+            if (m.frame()) continue; // frame marker = local player, drawn last
+
+            // Decoration byte -> map pixel -> world coord -> HUD pixel.
+            double decPixelX = m.mapX() / 2.0 + 64.0;
+            double decPixelZ = m.mapY() / 2.0 + 64.0;
+            double wx = START + (decPixelX - (mapStartX + roomHalf)) * (ROOM_STEP / roomGap);
+            double wz = START + (decPixelZ - (mapStartY + roomHalf)) * (ROOM_STEP / roomGap);
+            float[] dpx = worldToPixel(wx, wz);
+            if (dpx == null) continue;
+
+            // Learn/refresh the binding: if a loaded party member is near this decoration, it's theirs.
+            java.util.UUID bound = keyToUuid.get(m.key());
+            float bestD = 5f; // px tolerance for the learn step
+            for (var e : loaded.entrySet()) {
+                if (e.getKey().equals(mc.player.getUUID())) continue;
+                float[] ep = worldToPixel(e.getValue().getX(), e.getValue().getZ());
+                if (ep == null) continue;
+                float d = Math.abs(ep[0] - dpx[0]) + Math.abs(ep[1] - dpx[1]);
+                if (d < bestD) { bestD = d; bound = e.getKey(); }
             }
-            ctx.pose().popMatrix();
+            if (bound != null) keyToUuid.put(m.key(), bound);
+            if (bound == null || !drawn.add(bound)) continue;
 
-            if (showNames) {
-                String name = player.getName().getString();
-                float half = mc.font.width(name) * 0.5f * 0.5f;
-                ctx.pose().pushMatrix();
-                ctx.pose().translate(px[0] - half, px[1] + 5);
-                ctx.pose().scale(0.5f, 0.5f);
-                ctx.text(mc.font, name, 0, 0, 0xFFFFFFFF);
-                ctx.pose().popMatrix();
-            }
+            var info = connection.getPlayerInfo(bound);
+            if (info == null) continue;
+            Identifier skin = info.getSkin().body().texturePath();
+            if (skin == null) continue;
+
+            // Prefer the loaded entity's exact position; else the live decoration position.
+            float tx, tz, tyaw;
+            AbstractClientPlayer ent = loaded.get(bound);
+            float[] entPix = ent != null ? worldToPixel(ent.getX(), ent.getZ()) : null;
+            if (entPix != null) { tx = entPix[0]; tz = entPix[1]; tyaw = ent.getYRot(); }
+            else { tx = dpx[0]; tz = dpx[1]; tyaw = m.rotation() * 22.5f; }
+
+            float[] s = stepSmooth(bound, tx, tz, tyaw);
+            drawHead(ctx, mc, s[0], s[1], s[2], skin, classColorForPlayer(bound, info.getProfile().name(), config),
+                showNames ? info.getProfile().name() : null);
+        }
+
+        // Local player LAST → their head always overlaps the others.
+        float[] self = worldToPixel(mc.player.getX(), mc.player.getZ());
+        if (self != null) {
+            float[] s = stepSmooth(mc.player.getUUID(), self[0], self[1], mc.player.getYRot());
+            drawHead(ctx, mc, s[0], s[1], s[2], mc.player.getSkin().body().texturePath(),
+                classColorForPlayer(mc.player.getUUID(), mc.player.getName().getString(), config),
+                showNames ? mc.player.getName().getString() : null);
         }
     }
 
-    /** Dungeon-class colour for a player (from the teammate service), white when unknown. */
-    private int classColor(AbstractClientPlayer player, HorizonConfig config) {
-        if (teammateGlowService != null && config != null) {
-            // The local player is kept out of the teammate map; use the parsed self class.
-            de.horizon.feature.dungeon.TeammateGlowService.DungeonClass dc =
-                player instanceof net.minecraft.client.player.LocalPlayer
-                    ? teammateGlowService.getSelfClass()
-                    : (teammateGlowService.getTeammate(player) != null
-                        ? teammateGlowService.getTeammate(player).dungeonClass() : null);
+    /**
+     * Constant-velocity interpolation toward the target. When the target moves (new entity frame /
+     * new map packet) we re-aim from the current interpolated position over a duration equal to the
+     * real interval since the last move — so far mates (slow packets) glide smoothly instead of
+     * snapping and waiting.
+     */
+    private float[] stepSmooth(java.util.UUID uuid, float tx, float tz, float tyaw) {
+        long now = System.currentTimeMillis();
+        Interp it = smooth.get(uuid);
+        if (it == null) {
+            it = new Interp();
+            it.fromX = it.toX = tx; it.fromZ = it.toZ = tz; it.fromYaw = it.toYaw = tyaw;
+            it.startMs = now; it.durationMs = 1000;
+            smooth.put(uuid, it);
+            return new float[]{ tx, tz, tyaw };
+        }
+        if (Math.abs(tx - it.toX) > 0.01f || Math.abs(tz - it.toZ) > 0.01f) {
+            float[] cur = sampleInterp(it, now);
+            it.fromX = cur[0]; it.fromZ = cur[1]; it.fromYaw = cur[2];
+            it.durationMs = Math.max(50, Math.min(1500, now - it.startMs)); // real interval, clamped
+            it.toX = tx; it.toZ = tz; it.toYaw = tyaw;
+            it.startMs = now;
+        }
+        return sampleInterp(it, now);
+    }
+
+    private static float[] sampleInterp(Interp it, long now) {
+        float t = it.durationMs <= 0 ? 1f : Math.min(1f, (now - it.startMs) / (float) it.durationMs);
+        float x = it.fromX + (it.toX - it.fromX) * t;
+        float z = it.fromZ + (it.toZ - it.fromZ) * t;
+        float dy = ((it.toYaw - it.fromYaw) % 360f + 540f) % 360f - 180f;
+        float yaw = it.fromYaw + dy * t;
+        return new float[]{ x, z, yaw };
+    }
+
+    private void drawHead(GuiGraphicsExtractor ctx, Minecraft mc, float x, float y, float yaw,
+                          Identifier skin, int classColor, String name) {
+        if (skin == null) return;
+        ctx.pose().pushMatrix();
+        ctx.pose().translate(x, y);
+        ctx.pose().rotate((float) Math.toRadians(yaw + 180f));
+        ctx.pose().scale(1.4f, 1.4f);
+        ctx.fill(-5, -5, 5, 5, classColor); // class-coloured ring behind the head
+        // Base face (u=8,v=8) + the overlay/hat layer (u=40,v=8) so hats/accessories show.
+        ctx.blit(RenderPipelines.GUI_TEXTURED, skin, -4, -4, 8f, 8f, 8, 8, 64, 64);
+        ctx.blit(RenderPipelines.GUI_TEXTURED, skin, -4, -4, 40f, 8f, 8, 8, 64, 64);
+        ctx.pose().popMatrix();
+        if (name != null) {
+            float half = mc.font.width(name) * 0.5f * 0.5f;
+            ctx.pose().pushMatrix();
+            ctx.pose().translate(x - half, y + 5);
+            ctx.pose().scale(0.5f, 0.5f);
+            ctx.text(mc.font, name, 0, 0, 0xFFFFFFFF);
+            ctx.pose().popMatrix();
+        }
+    }
+
+    /**
+     * Dungeon-class colour for a party member (white when unknown). Matches by UUID first, then by
+     * NAME — in Hypixel dungeons the tab-list class entry's UUID often differs from the player entity
+     * UUID, so a name match is what actually resolves teammates' classes here.
+     */
+    private int classColorForPlayer(java.util.UUID uuid, String name, HorizonConfig config) {
+        Minecraft mc = Minecraft.getInstance();
+        if (teammateGlowService == null || config == null || mc == null || mc.player == null) return 0xFFFFFFFF;
+        if (uuid.equals(mc.player.getUUID())) {
+            var dc = teammateGlowService.getSelfClass();
             if (dc != null) return config.getClassColor(dc) | 0xFF000000;
+            return 0xFFFFFFFF;
+        }
+        for (var t : teammateGlowService.getTeammates()) {
+            boolean match = t.uuid().equals(uuid) || (name != null && name.equalsIgnoreCase(t.name()));
+            if (match && t.dungeonClass() != null) return config.getClassColor(t.dungeonClass()) | 0xFF000000;
         }
         return 0xFFFFFFFF;
     }

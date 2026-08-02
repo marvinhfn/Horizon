@@ -195,12 +195,19 @@ public final class BloodCamperService {
         if (BLOOD_DONE_REGEX.matcher(plain).matches()) {
             bloodDone = true;
             Minecraft mc = Minecraft.getInstance();
-            if (mc != null && mc.gui != null) {
+            if (mc != null) {
                 float elapsed = (currentTick - bloodStartTick) * 50 / 1000f;
                 String time = String.format("%.1fs", elapsed);
-                mc.gui.setTitle(Component.literal("Blood Done!").withStyle(ChatFormatting.RED));
-                mc.gui.setSubtitle(Component.literal(time).withStyle(ChatFormatting.GOLD));
-                mc.gui.setTimes(5, 40, 10);
+                if (mc.gui != null) {
+                    mc.gui.setTitle(Component.literal("Blood Done!").withStyle(ChatFormatting.RED));
+                    mc.gui.setSubtitle(Component.literal(time).withStyle(ChatFormatting.GOLD));
+                    mc.gui.setTimes(5, 40, 10);
+                }
+                if (mc.player != null) {
+                    mc.player.sendSystemMessage(Component.literal("[HRZN] ").withStyle(ChatFormatting.AQUA)
+                        .append(Component.literal("Blood Done in ").withStyle(ChatFormatting.RED))
+                        .append(Component.literal(time).withStyle(ChatFormatting.GOLD)));
+                }
             }
         }
     }

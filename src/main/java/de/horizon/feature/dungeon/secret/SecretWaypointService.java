@@ -91,7 +91,8 @@ public final class SecretWaypointService {
                 }
                 AABB box = new AABB(w.getX(), w.getY(), w.getZ(), w.getX() + 1, w.getY() + 1, w.getZ() + 1);
                 boxes.add(new DungeonRenderUtil.BoxSpec(box, 0x40000000 | rgb, 0xFF000000 | rgb));
-                if (eye.distanceToSqr(w.getX() + 0.5, w.getY() + 0.5, w.getZ() + 0.5) <= LABEL_RANGE_SQR) {
+                if (config.isSecretWaypointText()
+                    && eye.distanceToSqr(w.getX() + 0.5, w.getY() + 0.5, w.getZ() + 0.5) <= LABEL_RANGE_SQR) {
                     labels.add(new DungeonRenderUtil.StringSpec(type.label(), w.getX() + 0.5, w.getY() + 1.3, w.getZ() + 0.5));
                 }
             }
@@ -203,6 +204,22 @@ public final class SecretWaypointService {
             lastInteractPos = pos.immutable();
             interacted.add(lastInteractPos);
         }
+    }
+
+    /** True if {@code pos} is (adjacent to) any secret waypoint in the current room. */
+    public boolean isSecretAt(BlockPos pos, DungeonRoomDetector detector) {
+        if (pos == null || detector == null) return false;
+        return detector.currentRoom().map(room -> {
+            for (List<BlockPos> list : SecretDatabase.forRoom(room.name()).values()) {
+                if (list == null) continue;
+                for (BlockPos rel : list) {
+                    BlockPos w = detector.relativeToWorld(room, rel);
+                    if (w != null && Math.abs(w.getX() - pos.getX()) + Math.abs(w.getY() - pos.getY())
+                        + Math.abs(w.getZ() - pos.getZ()) <= 1) return true;
+                }
+            }
+            return false;
+        }).orElse(false);
     }
 
     /**
