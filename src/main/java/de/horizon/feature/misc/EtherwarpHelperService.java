@@ -123,13 +123,10 @@ public final class EtherwarpHelperService {
         cachedDest = result.pos;
         cachedValid = result.succeeded;
 
-        // Play sound when player presses use-key with a valid destination
-        boolean useKeyNow = mc.options.keyUse.isDown();
-        if (useKeyNow && !lastUseKeyDown && cachedValid && config.isEtherwarpSoundEnabled()) {
-            SoundEvent sound = soundForIndex(config.getEtherwarpSoundIndex());
-            mc.player.playSound(sound, config.getEtherwarpSoundVolume(), config.getEtherwarpSoundPitch());
-        }
-        lastUseKeyDown = useKeyNow;
+        // The Etherwarp sound is now played when the vanilla sound packet arrives (see
+        // ClientboundSoundMixin → HorizonClient.replaceEtherwarpSound), so the timing matches vanilla
+        // and the original tone is muted. No keypress-based playback here.
+        lastUseKeyDown = mc.options.keyUse.isDown();
     }
 
     public void renderWorld(LevelRenderContext context, HorizonConfig config) {
@@ -145,7 +142,8 @@ public final class EtherwarpHelperService {
     }
 
     private static SoundEvent soundForIndex(int index) {
-        return index == 1 ? SoundEvents.CHORUS_FRUIT_TELEPORT : SoundEvents.ENDER_DRAGON_HURT;
+        // 0 = Experience Orb Pickup, 1 = Chorus Fruit Teleport.
+        return index == 1 ? SoundEvents.CHORUS_FRUIT_TELEPORT : SoundEvents.EXPERIENCE_ORB_PICKUP;
     }
 
     private static boolean isHoldingEtherwarpItem(Minecraft mc) {
