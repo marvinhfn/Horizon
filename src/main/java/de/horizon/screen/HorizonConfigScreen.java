@@ -2,6 +2,7 @@ package de.horizon.screen;
 
 import de.horizon.HorizonClient;
 import de.horizon.Lang;
+import de.horizon.config.DungeonConfig;
 import de.horizon.config.HorizonConfig;
 import de.horizon.feature.fishing.ElusiveSeaCreature;
 import de.horizon.feature.fishing.FishingAlertSound;
@@ -77,6 +78,7 @@ public final class HorizonConfigScreen extends Screen {
         {"8ball",    "8-Ball"},
         {"gay",      "Gay %"},
         {"song",     "Song (Spotify)"},
+        {"play",     "Play (Spotify)"},
     };
 
     private static final String[] HUD_COLOR_SWATCHES = {
@@ -102,6 +104,78 @@ public final class HorizonConfigScreen extends Screen {
     private String pendingGlobalToggleLabel = null;
     private boolean showReloadPopup = false;
     private InputFocus inputFocus = InputFocus.NONE;
+    private String customCmdInput = "";
+    private int customCmdCaptureIndex = -1;
+    private String leapMessageInput = "";
+    private String melodyMessageInput = "";
+    private static final String BLESSING_HUD_DESC = Lang.t(
+        "HUD mit Power- und Time-Blessing aus der Tab-Liste (Time versteckt bei 0).",
+        "HUD with Power and Time blessing from the tab list (Time hidden at 0).");
+    private static final String MELODY_ANNOUNCE_DESC = Lang.t(
+        "Sagt den Melody-Fortschritt im Party-Chat an.", "Announces Melody progress in party chat.");
+    private static final String MELODY_MSG_DESC = Lang.t(
+        "{%} = Fortschritt, {coords} = Koordinaten. Enter speichert.",
+        "{%} = progress, {coords} = coordinates. Enter saves.");
+    private static final String SCROLL_TOOLTIP_DESC = Lang.t(
+        "Lange Tooltips mit dem Mausrad scrollen; Strg+Scroll aendert die Groesse.",
+        "Scroll long tooltips with the wheel; Ctrl+scroll changes the size.");
+    private static final String TOOLTIP_SCALE_DESC = Lang.t(
+        "Standard-Groesse der Tooltips.", "Default tooltip scale.");
+    private String soundInput = "";
+    private int soundEditIndex = -1;
+    private static final String[] SOUND_LABELS = { "Secret", "Terminal", "Simon Says", "Lever", "Arrow Align", "SharpShooter" };
+    private static final String SOUND_DESC = Lang.t(
+        "Format: sound-id lautstaerke pitch  (z.B. block.note_block.pling 1 1). Enter speichert.",
+        "Format: sound-id volume pitch  (e.g. block.note_block.pling 1 1). Enter saves.");
+
+    private DungeonConfig.CustomSound soundByIndex(int i) {
+        return switch (i) {
+            case 0 -> config().getSecretSound();
+            case 1 -> config().getTerminalClickSound();
+            case 2 -> config().getSimonSaysSound();
+            case 3 -> config().getLeverSound();
+            case 4 -> config().getArrowAlignSound();
+            case 5 -> config().getSharpShooterSound();
+            default -> config().getEtherwarpSound(); // 6 = etherwarp
+        };
+    }
+
+    private static String soundText(DungeonConfig.CustomSound s) {
+        return (s.enabled ? "" : "§8[aus] §r") + s.sound + " " + trimF(s.volume) + " " + trimF(s.pitch);
+    }
+
+    private static String trimF(float f) {
+        return f == Math.rint(f) ? Integer.toString((int) f) : Float.toString(f);
+    }
+
+    private void applySoundInput(int i, String text) {
+        DungeonConfig.CustomSound s = soundByIndex(i);
+        String t = text.trim();
+        if (t.equalsIgnoreCase("off") || t.isEmpty()) { s.enabled = false; return; }
+        s.enabled = true;
+        String[] parts = t.split("\\s+");
+        s.sound = parts[0];
+        if (parts.length > 1) try { s.volume = Float.parseFloat(parts[1]); } catch (NumberFormatException ignored) { }
+        if (parts.length > 2) try { s.pitch = Float.parseFloat(parts[2]); } catch (NumberFormatException ignored) { }
+    }
+    private static final String LEAP_MSG_DESC = Lang.t(
+        "Nachricht beim Leap. {playername} wird durch das Ziel ersetzt. Enter speichert.",
+        "Leap announce message. {playername} is replaced by the target. Enter saves.");
+    private static final String CUSTOM_CMD_DESC = Lang.t(
+        "Klick: Taste setzen. [x] rechts: entfernen.", "Click: bind key. [x] right: remove.");
+    private static final String CUSTOM_CMD_ADD_DESC = Lang.t(
+        "Command ohne / eingeben, Enter fuegt hinzu.", "Type a command without /, Enter adds it.");
+    private static final String TT_MAXOR_DESC = Lang.t("Maxor-Phasen-Countdown (P1).", "Maxor phase countdown (P1).");
+    private static final String TT_STORM_DESC = Lang.t("Storm-Phasen-Countdown (P2).", "Storm phase countdown (P2).");
+    private static final String TT_GOLDOR_DESC = Lang.t("Goldor-Phasen-Countdown (P3).", "Goldor phase countdown (P3).");
+    private static final String TT_NECRON_DESC = Lang.t("Necron-Phasen-Countdown (P4).", "Necron phase countdown (P4).");
+    private static final String PAD_TIMER_DESC = Lang.t("Zweiter (§bPad) Timer, getrennt vom Purple-Pad.", "Second (§bPad) timer, separate from the purple pad.");
+    private static final String HIDE_HUD_TAB_DESC = Lang.t(
+        "Blendet die Horizon-HUD-Elemente aus, solange die Tab-Liste offen ist.",
+        "Hides Horizon HUD elements while the tab list is open.");
+    private static final String HIDE_EFFECTS_DESC = Lang.t(
+        "Versteckt die Vanilla-Potion-Effekt-Icons (HUD + Inventar).",
+        "Hides the vanilla potion-effect icons (HUD + inventory).");
     private String catacombsInput;
     private String hudAccentColorInput;
     private String chatBridgeBotNameInput;
@@ -291,9 +365,8 @@ public final class HorizonConfigScreen extends Screen {
             case GENERAL -> handleGeneralClick(click.x(), click.y(), frame);
             case HUD -> handleHudClick(click.x(), click.y(), frame);
             case DUNGEON -> handleDungeonClick(click.x(), click.y(), frame);
-            case PARTICLE -> handleParticleClick(click.x(), click.y(), frame);
-            case MISC -> handleMiscClick(click.x(), click.y(), frame);
             case DISPLAY -> handleDisplayClick(click.x(), click.y(), frame);
+            case HELPER -> handleHelperClick(click.x(), click.y(), frame);
             case CHAT -> handleChatClick(click.x(), click.y(), frame);
             case MUSIC_CONTROL -> handleMusicClick(click.x(), click.y(), frame);
             case SCOREBOARD -> handleScoreboardClick(click.x(), click.y(), frame);
@@ -343,14 +416,96 @@ public final class HorizonConfigScreen extends Screen {
             }
             return true;
         }
+        if (inputFocus == InputFocus.CUSTOM_CMD_TEXT) {
+            if (!Character.isISOControl(input.codepoint()) && customCmdInput.length() < 64) {
+                customCmdInput += Character.toString(input.codepoint());
+            }
+            return true;
+        }
+        if (inputFocus == InputFocus.LEAP_MESSAGE) {
+            if (!Character.isISOControl(input.codepoint()) && leapMessageInput.length() < 128) {
+                leapMessageInput += Character.toString(input.codepoint());
+            }
+            return true;
+        }
+        if (inputFocus == InputFocus.SOUND_EDIT) {
+            if (!Character.isISOControl(input.codepoint()) && soundInput.length() < 96) {
+                soundInput += Character.toString(input.codepoint());
+            }
+            return true;
+        }
+        if (inputFocus == InputFocus.MELODY_MESSAGE) {
+            if (!Character.isISOControl(input.codepoint()) && melodyMessageInput.length() < 128) {
+                melodyMessageInput += Character.toString(input.codepoint());
+            }
+            return true;
+        }
         return super.charTyped(input);
     }
 
     @Override
     public boolean keyPressed(KeyEvent input) {
         // Keybind capture: next key pressed (except ESC) becomes the binding; DELETE/BACKSPACE clears it
+        if (inputFocus == InputFocus.CUSTOM_CMD_TEXT) {
+            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                String cmd = customCmdInput.trim().replaceFirst("^/", "");
+                if (!cmd.isBlank()) {
+                    config().addCustomCommandKeybind(cmd);
+                    horizonClient.getConfigManager().save();
+                }
+                customCmdInput = "";
+                inputFocus = InputFocus.NONE;
+                return true;
+            }
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) { customCmdInput = ""; inputFocus = InputFocus.NONE; return true; }
+            if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!customCmdInput.isEmpty()) customCmdInput = customCmdInput.substring(0, customCmdInput.length() - 1);
+                return true;
+            }
+        }
+        if (inputFocus == InputFocus.LEAP_MESSAGE) {
+            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                config().setLeapMenuMessage(leapMessageInput);
+                horizonClient.getConfigManager().save();
+                inputFocus = InputFocus.NONE;
+                return true;
+            }
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) { inputFocus = InputFocus.NONE; return true; }
+            if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!leapMessageInput.isEmpty()) leapMessageInput = leapMessageInput.substring(0, leapMessageInput.length() - 1);
+                return true;
+            }
+        }
+        if (inputFocus == InputFocus.MELODY_MESSAGE) {
+            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                config().setMelodyAnnounceMessage(melodyMessageInput);
+                horizonClient.getConfigManager().save();
+                inputFocus = InputFocus.NONE;
+                return true;
+            }
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) { inputFocus = InputFocus.NONE; return true; }
+            if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!melodyMessageInput.isEmpty()) melodyMessageInput = melodyMessageInput.substring(0, melodyMessageInput.length() - 1);
+                return true;
+            }
+        }
+        if (inputFocus == InputFocus.SOUND_EDIT) {
+            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                applySoundInput(soundEditIndex, soundInput);
+                horizonClient.getConfigManager().save();
+                inputFocus = InputFocus.NONE;
+                return true;
+            }
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) { inputFocus = InputFocus.NONE; return true; }
+            if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!soundInput.isEmpty()) soundInput = soundInput.substring(0, soundInput.length() - 1);
+                return true;
+            }
+        }
         if (inputFocus == InputFocus.SLOT_BIND_KEY || inputFocus == InputFocus.CMD_KEY_PETS
-                || inputFocus == InputFocus.CMD_KEY_EQUIPMENT || inputFocus == InputFocus.CMD_KEY_WARDROBE) {
+                || inputFocus == InputFocus.CMD_KEY_EQUIPMENT || inputFocus == InputFocus.CMD_KEY_WARDROBE
+                || inputFocus == InputFocus.CMD_KEY_LOADOUTS || inputFocus == InputFocus.CMD_KEY_STATS
+                || inputFocus == InputFocus.CUSTOM_CMD_KEY) {
             if (input.key() != GLFW.GLFW_KEY_ESCAPE) {
                 boolean clear = input.key() == GLFW.GLFW_KEY_DELETE || input.key() == GLFW.GLFW_KEY_BACKSPACE;
                 int store = clear ? -1 : input.key();
@@ -359,6 +514,9 @@ public final class HorizonConfigScreen extends Screen {
                     case CMD_KEY_PETS       -> config().setCommandKeybindPets(store);
                     case CMD_KEY_EQUIPMENT  -> config().setCommandKeybindEquipment(store);
                     case CMD_KEY_WARDROBE   -> config().setCommandKeybindWardrobe(store);
+                    case CMD_KEY_LOADOUTS   -> config().setCommandKeybindLoadouts(store);
+                    case CMD_KEY_STATS      -> config().setCommandKeybindStats(store);
+                    case CUSTOM_CMD_KEY     -> config().setCustomCommandKey(customCmdCaptureIndex, store);
                     default -> {}
                 }
                 horizonClient.getConfigManager().save();
@@ -401,7 +559,7 @@ public final class HorizonConfigScreen extends Screen {
         if (!viewport.contains(mouseX, mouseY)) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
-        if (activeTab == Tab.PARTICLE) {
+        if (activeTab == Tab.DISPLAY && activeDisplaySection == DisplaySection.PARTICLE) {
             int maxScroll = maxParticleScroll();
             particleScrollOffset = Math.max(0, Math.min(maxScroll, particleScrollOffset - (int) Math.round(verticalAmount * 24.0D)));
             return true;
@@ -417,7 +575,8 @@ public final class HorizonConfigScreen extends Screen {
                 && (activeDisplaySection == DisplaySection.ANIMATIONS || activeDisplaySection == DisplaySection.NO_RENDER
                     || activeDisplaySection == DisplaySection.HELPERS))
                 || (activeTab == Tab.DUNGEON && (activeDungeonSection == DungeonSection.TERMINAL_SOLVER
-                    || activeDungeonSection == DungeonSection.BOSS)))) {
+                    || activeDungeonSection == DungeonSection.BOSS))
+                || (activeTab == Tab.INVENTORY && activeInventorySection == InventorySection.GENERAL))) {
             Rect viewport = contentViewportRect(frame());
             applySliderValue(activeSliderIndex, click.x(), viewport.x);
             return true;
@@ -576,9 +735,8 @@ public final class HorizonConfigScreen extends Screen {
                 case GENERAL -> renderGeneralText(context, viewport);
                 case HUD -> renderHudText(context, viewport);
                 case DUNGEON -> renderDungeonText(context, viewport);
-                case PARTICLE -> renderParticleText(context, viewport);
-                case MISC -> renderMiscText(context, viewport);
                 case DISPLAY -> renderDisplayText(context, viewport);
+                case HELPER -> renderHelperText(context, viewport);
                 case CHAT -> renderChatText(context, viewport);
                 case MUSIC_CONTROL -> renderMusicText(context, viewport);
                 case SCOREBOARD -> renderScoreboardText(context, viewport);
@@ -716,6 +874,9 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawSectionTitle(context, viewport.x, y, "Leap Menu");
                 y = drawToggleRow(context, viewport.x, y, "Leap Menu", config().isLeapMenuEnabled(), Lang.t("Eigenes Quadranten-GUI fuer Spirit Leap.", "Custom quadrant GUI for Spirit Leap."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Ansage im Party-Chat", "Announce in Party Chat"), config().isLeapMenuAnnounce(), Lang.t("Leap-Ziel im Party-Chat ankuendigen.", "Announce leap destination in party chat."));
+                y = drawFieldRow(context, viewport.x, y, Lang.t("Leap-Nachricht", "Leap Message"),
+                    inputFocus == InputFocus.LEAP_MESSAGE ? leapMessageInput : config().getLeapMenuMessage(),
+                    inputFocus == InputFocus.LEAP_MESSAGE, LEAP_MSG_DESC);
                 String[] sortLabels = { "Klasse-Quadrant", "Klasse A-Z", "Name A-Z" };
                 int sortMode = config().getLeapMenuSortMode();
                 drawCycleRow(context, viewport.x, y, Lang.t("Sortierung", "Sort Mode"), sortLabels[Math.min(sortMode, 2)], true, Lang.t("Klasse-Quadrant, Klasse A-Z oder Name A-Z.", "Class quadrant, class A-Z or name A-Z."));
@@ -724,6 +885,8 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawSectionTitle(context, viewport.x, y, "Secret Waypoints");
                 y = drawToggleRow(context, viewport.x, y, "Secret Waypoints", config().isSecretWaypointsEnabled(), Lang.t("Zeigt Secret-Positionen im aktuellen Raum.", "Shows secret positions in the current room."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Durch Waende", "Through Walls"), config().isSecretWaypointsThroughWalls(), Lang.t("Zeigt Waypoints auch durch Bloecke.", "Shows waypoints through blocks."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Waypoint Text", "Waypoint Text"), config().isSecretWaypointText(), Lang.t("Zeigt die Kategorie-Beschriftung ueber jedem Waypoint.", "Shows the category label above each waypoint."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Power/Time HUD", "Power/Time HUD"), config().isBlessingHudEnabled(), BLESSING_HUD_DESC);
                 y = drawDropdownHeader(context, viewport.x, y, "Secret Waypoints Config", "secretConfig");
                 if (isDropdownOpen("secretConfig")) {
                     y = drawToggleRow(context, viewport.x, y, "Chest", config().isSecretShowChest(), Lang.t("Waypoints fuer Secret-Truhen.", "Waypoints for secret chests."));
@@ -755,6 +918,7 @@ public final class HorizonConfigScreen extends Screen {
             case PUZZLE_SOLVER -> {
                 y = drawSectionTitle(context, viewport.x, y, "Puzzle Solver");
                 y = drawToggleRow(context, viewport.x, y, "Puzzle Solver", config().isPuzzleSolverEnabled(), Lang.t("Loesungen fuer Blaze, Boulder, Eis, Quiz, Wasser, Creeper Beams, Three Weirdos.", "Solutions for Blaze, Boulder, Ice Fill, Quiz, Water, Creeper Beams, Three Weirdos."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Falsche Klicks blockieren", "Block Wrong Clicks"), config().isPuzzleBlockWrongClicks(), Lang.t("Blockiert Rechtsklicks auf falsche Quiz-Antwort-Bloecke.", "Blocks right-clicks on wrong quiz answer blocks."));
                 String[] styleDE = { "Gefuellt", "Umriss", "Gefuellt + Umriss" };
                 String[] styleEN = { "Filled", "Outline", "Filled + Outline" };
                 int ps = Math.max(0, Math.min(2, config().getPuzzleSolverStyle()));
@@ -769,6 +933,10 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawCycleRow(context, viewport.x, y, Lang.t("Slot-Stil", "Slot Style"), Lang.t(slotStyleDE[ss], slotStyleEN[ss]), config().isTerminalSolverEnabled(), Lang.t("Darstellung der markierten Slots.", "Appearance of the highlighted slots."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Zahlen anzeigen", "Show Numbers"), config().isTerminalShowNumbers(), Lang.t("Zeigt die Klick-Reihenfolge als Zahl im Order-Terminal.", "Shows the click order as a number in the Order terminal."));
                 y = drawSliderRow(context, viewport.x, y, "GUI Scale", config().getTerminalGuiScale(), 0.5, 3.0, Lang.t("Skalierung des Terminal-Overlays.", "Scale of the terminal overlay."));
+                y = drawToggleRow(context, viewport.x, y, "Melody Announce", config().isMelodyAnnounceEnabled(), MELODY_ANNOUNCE_DESC);
+                y = drawFieldRow(context, viewport.x, y, Lang.t("Melody-Nachricht", "Melody Message"),
+                        inputFocus == InputFocus.MELODY_MESSAGE ? melodyMessageInput : config().getMelodyAnnounceMessage(),
+                        inputFocus == InputFocus.MELODY_MESSAGE, MELODY_MSG_DESC);
                 y = drawDropdownHeader(context, viewport.x, y, Lang.t("Terminal-Farben", "Terminal Colors"), "terminalColors");
                 if (isDropdownOpen("terminalColors")) {
                     y = drawToggleRow(context, viewport.x, y, Lang.t("Automatische HUD-Farben", "Automatic HUD Colors"), config().isTerminalUseHudColor(), Lang.t("Wenn an, werden die Solver-Farben automatisch aus der HUD-Farbe abgeleitet. Wenn aus, greifen die Farb-Einstellungen unten.", "When on, solver colours derive automatically from the HUD color. When off, the color settings below apply."));
@@ -793,6 +961,7 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawSectionTitle(context, viewport.x, y, "Device");
                 y = drawToggleRow(context, viewport.x, y, "Simon Says", config().isSimonSaysEnabled(), Lang.t("Hebt die korrekte Schaltflaechen-Reihenfolge beim Goldor-Device hervor.", "Highlights the correct button sequence for the Goldor device."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Falsche Klicks blockieren", "Block Wrong Clicks"), config().isSimonSaysBlockWrongClicks(), Lang.t("Blockiert Klicks auf falsche Simon-Says-Knoepfe.", "Blocks clicks on incorrect Simon Says buttons."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Sneak invertieren (Simon)", "Invert Sneak (Simon)"), config().isSimonSaysInvertSneak(), Lang.t("Sneak deaktiviert das Blockieren statt es zu aktivieren.", "Sneak disables blocking instead of enabling it."));
                 y = drawToggleRow(context, viewport.x, y, "Arrow Align", config().isArrowAlignEnabled(), Lang.t("Zeigt Klickanzahl fuer jede Pfeil-Bilderrahmen.", "Shows click count for each arrow item frame."));
                 y = drawCycleRow(context, viewport.x, y, Lang.t("Arrow Farb-Stil", "Arrow Color Style"), Lang.t(arrowStyleDE[arrowStyle], arrowStyleEN[arrowStyle]), config().isArrowAlignEnabled(), Lang.t("Dynamisch faerbt nach Klickanzahl (gruen/orange/rot).", "Dynamic colours by click count (green/orange/red)."));
                 y = drawTermColorSwatchRow(context, viewport.x, y, Lang.t("Arrow Textfarbe", "Arrow Text Color"), 13);
@@ -805,25 +974,41 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawSliderRow(context, viewport.x, y, Lang.t("I4 Done-Groesse", "I4 Done Size"), config().getSharpShooterDoneScale(), 1.0, 8.0, Lang.t("Textgroesse des Done-Textes.", "Text size of the Done text."));
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Wegpunkte & Titel", "Waypoints & Titles"));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Terminal-Wegpunkte", "Terminal Waypoints"), config().isTerminalWaypointsEnabled(), Lang.t("Markiert entdeckte Terminal-Positionen im Raum.", "Highlights discovered terminal positions in the room."));
-                drawToggleRow(context, viewport.x, y, Lang.t("Typ-Title", "Type Title"), config().isTerminalTitleEnabled(), Lang.t("Zeigt den Terminal-Typ als Title beim Oeffnen und Annaehern.", "Shows the terminal type as a title on open and approach."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Typ-Title", "Type Title"), config().isTerminalTitleEnabled(), Lang.t("Zeigt den Terminal-Typ als Title beim Oeffnen und Annaehern.", "Shows the terminal type as a title on open and approach."));
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Custom Sounds", "Custom Sounds"));
+                for (int i = 0; i < SOUND_LABELS.length; i++) {
+                    boolean f = inputFocus == InputFocus.SOUND_EDIT && soundEditIndex == i;
+                    y = drawFieldRow(context, viewport.x, y, SOUND_LABELS[i],
+                        f ? soundInput : soundText(soundByIndex(i)), f, SOUND_DESC);
+                }
             }
             case BOSS -> {
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Allgemein", "General"));
                 y = drawToggleRow(context, viewport.x, y, "Blood Camper", config().isBloodCamperEnabled(), Lang.t("Zeigt Blood-Room-Fortschritt und Timer an.", "Shows blood room wave progress and timer."));
                 y = drawSectionTitle(context, viewport.x, y, "F7");
                 y = drawToggleRow(context, viewport.x, y, "Damage Tick Timer", config().isTickTimerEnabled(), Lang.t("Countdown bis zum naechsten Goldor-Damage-Tick (F7 P3).", "Countdown to next Goldor damage tick (F7 P3)."));
+                y = drawToggleRow(context, viewport.x, y, "Maxor Timer", config().isTickTimerMaxor(), TT_MAXOR_DESC);
+                y = drawToggleRow(context, viewport.x, y, "Storm Timer", config().isTickTimerStorm(), TT_STORM_DESC);
+                y = drawToggleRow(context, viewport.x, y, "Goldor Timer", config().isTickTimerGoldor(), TT_GOLDOR_DESC);
+                y = drawToggleRow(context, viewport.x, y, "Necron Timer", config().isTickTimerNecron(), TT_NECRON_DESC);
                 y = drawToggleRow(context, viewport.x, y, "Purple Pad Timer", config().isPurplePadTimerEnabled(), Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."));
+                y = drawToggleRow(context, viewport.x, y, "Pad Timer", config().isPadTimerEnabled(), PAD_TIMER_DESC);
                 y = drawSectionTitle(context, viewport.x, y, "M7 Dragons (P5)");
                 y = drawToggleRow(context, viewport.x, y, "Dragon Overlay", config().isDragonEnabled(), Lang.t("Zeigt Dragon-Spawn-Prioritaet, Boxen und Timer in M7 P5.", "Shows dragon spawn priority, boxes and timer in M7 P5."));
                 y = drawToggleRow(context, viewport.x, y, "Dragon Boxes", config().isDragonBoxes(), Lang.t("Zeigt farbige Boxen an den Spawn-Positionen.", "Shows colored boxes at spawn positions."));
                 y = drawToggleRow(context, viewport.x, y, "Dragon Timer", config().isDragonTimer(), Lang.t("Zeigt Countdown bis zum Spawn.", "Shows countdown until spawn."));
                 y = drawToggleRow(context, viewport.x, y, "Spawn Alert", config().isDragonSpawnAlert(), Lang.t("Zeigt Spawn-Warnung im Chat.", "Shows spawn alert in chat."));
-                y = drawToggleRow(context, viewport.x, y, Lang.t("Prioritaet", "Priority"), config().isDragonPriority(), Lang.t("Zeigt empfohlene Kill-Reihenfolge.", "Shows recommended kill order."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Prioritaet", "Priority"), config().isDragonPriority(), Lang.t("Power-basierte Kill-Reihenfolge.", "Power-based kill order."));
+                y = drawSliderRow(context, viewport.x, y, "Normal Power", config().getDragonNormalPower(), 0.0, 32.0, Lang.t("Power-Schwelle fuer die Power-Reihenfolge.", "Power threshold for the power order."));
+                y = drawSliderRow(context, viewport.x, y, "Easy Power", config().getDragonEasyPower(), 0.0, 32.0, Lang.t("Niedrigere Schwelle bei Purple-Split.", "Lower threshold when a Purple is in the split."));
+                y = drawCycleRow(context, viewport.x, y, Lang.t("Purple Solo-Debuff", "Purple Solo Debuff"), (config().getDragonSoloDebuff() & 1) == 1 ? "Healer" : "Tank", config().isDragonPriority(), Lang.t("Wer nimmt den Purple-Debuff im Solo.", "Who takes the purple solo debuff."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Solo-Debuff auf alle Splits", "Solo Debuff on All Splits"), config().isDragonSoloDebuffOnAll(), Lang.t("Debuff-Regel auf alle Splits anwenden.", "Apply the debuff rule to all splits."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Drachen-Leben", "Dragon Health"), config().isDragonHealth(), Lang.t("Zeigt das Leben jedes Drachen ueber der Box.", "Shows each dragon's health above its box."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Prioritaet-Tracer", "Priority Tracer"), config().isDragonTracer(), Lang.t("Linie zum Prioritaets-Drachen.", "Line to the priority dragon."));
                 y = drawToggleRow(context, viewport.x, y, "Rag Axe Notification", config().isRagAxeNotificationEnabled(), Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."));
                 y = drawSectionTitle(context, viewport.x, y, "M7 Relic Timer");
                 y = drawToggleRow(context, viewport.x, y, "Relic Timer", config().isRelicTimerEnabled(), Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Relic-Platzier-Timer", "Relic Place Timer"), config().isRelicPlaceTimerEnabled(), Lang.t("Zeigt im Chat, wie lange jedes Relic zum Platzieren gebraucht hat.", "Reports in chat how long each relic took to place."));
                 y = drawSectionTitle(context, viewport.x, y, "F4 / M4 Spirit Bear");
                 y = drawToggleRow(context, viewport.x, y, "Spirit Bear Timer", config().isSpiritBearTimerEnabled(), Lang.t("Fortschritt und Countdown bis zum Spirit Bear Spawn.", "Progress and countdown until Spirit Bear spawn."));
                 y = drawToggleRow(context, viewport.x, y, "Spirit Bear Highlight", config().isSpiritBearHighlightEnabled(), Lang.t("Spirit Bear per Glow hervorheben.", "Highlight Spirit Bear with glow."));
@@ -859,9 +1044,174 @@ public final class HorizonConfigScreen extends Screen {
         drawToggleRow(context, viewport.x, y, Lang.t("Kompakte Herzen", "Compact Hearts"), config().isCompactHypixelHealthEnabled(), Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
     }
 
+    private static final String EXPERIMENT_SOLVER_DESC = Lang.t(
+        "Merkt sich aufgedeckte Superpairs-Belohnungen und markiert bekannte Paare am Experimentier-Tisch.",
+        "Remembers revealed Superpairs rewards and highlights known pairs at the Experimentation Table.");
+    private static final String CROESUS_PROFIT_DESC = Lang.t(
+        "Schaetzt den Coin-Profit von Dungeon-/Croesus-Truhen anhand von Bazaar- und BIN-Preisen.",
+        "Estimates dungeon/Croesus chest coin profit from live Bazaar and BIN prices.");
+    private static final String STORAGE_OVERLAY_DESC = Lang.t(
+        "Zeigt geoeffnete Ender-Chest-Seiten und Backpacks als durchsuchbare Gesamtansicht direkt im Storage-Menue.",
+        "Shows opened Ender Chest pages and Backpacks as one searchable overview right in the Storage menu.");
+    private static final String BAZAAR_TOOLTIP_DESC = Lang.t(
+        "Schreibt Bazaar Buy/Sell-Preise unten in den Item-Tooltip.",
+        "Appends Bazaar buy/sell prices to the bottom of item tooltips.");
+    private static final String AUCTION_TOOLTIP_DESC = Lang.t(
+        "Schreibt Lowest BIN und Avg BIN unten in den Item-Tooltip.",
+        "Appends Lowest BIN and Avg BIN to the bottom of item tooltips.");
+    private static final String ITEM_PRICE_DESC = Lang.t(
+        "Zusaetzliche Craft-Value-Zeile (Basis + Enchants/Scrolls/Sterne/Gems/...). Standard Instabuy, Shift = Buy Order.",
+        "Extra craft-value line (base + enchants/scrolls/stars/gems/...). Instabuy by default, Shift = Buy Order.");
+    private static final String STACK_VALUE_DESC = Lang.t(
+        "Multipliziert den angezeigten Preis mit der Stack-Groesse, solange Shift gehalten wird.",
+        "Multiplies the shown price by the stack count while Shift is held.");
+    private static final String ENCHANT_GRADIENT_DESC = Lang.t(
+        "Faerbt gemaxte Enchants im Tooltip mit einem animierten Farbverlauf.",
+        "Colors maxed enchants in the tooltip with an animated gradient.");
+    private static final String GRADIENT_MODE_DESC = Lang.t(
+        "Verlauf-Farben: HUD-Akzent, eigene Farben oder Rainbow.",
+        "Gradient colors: HUD accent, custom colors, or rainbow.");
+    private static final String PET_HIGHLIGHT_DESC = Lang.t(
+        "Markiert im Pet-Menue das aktuell aktive Pet (Click to despawn).",
+        "Highlights the currently summoned pet in the Pets menu (Click to despawn).");
+
+    private void renderHelperText(GuiGraphicsExtractor context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        y = drawSectionTitle(context, viewport.x, y, "Helper");
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Experimentier-Tisch", "Experimentation Table"),
+            config().isExperimentSolverEnabled(), EXPERIMENT_SOLVER_DESC);
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Croesus Chest Profit", "Croesus Chest Profit"),
+            config().isCroesusProfitEnabled(), CROESUS_PROFIT_DESC);
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Storage Overlay", "Storage Overlay"),
+            config().isStorageOverlayEnabled(), STORAGE_OVERLAY_DESC);
+        y = drawToggleRow(context, viewport.x, y, "Bazaar Value Tooltip",
+            config().isBazaarValueTooltip(), BAZAAR_TOOLTIP_DESC);
+        y = drawToggleRow(context, viewport.x, y, "Auction Value Tooltip",
+            config().isAuctionValueTooltip(), AUCTION_TOOLTIP_DESC);
+        y = drawToggleRow(context, viewport.x, y, "Craft Value Tooltip",
+            config().isItemPriceTooltip(), ITEM_PRICE_DESC);
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Stack-Value bei Shift", "Stack Value on Shift"),
+            config().isStackValueOnShift(), STACK_VALUE_DESC);
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Enchant Gradient", "Enchant Gradient"),
+            config().isEnchantGradient(), ENCHANT_GRADIENT_DESC);
+        if (config().isEnchantGradient()) {
+            int mode = config().getEnchantGradientMode();
+            y = drawCycleRow(context, viewport.x, y, Lang.t("Gradient Modus", "Gradient Mode"),
+                GRADIENT_MODE_LABELS[mode], true, GRADIENT_MODE_DESC);
+            if (mode == 1) {
+                y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Farbe A", "Color A"),
+                    config().getEnchantGradientColorA(), 19);
+                y = drawMobColorSwatchRow(context, viewport.x, y, Lang.t("Farbe B", "Color B"),
+                    config().getEnchantGradientColorB(), 20);
+            }
+        }
+        drawToggleRow(context, viewport.x, y, Lang.t("Pet Highlight", "Pet Highlight"),
+            config().isPetHighlightEnabled(), PET_HIGHLIGHT_DESC);
+    }
+
+    private static final String[] GRADIENT_MODE_LABELS = { "HUD", Lang.t("Eigen", "Custom"), "Rainbow" };
+
+    private boolean handleHelperClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24; // +24 skips the "Helper" title
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setExperimentSolverEnabled(!config().isExperimentSolverEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(EXPERIMENT_SOLVER_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setCroesusProfitEnabled(!config().isCroesusProfitEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(CROESUS_PROFIT_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setStorageOverlayEnabled(!config().isStorageOverlayEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(STORAGE_OVERLAY_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setBazaarValueTooltip(!config().isBazaarValueTooltip());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(BAZAAR_TOOLTIP_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setAuctionValueTooltip(!config().isAuctionValueTooltip());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(AUCTION_TOOLTIP_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setItemPriceTooltip(!config().isItemPriceTooltip());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(ITEM_PRICE_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setStackValueOnShift(!config().isStackValueOnShift());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(STACK_VALUE_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setEnchantGradient(!config().isEnchantGradient());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(ENCHANT_GRADIENT_DESC);
+        if (config().isEnchantGradient()) {
+            if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                config().setEnchantGradientMode(config().getEnchantGradientMode() + 1);
+                horizonClient.getConfigManager().save();
+                return true;
+            }
+            y += toggleRowHeight(GRADIENT_MODE_DESC);
+            if (config().getEnchantGradientMode() == 1) {
+                for (int gi = 19; gi <= 20; gi++) {
+                    int rowH = mobsColorSwatchHeight(gi);
+                    if (rowRect(viewport.x, y, rowH).contains(mouseX, mouseY)) {
+                        if (activeMobColorIndex == gi
+                            && handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, gi, this::getMobColor, this::setMobColor)) {
+                            return true;
+                        }
+                        activeMobColorIndex = activeMobColorIndex == gi ? -1 : gi;
+                        return true;
+                    }
+                    y += rowH;
+                }
+            }
+        }
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setPetHighlightEnabled(!config().isPetHighlightEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        return false;
+    }
+
+    private int helperContentHeight() {
+        int h = 24 + toggleRowHeight(EXPERIMENT_SOLVER_DESC) + toggleRowHeight(CROESUS_PROFIT_DESC)
+            + toggleRowHeight(STORAGE_OVERLAY_DESC) + toggleRowHeight(BAZAAR_TOOLTIP_DESC)
+            + toggleRowHeight(AUCTION_TOOLTIP_DESC) + toggleRowHeight(ITEM_PRICE_DESC)
+            + toggleRowHeight(STACK_VALUE_DESC) + toggleRowHeight(ENCHANT_GRADIENT_DESC)
+            + toggleRowHeight(PET_HIGHLIGHT_DESC);
+        if (config().isEnchantGradient()) {
+            h += toggleRowHeight(GRADIENT_MODE_DESC);
+            if (config().getEnchantGradientMode() == 1) {
+                h += mobsColorSwatchHeight(19) + mobsColorSwatchHeight(20);
+            }
+        }
+        return h;
+    }
+
     private void renderDisplayText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         switch (activeDisplaySection) {
+            case MISC -> renderMiscText(context, viewport);
+            case PARTICLE -> renderParticleText(context, viewport);
             case GENERAL -> {
                 y = drawSectionTitle(context, viewport.x, y, "Anzeige / General");
                 drawToggleRow(context, viewport.x, y, "16:9 Pillarbox", config().isPillarboxEnabled(),
@@ -889,6 +1239,8 @@ public final class HorizonConfigScreen extends Screen {
                     Lang.t("Schaltet die F5-Ansicht von vorne ab; F5 wechselt nur noch zwischen Ego- und 3rd-Person.", "Disables the front-facing F5 view; F5 only toggles between first and third person."));
                 y = drawToggleRow(context, viewport.x, y, "Soulweaver Gloves", config().isSoulweaverSkullsHidden(),
                     Lang.t("Rendert die umherfliegenden Soulweaver-Gloves-Skulls nicht mehr.", "Stops rendering the orbiting Soulweaver Gloves skulls."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("HUD bei Tab verstecken", "Hide HUD on Tab"), config().isHideHudOnTab(), HIDE_HUD_TAB_DESC);
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Effekte verstecken", "Hide Effects"), config().isHideStatusEffects(), HIDE_EFFECTS_DESC);
                 drawSliderRow(context, viewport.x, y, Lang.t("Hurtcam Intensitaet", "Hurtcam Intensity"),
                     config().getHurtCamIntensity(), 0.0, 1.0,
                     Lang.t("0 = komplett aus, 1 = normal.", "0 = completely off, 1 = normal."));
@@ -903,12 +1255,9 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawCycleRow(context, viewport.x, y, Lang.t("Stil", "Style"), Lang.t(etherStyleDE[etherStyle], etherStyleEN[etherStyle]), true, Lang.t("Render-Stil der Ziel-Box.", "Render style of the destination box."));
                 y = drawToggleRow(context, viewport.x, y, "Depth Check", config().isEtherwarpDepthCheck(), Lang.t("Ziel-Box durch Waende ausblenden.", "Hide destination box through walls."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Etherwarp Sound", "Etherwarp Sound"), config().isEtherwarpSoundEnabled(), Lang.t("Sound beim Teleportieren abspielen.", "Play sound when teleporting."));
-                String[] etherSoundDE = { "Ender Drache", "Chorus Fruit" };
-                String[] etherSoundEN = { "Ender Dragon", "Chorus Fruit" };
-                int etherSoundIdx = config().getEtherwarpSoundIndex();
-                y = drawCycleRow(context, viewport.x, y, "Sound", Lang.t(etherSoundDE[etherSoundIdx], etherSoundEN[etherSoundIdx]), config().isEtherwarpSoundEnabled(), Lang.t("Sound-Effekt fuer Etherwarp.", "Sound effect for Etherwarp."));
-                y = drawSliderRow(context, viewport.x, y, Lang.t("Lautstaerke", "Volume"), config().getEtherwarpSoundVolume(), 0.0, 2.0, Lang.t("Lautstaerke des Sounds (0-2).", "Volume of the sound (0-2)."));
-                drawSliderRow(context, viewport.x, y, "Pitch", config().getEtherwarpSoundPitch(), 0.0, 2.0, Lang.t("Tonhoehe des Sounds (0-2).", "Pitch of the sound (0-2)."));
+                boolean ewf = inputFocus == InputFocus.SOUND_EDIT && soundEditIndex == 6;
+                drawFieldRow(context, viewport.x, y, "Sound",
+                        ewf ? soundInput : soundText(config().getEtherwarpSound()), ewf, SOUND_DESC);
             }
         }
     }
@@ -917,6 +1266,8 @@ public final class HorizonConfigScreen extends Screen {
         Rect viewport = contentViewportRect(frame);
         int y = viewport.y - contentScrollOffset + 24;
         return switch (activeDisplaySection) {
+            case MISC -> handleMiscClick(mouseX, mouseY, frame);
+            case PARTICLE -> handleParticleClick(mouseX, mouseY, frame);
             case GENERAL -> {
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setPillarboxEnabled(!config().isPillarboxEnabled());
@@ -955,6 +1306,18 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Rendert die umherfliegenden Soulweaver-Gloves-Skulls nicht mehr.", "Stops rendering the orbiting Soulweaver Gloves skulls."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setHideHudOnTab(!config().isHideHudOnTab());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(HIDE_HUD_TAB_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setHideStatusEffects(!config().isHideStatusEffects());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(HIDE_EFFECTS_DESC);
                 if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
                     activeSliderIndex = 10;
                     applySliderValue(10, mouseX, viewport.x);
@@ -993,21 +1356,11 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Sound beim Teleportieren abspielen.", "Play sound when teleporting."));
-                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    config().setEtherwarpSoundIndex((config().getEtherwarpSoundIndex() + 1) % 2);
-                    horizonClient.getConfigManager().save();
-                    yield true;
-                }
-                y += toggleRowHeight(Lang.t("Sound-Effekt fuer Etherwarp.", "Sound effect for Etherwarp."));
-                if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    activeSliderIndex = 11;
-                    applySliderValue(11, mouseX, viewport.x);
-                    yield true;
-                }
-                y += sliderRowHeight();
-                if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
-                    activeSliderIndex = 12;
-                    applySliderValue(12, mouseX, viewport.x);
+                if (rowRect(viewport.x, y, fieldRowHeight(SOUND_DESC)).contains(mouseX, mouseY)) {
+                    inputFocus = InputFocus.SOUND_EDIT;
+                    soundEditIndex = 6;
+                    DungeonConfig.CustomSound s = config().getEtherwarpSound();
+                    soundInput = s.sound + " " + trimF(s.volume) + " " + trimF(s.pitch);
                     yield true;
                 }
                 yield false;
@@ -1017,6 +1370,9 @@ public final class HorizonConfigScreen extends Screen {
 
     private int displayContentHeight() {
         return 24 + switch (activeDisplaySection) {
+            // Misc/Particle draw their own leading title, so subtract the wrapper's 24.
+            case MISC -> Math.max(0, miscContentHeight() - 24);
+            case PARTICLE -> Math.max(0, particleContentHeight() - 24);
             case GENERAL -> toggleRowHeight(Lang.t(
                 "Begrenzt die Spielansicht auf 16:9 mit schwarzen Balken links und rechts (Samsung Odyssey G9).",
                 "Limits game view to 16:9 with black bars on the sides (Samsung Odyssey G9)."));
@@ -1024,15 +1380,15 @@ public final class HorizonConfigScreen extends Screen {
             case NO_RENDER -> toggleRowHeight(Lang.t("Feuer-Overlay ausblenden wenn man brennt.", "Disable the fire overlay when on fire."))
                 + toggleRowHeight(Lang.t("Schaltet die F5-Ansicht von vorne ab; F5 wechselt nur noch zwischen Ego- und 3rd-Person.", "Disables the front-facing F5 view; F5 only toggles between first and third person."))
                 + toggleRowHeight(Lang.t("Rendert die umherfliegenden Soulweaver-Gloves-Skulls nicht mehr.", "Stops rendering the orbiting Soulweaver Gloves skulls."))
+                + toggleRowHeight(HIDE_HUD_TAB_DESC)
+                + toggleRowHeight(HIDE_EFFECTS_DESC)
                 + sliderRowHeight();
             case HELPERS -> toggleRowHeight(Lang.t("Zeigt Teleport-Ziel fuer Aspect of the Void/Dragons.", "Shows teleport destination for Aspect of the Void/Dragons."))
                 + toggleRowHeight(Lang.t("Box nur beim Schleichen anzeigen.", "Only show box while sneaking."))
                 + toggleRowHeight(Lang.t("Render-Stil der Ziel-Box.", "Render style of the destination box."))
                 + toggleRowHeight(Lang.t("Ziel-Box durch Waende ausblenden.", "Hide destination box through walls."))
                 + toggleRowHeight(Lang.t("Sound beim Teleportieren abspielen.", "Play sound when teleporting."))
-                + toggleRowHeight(Lang.t("Sound-Effekt fuer Etherwarp.", "Sound effect for Etherwarp."))
-                + sliderRowHeight()
-                + sliderRowHeight();
+                + fieldRowHeight(SOUND_DESC);
         };
     }
 
@@ -1207,6 +1563,10 @@ public final class HorizonConfigScreen extends Screen {
                         config().isWardrobeKeybindsEnabled(),
                         Lang.t("Pfeiltasten und Zifferntasten im Wardrobe-Screen.", "Arrow keys and number keys in the wardrobe screen."));
                 y = drawToggleRow(context, viewport.x, y,
+                        "Loadout Keybinds",
+                        config().isLoadoutKeybindsEnabled(),
+                        Lang.t("Pfeiltasten und Tasten 1-9/0/-/= im Loadout-Screen.", "Arrow keys and 1-9/0/-/= in the loadout screen."));
+                y = drawToggleRow(context, viewport.x, y,
                         "Slot Binds",
                         config().isSlotBindsEnabled(),
                         Lang.t("Shift-Klick tauscht gebundene Inventory-Slots.", "Shift-click swaps bound inventory slots."));
@@ -1216,6 +1576,12 @@ public final class HorizonConfigScreen extends Screen {
                         capturingSlotBind ? Lang.t("Taste druecken...", "Press key...") : keyName(config().getSlotBindKey()),
                         config().getSlotBindKey() >= 0 || capturingSlotBind,
                         Lang.t("Taste die im Inventar ueber Slots gedrueckt wird um Binds zu setzen.", "Key pressed over a slot to create/remove a bind."));
+                y = drawToggleRow(context, viewport.x, y, Lang.t("Scrollbare Tooltips", "Scrollable Tooltips"),
+                        config().isScrollableTooltips(), SCROLL_TOOLTIP_DESC);
+                drawSliderRow(context, viewport.x, y, Lang.t("Tooltip-Groesse", "Tooltip Scale"),
+                        config().getTooltipScale(), 0.5, 3.0, TOOLTIP_SCALE_DESC);
+            }
+            case COMMANDS -> {
                 y = drawSectionTitle(context, viewport.x, y, Lang.t("Command Keybinds", "Command Keybinds"));
                 y = drawCycleRow(context, viewport.x, y,
                         "/pets",
@@ -1227,11 +1593,39 @@ public final class HorizonConfigScreen extends Screen {
                         inputFocus == InputFocus.CMD_KEY_EQUIPMENT ? Lang.t("Taste druecken...", "Press key...") : keyName(config().getCommandKeybindEquipment()),
                         config().getCommandKeybindEquipment() >= 0 || inputFocus == InputFocus.CMD_KEY_EQUIPMENT,
                         "/equipment");
-                drawCycleRow(context, viewport.x, y,
+                y = drawCycleRow(context, viewport.x, y,
                         "/wardrobe",
                         inputFocus == InputFocus.CMD_KEY_WARDROBE ? Lang.t("Taste druecken...", "Press key...") : keyName(config().getCommandKeybindWardrobe()),
                         config().getCommandKeybindWardrobe() >= 0 || inputFocus == InputFocus.CMD_KEY_WARDROBE,
                         "/wardrobe");
+                y = drawCycleRow(context, viewport.x, y,
+                        "/loadouts",
+                        inputFocus == InputFocus.CMD_KEY_LOADOUTS ? Lang.t("Taste druecken...", "Press key...") : keyName(config().getCommandKeybindLoadouts()),
+                        config().getCommandKeybindLoadouts() >= 0 || inputFocus == InputFocus.CMD_KEY_LOADOUTS,
+                        "/loadouts");
+                y = drawCycleRow(context, viewport.x, y,
+                        "/stats",
+                        inputFocus == InputFocus.CMD_KEY_STATS ? Lang.t("Taste druecken...", "Press key...") : keyName(config().getCommandKeybindStats()),
+                        config().getCommandKeybindStats() >= 0 || inputFocus == InputFocus.CMD_KEY_STATS,
+                        "/stats");
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Eigene Commands", "Custom Commands"));
+                var customCmds = config().getCustomCommandKeybinds();
+                for (int i = 0; i < customCmds.size(); i++) {
+                    var cc = customCmds.get(i);
+                    boolean cap = inputFocus == InputFocus.CUSTOM_CMD_KEY && customCmdCaptureIndex == i;
+                    int rowY = y;
+                    y = drawCycleRow(context, viewport.x, rowY,
+                            "/" + cc.command,
+                            cap ? Lang.t("Taste druecken...", "Press key...") : keyName(cc.key),
+                            cc.key >= 0 || cap,
+                            CUSTOM_CMD_DESC);
+                    Rect rm = customRemoveRect(viewport.x, rowY);
+                    context.fill(rm.x, rm.y, rm.right(), rm.bottom(), 0xFF7A2A2A);
+                    context.centeredText(font, Component.literal("✕"), rm.centerX(), rm.y + 4, 0xFFFFFFFF);
+                }
+                drawFieldRow(context, viewport.x, y,
+                        Lang.t("Command hinzufuegen", "Add Command"),
+                        customCmdInput, inputFocus == InputFocus.CUSTOM_CMD_TEXT, CUSTOM_CMD_ADD_DESC);
             }
             case INVENTORY_BUTTONS -> {
                 y = drawSectionTitle(context, viewport.x, y, "Inventory / Inventory Buttons");
@@ -1260,6 +1654,12 @@ public final class HorizonConfigScreen extends Screen {
                 }
                 y += toggleRowHeight(Lang.t("Pfeiltasten und Zifferntasten im Wardrobe-Screen.", "Arrow keys and number keys in the wardrobe screen."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setLoadoutKeybindsEnabled(!config().isLoadoutKeybindsEnabled());
+                    horizonClient.getConfigManager().save();
+                    return true;
+                }
+                y += toggleRowHeight(Lang.t("Pfeiltasten und Tasten 1-9/0/-/= im Loadout-Screen.", "Arrow keys and 1-9/0/-/= in the loadout screen."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setSlotBindsEnabled(!config().isSlotBindsEnabled());
                     horizonClient.getConfigManager().save();
                     return true;
@@ -1270,6 +1670,19 @@ public final class HorizonConfigScreen extends Screen {
                     return true;
                 }
                 y += toggleRowHeight(Lang.t("Taste die im Inventar ueber Slots gedrueckt wird um Binds zu setzen.", "Key pressed over a slot to create/remove a bind."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setScrollableTooltips(!config().isScrollableTooltips());
+                    horizonClient.getConfigManager().save();
+                    return true;
+                }
+                y += toggleRowHeight(SCROLL_TOOLTIP_DESC);
+                if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    activeSliderIndex = 24;
+                    applySliderValue(24, mouseX, viewport.x);
+                    return true;
+                }
+            }
+            case COMMANDS -> {
                 y += 24; // "Command Keybinds" section title
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     inputFocus = InputFocus.CMD_KEY_PETS;
@@ -1283,6 +1696,37 @@ public final class HorizonConfigScreen extends Screen {
                 y += toggleRowHeight("/equipment");
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     inputFocus = InputFocus.CMD_KEY_WARDROBE;
+                    return true;
+                }
+                y += toggleRowHeight("/wardrobe");
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    inputFocus = InputFocus.CMD_KEY_LOADOUTS;
+                    return true;
+                }
+                y += toggleRowHeight("/loadouts");
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    inputFocus = InputFocus.CMD_KEY_STATS;
+                    return true;
+                }
+                y += toggleRowHeight("/stats");
+                y += 24; // "Eigene Commands" section title
+                var customCmds = config().getCustomCommandKeybinds();
+                for (int i = 0; i < customCmds.size(); i++) {
+                    int rowY = y;
+                    y += toggleRowHeight(CUSTOM_CMD_DESC);
+                    if (customRemoveRect(viewport.x, rowY).contains(mouseX, mouseY)) {
+                        config().removeCustomCommandKeybind(i);
+                        horizonClient.getConfigManager().save();
+                        return true;
+                    }
+                    if (rowRect(viewport.x, rowY).contains(mouseX, mouseY)) {
+                        inputFocus = InputFocus.CUSTOM_CMD_KEY;
+                        customCmdCaptureIndex = i;
+                        return true;
+                    }
+                }
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    inputFocus = InputFocus.CUSTOM_CMD_TEXT;
                     return true;
                 }
             }
@@ -1305,12 +1749,20 @@ public final class HorizonConfigScreen extends Screen {
     private int inventoryContentHeight() {
         return 24 + switch (activeInventorySection) {
             case GENERAL -> toggleRowHeight(Lang.t("Pfeiltasten und Zifferntasten im Wardrobe-Screen.", "Arrow keys and number keys in the wardrobe screen."))
+                + toggleRowHeight(Lang.t("Pfeiltasten und Tasten 1-9/0/-/= im Loadout-Screen.", "Arrow keys and 1-9/0/-/= in the loadout screen."))
                 + toggleRowHeight(Lang.t("Shift-Klick tauscht gebundene Inventory-Slots.", "Shift-click swaps bound inventory slots."))
                 + toggleRowHeight(Lang.t("Taste die im Inventar ueber Slots gedrueckt wird um Binds zu setzen.", "Key pressed over a slot to create/remove a bind."))
-                + 24 // "Command Keybinds" section title
+                + toggleRowHeight(SCROLL_TOOLTIP_DESC)
+                + sliderRowHeight();
+            case COMMANDS -> 24 // "Command Keybinds" section title
                 + toggleRowHeight("/pets")
                 + toggleRowHeight("/equipment")
-                + toggleRowHeight("/wardrobe");
+                + toggleRowHeight("/wardrobe")
+                + toggleRowHeight("/loadouts")
+                + toggleRowHeight("/stats")
+                + 24 // "Eigene Commands" section title
+                + config().getCustomCommandKeybinds().size() * toggleRowHeight(CUSTOM_CMD_DESC)
+                + fieldRowHeight(CUSTOM_CMD_ADD_DESC);
             case INVENTORY_BUTTONS -> {
                 int count = config().getInventoryButtons().size();
                 String desc = count + " Button" + (count == 1 ? "" : "s") + " konfiguriert. Klicke um Buttons zu platzieren und zu konfigurieren.";
@@ -1452,6 +1904,9 @@ public final class HorizonConfigScreen extends Screen {
             case 12 -> config().setEtherwarpSoundPitch((float) sliderValueFromMouse(mouseX, viewportX, 0.0, 2.0));
             case 20 -> config().setTerminalGuiScale((float) sliderValueFromMouse(mouseX, viewportX, 0.5, 3.0));
             case 21 -> config().setSharpShooterDoneScale((float) sliderValueFromMouse(mouseX, viewportX, 1.0, 8.0));
+            case 22 -> config().setDragonNormalPower((float) sliderValueFromMouse(mouseX, viewportX, 0.0, 32.0));
+            case 23 -> config().setDragonEasyPower((float) sliderValueFromMouse(mouseX, viewportX, 0.0, 32.0));
+            case 24 -> config().setTooltipScale((float) sliderValueFromMouse(mouseX, viewportX, 0.5, 3.0));
         }
         horizonClient.getConfigManager().save();
     }
@@ -1471,6 +1926,10 @@ public final class HorizonConfigScreen extends Screen {
 
     private Rect cycleBadgeRect(int x, int y) {
         return new Rect(x, y + CARD_PADDING_TOP - 1, 54, 18);
+    }
+
+    private Rect customRemoveRect(int x, int y) {
+        return new Rect(x + CONTENT_ROW_WIDTH - 24, y + CARD_PADDING_TOP - 1, 18, 18);
     }
 
     private int drawActionRow(GuiGraphicsExtractor context, int x, int y, String left, String right, String description) {
@@ -1750,6 +2209,8 @@ public final class HorizonConfigScreen extends Screen {
             case 16 -> config().getSecretColorLever();
             case 17 -> config().getDoorColorHasKey();
             case 18 -> config().getDoorColorNoKey();
+            case 19 -> config().getEnchantGradientColorA();
+            case 20 -> config().getEnchantGradientColorB();
             default -> 0xFFFFFF;
         };
     }
@@ -1775,6 +2236,8 @@ public final class HorizonConfigScreen extends Screen {
             case 16 -> config().setSecretColorLever(color);
             case 17 -> config().setDoorColorHasKey(color);
             case 18 -> config().setDoorColorNoKey(color);
+            case 19 -> config().setEnchantGradientColorA(color);
+            case 20 -> config().setEnchantGradientColorB(color);
         }
         return color;
     }
@@ -1965,6 +2428,18 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Zeigt Waypoints auch durch Bloecke.", "Shows waypoints through blocks."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setSecretWaypointText(!config().isSecretWaypointText());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Zeigt die Kategorie-Beschriftung ueber jedem Waypoint.", "Shows the category label above each waypoint."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setBlessingHudEnabled(!config().isBlessingHudEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(BLESSING_HUD_DESC);
                 // "Secret Waypoints Config" dropdown header
                 if (handleDropdownHeader(mouseX, mouseY, viewport.x, y, "secretConfig")) yield true;
                 y += 24;
@@ -2069,6 +2544,12 @@ public final class HorizonConfigScreen extends Screen {
                 }
                 y += toggleRowHeight(Lang.t("Loesungen fuer Blaze, Boulder, Eis, Quiz, Wasser, Creeper Beams, Three Weirdos.", "Solutions for Blaze, Boulder, Ice Fill, Quiz, Water, Creeper Beams, Three Weirdos."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setPuzzleBlockWrongClicks(!config().isPuzzleBlockWrongClicks());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Blockiert Rechtsklicks auf falsche Quiz-Antwort-Bloecke.", "Blocks right-clicks on wrong quiz answer blocks."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setPuzzleSolverStyle((config().getPuzzleSolverStyle() + 1) % 3);
                     horizonClient.getConfigManager().save();
                     yield true;
@@ -2100,6 +2581,18 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += sliderRowHeight();
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setMelodyAnnounceEnabled(!config().isMelodyAnnounceEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(MELODY_ANNOUNCE_DESC);
+                if (rowRect(viewport.x, y, fieldRowHeight(MELODY_MSG_DESC)).contains(mouseX, mouseY)) {
+                    inputFocus = InputFocus.MELODY_MESSAGE;
+                    melodyMessageInput = config().getMelodyAnnounceMessage();
+                    yield true;
+                }
+                y += fieldRowHeight(MELODY_MSG_DESC);
                 // "Terminal Colors" dropdown header
                 if (handleDropdownHeader(mouseX, mouseY, viewport.x, y, "terminalColors")) yield true;
                 y += 24;
@@ -2133,6 +2626,12 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Blockiert Klicks auf falsche Simon-Says-Knoepfe.", "Blocks clicks on incorrect Simon Says buttons."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setSimonSaysInvertSneak(!config().isSimonSaysInvertSneak());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Sneak deaktiviert das Blockieren statt es zu aktivieren.", "Sneak disables blocking instead of enabling it."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setArrowAlignEnabled(!config().isArrowAlignEnabled());
                     horizonClient.getConfigManager().save();
@@ -2209,6 +2708,18 @@ public final class HorizonConfigScreen extends Screen {
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
+                y += toggleRowHeight(Lang.t("Zeigt den Terminal-Typ als Title beim Oeffnen und Annaehern.", "Shows the terminal type as a title on open and approach."));
+                y += 24; // "Custom Sounds" section title
+                for (int i = 0; i < SOUND_LABELS.length; i++) {
+                    if (rowRect(viewport.x, y, fieldRowHeight(SOUND_DESC)).contains(mouseX, mouseY)) {
+                        inputFocus = InputFocus.SOUND_EDIT;
+                        soundEditIndex = i;
+                        DungeonConfig.CustomSound s = soundByIndex(i);
+                        soundInput = s.sound + " " + trimF(s.volume) + " " + trimF(s.pitch);
+                        yield true;
+                    }
+                    y += fieldRowHeight(SOUND_DESC);
+                }
                 yield false;
             }
             case BOSS -> {
@@ -2227,11 +2738,33 @@ public final class HorizonConfigScreen extends Screen {
                 }
                 y += toggleRowHeight(Lang.t("Countdown bis zum naechsten Goldor-Damage-Tick (F7 P3).", "Countdown to next Goldor damage tick (F7 P3)."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setTickTimerMaxor(!config().isTickTimerMaxor()); horizonClient.getConfigManager().save(); yield true;
+                }
+                y += toggleRowHeight(TT_MAXOR_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setTickTimerStorm(!config().isTickTimerStorm()); horizonClient.getConfigManager().save(); yield true;
+                }
+                y += toggleRowHeight(TT_STORM_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setTickTimerGoldor(!config().isTickTimerGoldor()); horizonClient.getConfigManager().save(); yield true;
+                }
+                y += toggleRowHeight(TT_GOLDOR_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setTickTimerNecron(!config().isTickTimerNecron()); horizonClient.getConfigManager().save(); yield true;
+                }
+                y += toggleRowHeight(TT_NECRON_DESC);
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setPurplePadTimerEnabled(!config().isPurplePadTimerEnabled());
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setPadTimerEnabled(!config().isPadTimerEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(PAD_TIMER_DESC);
                 y += 24; // "M7 Dragons (P5)" section title
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setDragonEnabled(!config().isDragonEnabled());
@@ -2262,7 +2795,31 @@ public final class HorizonConfigScreen extends Screen {
                     horizonClient.getConfigManager().save();
                     yield true;
                 }
-                y += toggleRowHeight(Lang.t("Zeigt empfohlene Kill-Reihenfolge.", "Shows recommended kill order."));
+                y += toggleRowHeight(Lang.t("Power-basierte Kill-Reihenfolge.", "Power-based kill order."));
+                if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    activeSliderIndex = 22;
+                    applySliderValue(22, mouseX, viewport.x);
+                    yield true;
+                }
+                y += sliderRowHeight();
+                if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    activeSliderIndex = 23;
+                    applySliderValue(23, mouseX, viewport.x);
+                    yield true;
+                }
+                y += sliderRowHeight();
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setDragonSoloDebuff(config().getDragonSoloDebuff() == 1 ? 0 : 1);
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Wer nimmt den Purple-Debuff im Solo.", "Who takes the purple solo debuff."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setDragonSoloDebuffOnAll(!config().isDragonSoloDebuffOnAll());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Debuff-Regel auf alle Splits anwenden.", "Apply the debuff rule to all splits."));
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setDragonHealth(!config().isDragonHealth());
                     horizonClient.getConfigManager().save();
@@ -2288,6 +2845,12 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setRelicPlaceTimerEnabled(!config().isRelicPlaceTimerEnabled());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Zeigt im Chat, wie lange jedes Relic zum Platzieren gebraucht hat.", "Reports in chat how long each relic took to place."));
                 y += 24; // "F4 / M4 Spirit Bear" section title
                 if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
                     config().setSpiritBearTimerEnabled(!config().isSpiritBearTimerEnabled());
@@ -2549,6 +3112,12 @@ public final class HorizonConfigScreen extends Screen {
             return true;
         }
         y += toggleRowHeight(Lang.t("Leap-Ziel im Party-Chat ankuendigen.", "Announce leap destination in party chat."));
+        if (rowRect(viewport.x, y, fieldRowHeight(LEAP_MSG_DESC)).contains(mouseX, mouseY)) {
+            inputFocus = InputFocus.LEAP_MESSAGE;
+            leapMessageInput = config().getLeapMenuMessage();
+            return true;
+        }
+        y += fieldRowHeight(LEAP_MSG_DESC);
         if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
             config().setLeapMenuSortMode((config().getLeapMenuSortMode() + 1) % 3);
             horizonClient.getConfigManager().save();
@@ -3097,9 +3666,8 @@ public final class HorizonConfigScreen extends Screen {
             case GENERAL -> generalContentHeight();
             case HUD -> hudContentHeight();
             case DUNGEON -> dungeonContentHeight();
-            case PARTICLE -> particleContentHeight();
-            case MISC -> miscContentHeight();
             case DISPLAY -> displayContentHeight();
+            case HELPER -> helperContentHeight();
             case CHAT -> chatContentHeight();
             case MUSIC_CONTROL -> musicContentHeight();
             case SCOREBOARD -> scoreboardContentHeight();
@@ -3151,13 +3719,14 @@ public final class HorizonConfigScreen extends Screen {
         for (ReviveSource source : ReviveSource.values()) {
             addSearchResult(results, query, source.displayName(), "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, source.displayName() + " revive");
         }
-        addSearchResult(results, query, "Break Particles", "Particle", Tab.PARTICLE, null, "break particles block abbauen partikel");
-        addSearchResult(results, query, "Particle Suche", "Particle", Tab.PARTICLE, null, "particle suche filter");
-        addSearchResult(results, query, "Zeit HUD", "Misc", Tab.MISC, null, "zeit hud clock");
-        addSearchResult(results, query, "FPS / TPS / Ping", "Misc", Tab.MISC, null, "fps tps ping performance");
-        addSearchResult(results, query, "System HUD", "Misc", Tab.MISC, null, "system hud cpu gpu temperatur");
-        addSearchResult(results, query, "Defense Bar", "Misc", Tab.MISC, null, "defense bar ruestung armor");
-        addSearchResult(results, query, "Kompakte Herzen", "Misc", Tab.MISC, null, "kompakte herzen hypixel health herz absorption");
+        addSearchResult(results, query, "Break Particles", "Anzeige / Particle", Tab.DISPLAY, null, "break particles block abbauen partikel");
+        addSearchResult(results, query, "Particle Suche", "Anzeige / Particle", Tab.DISPLAY, null, "particle suche filter");
+        addSearchResult(results, query, "Zeit HUD", "Anzeige / Misc", Tab.DISPLAY, null, "zeit hud clock");
+        addSearchResult(results, query, "FPS / TPS / Ping", "Anzeige / Misc", Tab.DISPLAY, null, "fps tps ping performance");
+        addSearchResult(results, query, "System HUD", "Anzeige / Misc", Tab.DISPLAY, null, "system hud cpu gpu temperatur");
+        addSearchResult(results, query, "Defense Bar", "Anzeige / Misc", Tab.DISPLAY, null, "defense bar ruestung armor");
+        addSearchResult(results, query, "Kompakte Herzen", "Anzeige / Misc", Tab.DISPLAY, null, "kompakte herzen hypixel health herz absorption");
+        addSearchResult(results, query, "Experimentation Table", "Helper", Tab.HELPER, null, "experiment experimentation table superpairs solver helper");
         addSearchResult(results, query, "Rag Axe Notification", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "rag axe notification necron m7 phase dungeon");
         addSearchResult(results, query, "Damage Tick Timer", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "tick timer damage goldor f7 p3 dungeon");
         addSearchResult(results, query, "Starred Mobs", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "starred mobs highlight glow stern dungeon");
@@ -3480,6 +4049,7 @@ public final class HorizonConfigScreen extends Screen {
                 mapH += 24 // "Leap Menu" section title
                     + toggleRowHeight(Lang.t("Eigenes Quadranten-GUI fuer Spirit Leap.", "Custom quadrant GUI for Spirit Leap."))
                     + toggleRowHeight(Lang.t("Leap-Ziel im Party-Chat ankuendigen.", "Announce leap destination in party chat."))
+                    + fieldRowHeight(LEAP_MSG_DESC)
                     + toggleRowHeight(Lang.t("Klasse-Quadrant, Klasse A-Z oder Name A-Z.", "Class quadrant, class A-Z or name A-Z."));
                 yield mapH;
             }
@@ -3487,6 +4057,8 @@ public final class HorizonConfigScreen extends Screen {
                 int secH = 24 // "Secret Waypoints" section title
                     + toggleRowHeight(Lang.t("Zeigt Secret-Positionen im aktuellen Raum.", "Shows secret positions in the current room."))
                     + toggleRowHeight(Lang.t("Zeigt Waypoints auch durch Bloecke.", "Shows waypoints through blocks."))
+                    + toggleRowHeight(Lang.t("Zeigt die Kategorie-Beschriftung ueber jedem Waypoint.", "Shows the category label above each waypoint."))
+                    + toggleRowHeight(BLESSING_HUD_DESC)
                     + 24; // "Secret Waypoints Config" dropdown header
                 if (isDropdownOpen("secretConfig")) {
                     String[] catDesc = {
@@ -3515,6 +4087,7 @@ public final class HorizonConfigScreen extends Screen {
             }
             case PUZZLE_SOLVER -> 24
                 + toggleRowHeight(Lang.t("Loesungen fuer Blaze, Boulder, Eis, Quiz, Wasser, Creeper Beams, Three Weirdos.", "Solutions for Blaze, Boulder, Ice Fill, Quiz, Water, Creeper Beams, Three Weirdos."))
+                + toggleRowHeight(Lang.t("Blockiert Rechtsklicks auf falsche Quiz-Antwort-Bloecke.", "Blocks right-clicks on wrong quiz answer blocks."))
                 + toggleRowHeight(Lang.t("Render-Stil der Loesung.", "Render style of the solution."));
             case TERMINAL_SOLVER -> {
                 int th = 24
@@ -3522,6 +4095,8 @@ public final class HorizonConfigScreen extends Screen {
                     + toggleRowHeight(Lang.t("Darstellung der markierten Slots.", "Appearance of the highlighted slots."))
                     + toggleRowHeight(Lang.t("Zeigt die Klick-Reihenfolge als Zahl im Order-Terminal.", "Shows the click order as a number in the Order terminal."))
                     + sliderRowHeight()
+                    + toggleRowHeight(MELODY_ANNOUNCE_DESC)
+                    + fieldRowHeight(MELODY_MSG_DESC)
                     + 24; // "Terminal Colors" dropdown header
                 if (isDropdownOpen("terminalColors")) {
                     th += toggleRowHeight(Lang.t("Wenn an, werden die Solver-Farben automatisch aus der HUD-Farbe abgeleitet. Wenn aus, greifen die Farb-Einstellungen unten.", "When on, solver colours derive automatically from the HUD color. When off, the color settings below apply."));
@@ -3530,6 +4105,7 @@ public final class HorizonConfigScreen extends Screen {
                 th += 24 // "Device" section title
                     + toggleRowHeight(Lang.t("Hebt die korrekte Schaltflaechen-Reihenfolge beim Goldor-Device hervor.", "Highlights the correct button sequence for the Goldor device."))
                     + toggleRowHeight(Lang.t("Blockiert Klicks auf falsche Simon-Says-Knoepfe.", "Blocks clicks on incorrect Simon Says buttons."))
+                    + toggleRowHeight(Lang.t("Sneak deaktiviert das Blockieren statt es zu aktivieren.", "Sneak disables blocking instead of enabling it."))
                     + toggleRowHeight(Lang.t("Zeigt Klickanzahl fuer jede Pfeil-Bilderrahmen.", "Shows click count for each arrow item frame."))
                     + toggleRowHeight(Lang.t("Dynamisch faerbt nach Klickanzahl (gruen/orange/rot).", "Dynamic colours by click count (green/orange/red)."))
                     + termColorSwatchHeight(13)
@@ -3542,25 +4118,35 @@ public final class HorizonConfigScreen extends Screen {
                     + sliderRowHeight()
                     + 24 // "Waypoints & Titles" section title
                     + toggleRowHeight(Lang.t("Markiert entdeckte Terminal-Positionen im Raum.", "Highlights discovered terminal positions in the room."))
-                    + toggleRowHeight(Lang.t("Zeigt den Terminal-Typ als Title beim Oeffnen und Annaehern.", "Shows the terminal type as a title on open and approach."));
+                    + toggleRowHeight(Lang.t("Zeigt den Terminal-Typ als Title beim Oeffnen und Annaehern.", "Shows the terminal type as a title on open and approach."))
+                    + 24 // "Custom Sounds" section title
+                    + SOUND_LABELS.length * fieldRowHeight(SOUND_DESC);
                 yield th;
             }
             case BOSS -> 24 // "General" section title
                 + toggleRowHeight(Lang.t("Zeigt Blood-Room-Fortschritt und Timer an.", "Shows blood room wave progress and timer."))
                 + 24 // "F7" section title
                 + toggleRowHeight(Lang.t("Countdown bis zum naechsten Goldor-Damage-Tick (F7 P3).", "Countdown to next Goldor damage tick (F7 P3)."))
+                + toggleRowHeight(TT_MAXOR_DESC) + toggleRowHeight(TT_STORM_DESC)
+                + toggleRowHeight(TT_GOLDOR_DESC) + toggleRowHeight(TT_NECRON_DESC)
                 + toggleRowHeight(Lang.t("Countdown bis zum Purple-Pad-Zeitpunkt (F7 P2).", "Countdown until purple pad timing (F7 P2)."))
+                + toggleRowHeight(PAD_TIMER_DESC)
                 + 24 // "M7 Dragons (P5)" section title
                 + toggleRowHeight(Lang.t("Zeigt Dragon-Spawn-Prioritaet, Boxen und Timer in M7 P5.", "Shows dragon spawn priority, boxes and timer in M7 P5."))
                 + toggleRowHeight(Lang.t("Zeigt farbige Boxen an den Spawn-Positionen.", "Shows colored boxes at spawn positions."))
                 + toggleRowHeight(Lang.t("Zeigt Countdown bis zum Spawn.", "Shows countdown until spawn."))
                 + toggleRowHeight(Lang.t("Zeigt Spawn-Warnung im Chat.", "Shows spawn alert in chat."))
-                + toggleRowHeight(Lang.t("Zeigt empfohlene Kill-Reihenfolge.", "Shows recommended kill order."))
+                + toggleRowHeight(Lang.t("Power-basierte Kill-Reihenfolge.", "Power-based kill order."))
+                + sliderRowHeight()
+                + sliderRowHeight()
+                + toggleRowHeight(Lang.t("Wer nimmt den Purple-Debuff im Solo.", "Who takes the purple solo debuff."))
+                + toggleRowHeight(Lang.t("Debuff-Regel auf alle Splits anwenden.", "Apply the debuff rule to all splits."))
                 + toggleRowHeight(Lang.t("Zeigt das Leben jedes Drachen ueber der Box.", "Shows each dragon's health above its box."))
                 + toggleRowHeight(Lang.t("Linie zum Prioritaets-Drachen.", "Line to the priority dragon."))
                 + toggleRowHeight(Lang.t("Rag!-Titel wenn Necron 'I no longer wish to fight...' sagt (M7).", "Shows Rag! title when Necron says 'I no longer wish to fight...' (M7)."))
                 + 24 // "M7 Relic Timer" section title
                 + toggleRowHeight(Lang.t("Countdown bis zum Relic-Spawn nach Necron.", "Countdown until relic spawn after Necron."))
+                + toggleRowHeight(Lang.t("Zeigt im Chat, wie lange jedes Relic zum Platzieren gebraucht hat.", "Reports in chat how long each relic took to place."))
                 + 24 // "F4 / M4 Spirit Bear" section title
                 + toggleRowHeight(Lang.t("Fortschritt und Countdown bis zum Spirit Bear Spawn.", "Progress and countdown until Spirit Bear spawn."))
                 + toggleRowHeight(Lang.t("Spirit Bear per Glow hervorheben.", "Highlight Spirit Bear with glow."))
@@ -3824,9 +4410,8 @@ public final class HorizonConfigScreen extends Screen {
         GENERAL("General"),
         HUD("HUD"),
         DUNGEON("Dungeons"),
-        PARTICLE("Particle"),
-        MISC("Misc"),
         DISPLAY("Anzeige"),
+        HELPER("Helper"),
         CHAT("Chat"),
         MUSIC_CONTROL("Music Control"),
         SCOREBOARD("Scoreboard"),
@@ -3884,6 +4469,8 @@ public final class HorizonConfigScreen extends Screen {
 
     private enum DisplaySection {
         GENERAL("General"),
+        MISC("Misc"),
+        PARTICLE("Particle"),
         ANIMATIONS("Animationen"),
         NO_RENDER("NoRender"),
         HELPERS("Helpers");
@@ -3897,6 +4484,7 @@ public final class HorizonConfigScreen extends Screen {
 
     private enum InventorySection {
         GENERAL("General"),
+        COMMANDS("Commands"),
         INVENTORY_BUTTONS("Inventory Buttons");
 
         private final String label;
@@ -3916,7 +4504,14 @@ public final class HorizonConfigScreen extends Screen {
         SLOT_BIND_KEY,
         CMD_KEY_PETS,
         CMD_KEY_EQUIPMENT,
-        CMD_KEY_WARDROBE
+        CMD_KEY_WARDROBE,
+        CMD_KEY_LOADOUTS,
+        CMD_KEY_STATS,
+        CUSTOM_CMD_TEXT,
+        CUSTOM_CMD_KEY,
+        LEAP_MESSAGE,
+        SOUND_EDIT,
+        MELODY_MESSAGE
     }
 
     private record Rect(int x, int y, int width, int height) {

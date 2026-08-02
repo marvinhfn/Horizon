@@ -167,6 +167,8 @@ public final class HorizonConfig {
 
     public boolean isLeapMenuAnnounce() { return dungeon.leapMenuAnnounce; }
     public void setLeapMenuAnnounce(boolean v) { dungeon.leapMenuAnnounce = v; }
+    public String getLeapMenuMessage() { return dungeon.leapMenuMessage == null ? "" : dungeon.leapMenuMessage; }
+    public void setLeapMenuMessage(String v) { dungeon.leapMenuMessage = v; }
 
     public int getLeapMenuSortMode() { return dungeon.leapMenuSortMode; }
     public void setLeapMenuSortMode(int v) { dungeon.leapMenuSortMode = Math.max(0, Math.min(2, v)); }
@@ -197,6 +199,8 @@ public final class HorizonConfig {
 
     public boolean isWardrobeKeybindsEnabled() { return dungeon.wardrobeKeybindsEnabled; }
     public void setWardrobeKeybindsEnabled(boolean v) { dungeon.wardrobeKeybindsEnabled = v; }
+    public boolean isLoadoutKeybindsEnabled() { return dungeon.loadoutKeybindsEnabled; }
+    public void setLoadoutKeybindsEnabled(boolean v) { dungeon.loadoutKeybindsEnabled = v; }
 
     public boolean isSlotBindsEnabled() { return dungeon.slotBindsEnabled; }
     public void setSlotBindsEnabled(boolean v) { dungeon.slotBindsEnabled = v; }
@@ -235,16 +239,44 @@ public final class HorizonConfig {
 
     public int getCommandKeybindWardrobe() { return dungeon.commandKeybindWardrobe; }
     public void setCommandKeybindWardrobe(int v) { dungeon.commandKeybindWardrobe = v; }
+    public int getCommandKeybindLoadouts() { return dungeon.commandKeybindLoadouts; }
+    public void setCommandKeybindLoadouts(int v) { dungeon.commandKeybindLoadouts = v; }
+    public int getCommandKeybindStats() { return dungeon.commandKeybindStats; }
+    public void setCommandKeybindStats(int v) { dungeon.commandKeybindStats = v; }
+
+    public java.util.List<DungeonConfig.CustomCmd> getCustomCommandKeybinds() { return dungeon.customCommandKeybinds; }
+    public void addCustomCommandKeybind(String command) {
+        DungeonConfig.CustomCmd c = new DungeonConfig.CustomCmd();
+        c.command = command;
+        c.key = -1;
+        dungeon.customCommandKeybinds.add(c);
+    }
+    public void removeCustomCommandKeybind(int i) {
+        if (i >= 0 && i < dungeon.customCommandKeybinds.size()) dungeon.customCommandKeybinds.remove(i);
+    }
+    public void setCustomCommandKey(int i, int key) {
+        if (i >= 0 && i < dungeon.customCommandKeybinds.size()) dungeon.customCommandKeybinds.get(i).key = key;
+    }
 
     public boolean isTickTimerEnabled() { return dungeon.tickTimerEnabled; }
     public void setTickTimerEnabled(boolean v) { dungeon.tickTimerEnabled = v; }
     public boolean isTickTimerSendToChat() { return dungeon.tickTimerSendToChat; }
     public void setTickTimerSendToChat(boolean v) { dungeon.tickTimerSendToChat = v; }
+    public boolean isTickTimerMaxor() { return dungeon.tickTimerMaxor; }
+    public void setTickTimerMaxor(boolean v) { dungeon.tickTimerMaxor = v; }
+    public boolean isTickTimerStorm() { return dungeon.tickTimerStorm; }
+    public void setTickTimerStorm(boolean v) { dungeon.tickTimerStorm = v; }
+    public boolean isTickTimerGoldor() { return dungeon.tickTimerGoldor; }
+    public void setTickTimerGoldor(boolean v) { dungeon.tickTimerGoldor = v; }
+    public boolean isTickTimerNecron() { return dungeon.tickTimerNecron; }
+    public void setTickTimerNecron(boolean v) { dungeon.tickTimerNecron = v; }
 
     public boolean isPuzzleSolverEnabled() { return dungeon.puzzleSolverEnabled; }
     public void setPuzzleSolverEnabled(boolean v) { dungeon.puzzleSolverEnabled = v; }
     public int getPuzzleSolverStyle() { return dungeon.puzzleSolverStyle; }
     public void setPuzzleSolverStyle(int v) { dungeon.puzzleSolverStyle = Math.max(0, Math.min(2, v)); }
+    public boolean isPuzzleBlockWrongClicks() { return dungeon.puzzleBlockWrongClicks; }
+    public void setPuzzleBlockWrongClicks(boolean v) { dungeon.puzzleBlockWrongClicks = v; }
 
     public boolean isTerminalSolverEnabled() { return dungeon.terminalSolverEnabled; }
     public void setTerminalSolverEnabled(boolean v) { dungeon.terminalSolverEnabled = v; }
@@ -291,6 +323,8 @@ public final class HorizonConfig {
     public void setSimonSaysEnabled(boolean v) { dungeon.simonSaysEnabled = v; }
     public boolean isSimonSaysBlockWrongClicks() { return dungeon.simonSaysBlockWrongClicks; }
     public void setSimonSaysBlockWrongClicks(boolean v) { dungeon.simonSaysBlockWrongClicks = v; }
+    public boolean isSimonSaysInvertSneak() { return dungeon.simonSaysInvertSneak; }
+    public void setSimonSaysInvertSneak(boolean v) { dungeon.simonSaysInvertSneak = v; }
     public boolean isArrowAlignEnabled() { return dungeon.arrowAlignEnabled; }
     public void setArrowAlignEnabled(boolean v) { dungeon.arrowAlignEnabled = v; }
     public int getArrowAlignColorStyle() { return dungeon.arrowAlignColorStyle; }
@@ -313,6 +347,21 @@ public final class HorizonConfig {
     public void setSharpShooterDoneScale(float v) { dungeon.sharpShooterDoneScale = Math.max(0.5f, Math.min(12f, v)); }
     public boolean isPurplePadTimerEnabled() { return dungeon.purplePadTimerEnabled; }
     public void setPurplePadTimerEnabled(boolean v) { dungeon.purplePadTimerEnabled = v; }
+    public boolean isPadTimerEnabled() { return dungeon.padTimerEnabled; }
+    public void setPadTimerEnabled(boolean v) { dungeon.padTimerEnabled = v; }
+
+    public DungeonConfig.CustomSound getSecretSound() { return dungeon.secretSound; }
+    public DungeonConfig.CustomSound getTerminalClickSound() { return dungeon.terminalClickSound; }
+    public DungeonConfig.CustomSound getSimonSaysSound() { return dungeon.simonSaysSound; }
+    public DungeonConfig.CustomSound getLeverSound() { return dungeon.leverSound; }
+    public DungeonConfig.CustomSound getArrowAlignSound() { return dungeon.arrowAlignSound; }
+    public DungeonConfig.CustomSound getSharpShooterSound() { return dungeon.sharpShooterSound; }
+    public DungeonConfig.CustomSound getEtherwarpSound() { return dungeon.etherwarpSound; }
+
+    public boolean isMelodyAnnounceEnabled() { return dungeon.melodyAnnounceEnabled; }
+    public void setMelodyAnnounceEnabled(boolean v) { dungeon.melodyAnnounceEnabled = v; }
+    public String getMelodyAnnounceMessage() { return dungeon.melodyAnnounceMessage == null ? "" : dungeon.melodyAnnounceMessage; }
+    public void setMelodyAnnounceMessage(String v) { dungeon.melodyAnnounceMessage = v; }
 
     public boolean isDungeonMapEnabled() { return dungeon.dungeonMapEnabled; }
     public void setDungeonMapEnabled(boolean v) { dungeon.dungeonMapEnabled = v; }
@@ -369,6 +418,8 @@ public final class HorizonConfig {
     public void setSecretShowLever(boolean v) { dungeon.secretShowLever = v; }
     public boolean isSecretWaypointsThroughWalls() { return dungeon.secretWaypointsThroughWalls; }
     public void setSecretWaypointsThroughWalls(boolean v) { dungeon.secretWaypointsThroughWalls = v; }
+    public boolean isSecretWaypointText() { return dungeon.secretWaypointText; }
+    public void setSecretWaypointText(boolean v) { dungeon.secretWaypointText = v; }
 
     public boolean isSecretCategoryEnabled(de.horizon.feature.dungeon.secret.SecretType type) {
         return switch (type) {
@@ -419,6 +470,8 @@ public final class HorizonConfig {
 
     public boolean isDungeonScoreEnabled() { return dungeon.dungeonScoreEnabled; }
     public void setDungeonScoreEnabled(boolean v) { dungeon.dungeonScoreEnabled = v; }
+    public boolean isBlessingHudEnabled() { return dungeon.blessingHudEnabled; }
+    public void setBlessingHudEnabled(boolean v) { dungeon.blessingHudEnabled = v; }
     public boolean isDungeonScoreTitle() { return dungeon.dungeonScoreTitle; }
     public void setDungeonScoreTitle(boolean v) { dungeon.dungeonScoreTitle = v; }
     public boolean isDungeonScoreShowInBoss() { return dungeon.dungeonScoreShowInBoss; }
@@ -442,9 +495,19 @@ public final class HorizonConfig {
     public void setDragonSplitPrio(String v) { dungeon.dragonSplitPrio = v == null ? "ogrbp" : v; }
     public String getDragonNoSplitPrio() { return dungeon.dragonNoSplitPrio == null ? "robpg" : dungeon.dragonNoSplitPrio; }
     public void setDragonNoSplitPrio(String v) { dungeon.dragonNoSplitPrio = v == null ? "robpg" : v; }
+    public float getDragonNormalPower() { return dungeon.dragonNormalPower; }
+    public void setDragonNormalPower(float v) { dungeon.dragonNormalPower = v; }
+    public float getDragonEasyPower() { return dungeon.dragonEasyPower; }
+    public void setDragonEasyPower(float v) { dungeon.dragonEasyPower = v; }
+    public int getDragonSoloDebuff() { return dungeon.dragonSoloDebuff; }
+    public void setDragonSoloDebuff(int v) { dungeon.dragonSoloDebuff = v; }
+    public boolean isDragonSoloDebuffOnAll() { return dungeon.dragonSoloDebuffOnAll; }
+    public void setDragonSoloDebuffOnAll(boolean v) { dungeon.dragonSoloDebuffOnAll = v; }
 
     public boolean isRelicTimerEnabled() { return dungeon.relicTimerEnabled; }
     public void setRelicTimerEnabled(boolean v) { dungeon.relicTimerEnabled = v; }
+    public boolean isRelicPlaceTimerEnabled() { return dungeon.relicPlaceTimerEnabled; }
+    public void setRelicPlaceTimerEnabled(boolean v) { dungeon.relicPlaceTimerEnabled = v; }
 
     public boolean isMimicDetectionEnabled() { return dungeon.mimicDetectionEnabled; }
     public void setMimicDetectionEnabled(boolean v) { dungeon.mimicDetectionEnabled = v; }
@@ -808,6 +871,39 @@ public final class HorizonConfig {
     public void setFrontCamDisabled(boolean v) { display.frontCamDisabled = v; }
     public boolean isSoulweaverSkullsHidden() { return display.soulweaverSkullsHidden; }
     public void setSoulweaverSkullsHidden(boolean v) { display.soulweaverSkullsHidden = v; }
+
+    public boolean isExperimentSolverEnabled() { return display.experimentSolverEnabled; }
+    public void setExperimentSolverEnabled(boolean v) { display.experimentSolverEnabled = v; }
+    public boolean isCroesusProfitEnabled() { return display.croesusProfitEnabled; }
+    public void setCroesusProfitEnabled(boolean v) { display.croesusProfitEnabled = v; }
+    public boolean isStorageOverlayEnabled() { return display.storageOverlayEnabled; }
+    public void setStorageOverlayEnabled(boolean v) { display.storageOverlayEnabled = v; }
+    public boolean isHideHudOnTab() { return display.hideHudOnTab; }
+    public void setHideHudOnTab(boolean v) { display.hideHudOnTab = v; }
+    public boolean isHideStatusEffects() { return display.hideStatusEffects; }
+    public void setHideStatusEffects(boolean v) { display.hideStatusEffects = v; }
+    public boolean isBazaarValueTooltip() { return display.bazaarValueTooltip; }
+    public void setBazaarValueTooltip(boolean v) { display.bazaarValueTooltip = v; }
+    public boolean isAuctionValueTooltip() { return display.auctionValueTooltip; }
+    public void setAuctionValueTooltip(boolean v) { display.auctionValueTooltip = v; }
+    public boolean isItemPriceTooltip() { return display.itemPriceTooltip; }
+    public void setItemPriceTooltip(boolean v) { display.itemPriceTooltip = v; }
+    public boolean isStackValueOnShift() { return display.stackValueOnShift; }
+    public void setStackValueOnShift(boolean v) { display.stackValueOnShift = v; }
+    public boolean isEnchantGradient() { return display.enchantGradient; }
+    public void setEnchantGradient(boolean v) { display.enchantGradient = v; }
+    public int getEnchantGradientMode() { return display.enchantGradientMode; }
+    public void setEnchantGradientMode(int v) { display.enchantGradientMode = ((v % 3) + 3) % 3; }
+    public int getEnchantGradientColorA() { return display.enchantGradientColorA; }
+    public void setEnchantGradientColorA(int v) { display.enchantGradientColorA = v; }
+    public int getEnchantGradientColorB() { return display.enchantGradientColorB; }
+    public void setEnchantGradientColorB(int v) { display.enchantGradientColorB = v; }
+    public boolean isScrollableTooltips() { return display.scrollableTooltips; }
+    public void setScrollableTooltips(boolean v) { display.scrollableTooltips = v; }
+    public float getTooltipScale() { return display.tooltipScale; }
+    public void setTooltipScale(float v) { display.tooltipScale = Math.max(0.5f, Math.min(3.0f, v)); }
+    public boolean isPetHighlightEnabled() { return display.petHighlight; }
+    public void setPetHighlightEnabled(boolean v) { display.petHighlight = v; }
 
     private static double clamp(double v, double min, double max) {
         return Math.max(min, Math.min(max, v));

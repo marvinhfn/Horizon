@@ -126,11 +126,13 @@ public final class HorizonClient implements ClientModInitializer {
     private final LeapMenuOverlay leapMenuOverlay = new LeapMenuOverlay();
     private final EtherwarpHelperService etherwarpHelperService = new EtherwarpHelperService();
     private final WardrobeKeybindService wardrobeKeybindService = new WardrobeKeybindService();
+    private final de.horizon.feature.misc.LoadoutKeybindService loadoutKeybindService = new de.horizon.feature.misc.LoadoutKeybindService();
     private final SlotBindService slotBindService = new SlotBindService();
     private final ChatCommandService chatCommandService = new ChatCommandService(pingService, tpsTracker, spotifyService);
     private final TickTimerService tickTimerService = new TickTimerService();
     private final PuzzleSolverService puzzleSolverService = new PuzzleSolverService();
     private final TerminalSolverService terminalSolverService = new TerminalSolverService();
+    private final de.horizon.feature.helper.ExperimentTableSolver experimentTableSolver = new de.horizon.feature.helper.ExperimentTableSolver();
     private final de.horizon.feature.dungeon.terminal.TerminalWaypointService terminalWaypointService = new de.horizon.feature.dungeon.terminal.TerminalWaypointService();
     private final SimonSaysService simonSaysService = new SimonSaysService();
     private final ArrowAlignService arrowAlignService = new ArrowAlignService();
@@ -142,11 +144,18 @@ public final class HorizonClient implements ClientModInitializer {
     private final RelicTimerService relicTimerService = new RelicTimerService();
     private final MimicService mimicService = new MimicService();
     private final SpiritBearService spiritBearService = new SpiritBearService();
+    private final de.horizon.feature.dungeon.SoulweaverService soulweaverService = new de.horizon.feature.dungeon.SoulweaverService();
     private final DungeonMapService dungeonMapService = new DungeonMapService();
     private final DoorEspService doorEspService = new DoorEspService();
     private final TeammateGlowService teammateGlowService = new TeammateGlowService();
     private final de.horizon.feature.skyblock.MayorService mayorService = new de.horizon.feature.skyblock.MayorService();
+    private final de.horizon.feature.skyblock.SkyblockPriceService priceService = new de.horizon.feature.skyblock.SkyblockPriceService();
+    private final de.horizon.feature.dungeon.ChestProfitService chestProfitService = new de.horizon.feature.dungeon.ChestProfitService(priceService);
+    private final de.horizon.feature.skyblock.ItemCraftValueService craftValueService = new de.horizon.feature.skyblock.ItemCraftValueService(priceService);
+    private final de.horizon.feature.inventory.PetHighlightService petHighlightService = new de.horizon.feature.inventory.PetHighlightService();
     private final de.horizon.feature.dungeon.secret.SecretWaypointService secretWaypointService = new de.horizon.feature.dungeon.secret.SecretWaypointService();
+    private final de.horizon.feature.storage.StorageOverlayService storageOverlayService = new de.horizon.feature.storage.StorageOverlayService();
+    private final de.horizon.feature.waypoint.WaypointService waypointService = new de.horizon.feature.waypoint.WaypointService();
     private boolean quizColoringSending = false;
     private KeyMapping openConfigKeyBinding;
     private Screen pendingScreen;
@@ -155,6 +164,12 @@ public final class HorizonClient implements ClientModInitializer {
     public static HorizonClient getInstance() {
         return instance;
     }
+
+    // Real server-tick counter (incremented once per bundle packet = once per server tick). HUD timers
+    // anchor to this so they freeze when the server tick freezes instead of running on client time.
+    private static volatile long serverTicks = 0L;
+    public static void onServerTick() { serverTicks++; }
+    public static long serverTicks() { return serverTicks; }
 
     @Override
     public void onInitializeClient() {
@@ -172,8 +187,11 @@ public final class HorizonClient implements ClientModInitializer {
         hudRegistry.register(new PurplePadTimerHudElement(purplePadTimerService));
         hudRegistry.register(new DungeonMapHudElement(dungeonMapService, dungeonStateService, teammateGlowService));
         hudRegistry.register(new DungeonScoreHudElement(dungeonScoreService, dungeonStateService));
+        hudRegistry.register(new de.horizon.hud.BlessingHudElement(dungeonStateService));
+        waypointService.wire(dungeonStateService, dungeonRoomDetector);
         hudRegistry.register(new RelicTimerHudElement(relicTimerService));
         hudRegistry.register(new SpiritBearTimerHudElement(spiritBearService));
+        hudRegistry.register(new de.horizon.hud.DragonSpawnHudElement(dragonService, configManager));
         openConfigKeyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.horizon.open_config",
             InputConstants.Type.KEYSYM,
@@ -199,15 +217,28 @@ public final class HorizonClient implements ClientModInitializer {
             safeRender("sharpShooter", () -> sharpShooterService.renderWorld(context, configManager.getConfig()));
             safeRender("bloodCamper", () -> bloodCamperService.renderWorld(context, Minecraft.getInstance(), configManager.getConfig().isBloodCamperEnabled()));
             safeRender("dragon", () -> dragonService.renderWorld(context, configManager.getConfig()));
+            safeRender("relic", () -> relicTimerService.renderWorld(context, dungeonStateService, configManager.getConfig()));
             safeRender("doorEsp", () -> doorEspService.renderWorld(context, configManager.getConfig(), dungeonStateService.isInDungeon(), dungeonStateService.isInBoss()));
             safeRender("secretWaypoint", () -> secretWaypointService.renderWorld(context, configManager.getConfig(), dungeonRoomDetector, dungeonStateService.isInDungeon(), dungeonStateService.isInBoss()));
             safeRender("terminalWaypoint", () -> terminalWaypointService.renderWorld(context, configManager.getConfig()));
             safeRender("starredMobs", () -> renderStarredMobHighlights(context));
+            safeRender("waypoints", () -> waypointService.renderWorld(context));
         });
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
+        // Item tooltips: append price/craft lines and recolour maxed enchants. Uses the Fabric callback
+        // (fires at the end of the vanilla tooltip build) rather than a mixin, for mod compatibility.
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register(
+            (stack, tooltipContext, tooltipType, tooltipLines) -> decorateTooltip(stack, tooltipLines));
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
             String raw = message.getString();
             dungeonStateService.handleChatMessage(raw);
+            // Fresh instance: the boss warp keeps the map/rooms (JOIN doesn't reset them), so a NEW
+            // run must drop the previous run's map + room calibration here — otherwise run 2+ is stuck
+            // on stale state until something re-syncs near the boss.
+            if (raw.toLowerCase(java.util.Locale.ROOT).contains("dungeon starts in")) {
+                dungeonMapService.reset();
+                dungeonRoomDetector.reset();
+            }
             dungeonRoomDetector.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
             fishingAlertService.handleChatMessage(raw, configManager.getConfig());
@@ -216,6 +247,7 @@ public final class HorizonClient implements ClientModInitializer {
             handleTickTimerMessage(raw);
             puzzleSolverService.handleChatMessage(raw, Minecraft.getInstance());
             simonSaysService.handleChatMessage(raw);
+            sharpShooterService.handleChatMessage(raw, configManager.getConfig());
             bloodCamperService.handleChatMessage(raw, configManager.getConfig().isBloodCamperEnabled());
             dungeonScoreService.handleChatMessage(raw);
             dragonService.handleChatMessage(raw, dungeonStateService);
@@ -241,6 +273,13 @@ public final class HorizonClient implements ClientModInitializer {
         ClientReceiveMessageEvents.ALLOW_CHAT.register((message, signedMessage, sender, params, receptionTimestamp) -> {
             String raw = message.getString();
             dungeonStateService.handleChatMessage(raw);
+            // Fresh instance: the boss warp keeps the map/rooms (JOIN doesn't reset them), so a NEW
+            // run must drop the previous run's map + room calibration here — otherwise run 2+ is stuck
+            // on stale state until something re-syncs near the boss.
+            if (raw.toLowerCase(java.util.Locale.ROOT).contains("dungeon starts in")) {
+                dungeonMapService.reset();
+                dungeonRoomDetector.reset();
+            }
             dungeonRoomDetector.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
             fishingAlertService.handleChatMessage(raw, configManager.getConfig());
@@ -248,6 +287,7 @@ public final class HorizonClient implements ClientModInitializer {
             handleTickTimerMessage(raw);
             puzzleSolverService.handleChatMessage(raw, Minecraft.getInstance());
             simonSaysService.handleChatMessage(raw);
+            sharpShooterService.handleChatMessage(raw, configManager.getConfig());
             bloodCamperService.handleChatMessage(raw, configManager.getConfig().isBloodCamperEnabled());
             dungeonScoreService.handleChatMessage(raw);
             dragonService.handleChatMessage(raw, dungeonStateService);
@@ -271,15 +311,25 @@ public final class HorizonClient implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             inventoryButtonService.onDisconnect();
-            resetDungeonServices();
+            resetDungeonServices(true);
         });
+        // A JOIN also fires on the in-dungeon boss warp (a server transfer). Do NOT reset the dungeon
+        // STATE there, or the map/puzzle/renders would blank on every boss warp — the tick latch and
+        // the "dungeon starts" chat handle genuine instance changes instead.
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
-            resetDungeonServices());
+            resetDungeonServices(false));
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !executeLocalCommand(command, Minecraft.getInstance() == null ? null : Minecraft.getInstance().screen));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
             dispatcher.register(ClientCommands.literal("horizon")
                 .then(ClientCommands.literal("lookcords")
                     .executes(context -> { toggleLookCoords(); return 1; }))
+                .then(ClientCommands.literal("waypoints")
+                    .executes(context -> {
+                        pendingScreen = new de.horizon.screen.WaypointScreen(null, waypointService, null);
+                        return 1;
+                    }))
+                .then(ClientCommands.literal("price")
+                    .executes(context -> { printHeldItemPrice(); return 1; }))
                 .executes(context -> {
                     openConfigScreen(null);
                     return 1;
@@ -377,11 +427,17 @@ public final class HorizonClient implements ClientModInitializer {
         sharpShooterService.tick(client, configManager.getConfig());
         terminalWaypointService.tick(client, configManager.getConfig(), dungeonStateService.isInDungeon());
         dungeonScoreService.tick(client, dungeonStateService);
-        dragonService.tick(client, dungeonStateService, configManager.getConfig());
-        relicTimerService.tick();
+        dragonService.tick(client, dungeonStateService, teammateGlowService, configManager.getConfig());
+        relicTimerService.tick(client, dungeonStateService, configManager.getConfig());
         spiritBearService.tick(client, configManager.getConfig());
+        if (configManager.getConfig().isSoulweaverSkullsHidden()) soulweaverService.tick(client);
         teammateGlowService.tick(client, dungeonStateService.isInDungeon());
         mayorService.tick();
+        var pcfg = configManager.getConfig();
+        if (pcfg.isCroesusProfitEnabled() || pcfg.isItemPriceTooltip()
+                || pcfg.isBazaarValueTooltip() || pcfg.isAuctionValueTooltip()) {
+            priceService.tick();
+        }
         if (dungeonStateService.isInDungeon()) {
             StarredMobService.tick(client);
             bloodCamperService.tick(client);
@@ -410,6 +466,13 @@ public final class HorizonClient implements ClientModInitializer {
         checkAndFireKey(window, configManager.getConfig().getCommandKeybindPets(), "pets");
         checkAndFireKey(window, configManager.getConfig().getCommandKeybindEquipment(), "equipment");
         checkAndFireKey(window, configManager.getConfig().getCommandKeybindWardrobe(), "wardrobe");
+        checkAndFireKey(window, configManager.getConfig().getCommandKeybindLoadouts(), "loadouts");
+        checkAndFireKey(window, configManager.getConfig().getCommandKeybindStats(), "stats");
+        for (var c : configManager.getConfig().getCustomCommandKeybinds()) {
+            if (c.key >= 0 && c.command != null && !c.command.isBlank()) {
+                checkAndFireKey(window, c.key, c.command.startsWith("/") ? c.command.substring(1) : c.command);
+            }
+        }
     }
 
     private void checkAndFireKey(long window, int keyCode, String command) {
@@ -513,13 +576,30 @@ public final class HorizonClient implements ClientModInitializer {
     }
 
     private void resetDungeonServices() {
-        dungeonStateService.onWorldChange();
-        dungeonRoomDetector.reset();
+        resetDungeonServices(true);
+    }
+
+    /**
+     * @param resetState when false (a JOIN, i.e. possibly the boss warp) the dungeon STATE
+     *     (inDungeon/inBoss/floor/phase) is preserved so renders survive the warp; the per-encounter
+     *     services still reset and refill from the new instance's packets/chat.
+     */
+    private void resetDungeonServices(boolean resetState) {
+        // A JOIN/warp while NOT already in a dungeon = entering a fresh instance from the hub/another
+        // island → clear the map + rooms IMMEDIATELY (so the previous run's map doesn't show until the
+        // "dungeon starts in" countdown). A JOIN while already in a dungeon = the mid-run boss warp →
+        // keep the map so it stays constant across that transfer.
+        boolean newInstanceWarp = !resetState && !dungeonStateService.isInDungeon();
+        if (resetState) dungeonStateService.onWorldChange();
+        else dungeonStateService.onWarp(); // JOIN/server-transfer = a warp → clear the boss latch
+        if (resetState || newInstanceWarp) {
+            dungeonRoomDetector.reset();
+            dungeonMapService.reset();
+        }
         StarredMobService.onWorldChange();
         teammateGlowService.onWorldChange();
         doorEspService.reset();
         secretWaypointService.reset();
-        dungeonMapService.reset();
         tickTimerService.reset();
         purplePadTimerService.reset();
         simonSaysService.reset();
@@ -532,6 +612,7 @@ public final class HorizonClient implements ClientModInitializer {
         dragonService.reset();
         relicTimerService.reset();
         spiritBearService.reset();
+        soulweaverService.reset();
         mimicService.reset();
     }
 
@@ -543,11 +624,14 @@ public final class HorizonClient implements ClientModInitializer {
         dragonService.onDragonParticle(x, z);
     }
 
-    public void onMapItemData(byte[] colors, Iterable<MapDecoration> decorations, int centerX, int centerZ, byte scale) {
+    public void onTabFooter(String footer) {
+        dungeonStateService.onTabFooter(footer);
+    }
+
+    public void onMapItemData(byte[] colors, java.util.Map<String, MapDecoration> decorations, int centerX, int centerZ, byte scale) {
         if (dungeonStateService.isInDungeon()) {
             // Only accept map data with player markers (dungeon map), skip TicTacToe/quiz maps
-            boolean hasMarkers = decorations != null && decorations.iterator().hasNext();
-            if (hasMarkers) {
+            if (decorations != null && !decorations.isEmpty()) {
                 dungeonMapService.onMapData(colors, decorations, centerX, centerZ, scale);
             }
         }
@@ -590,15 +674,48 @@ public final class HorizonClient implements ClientModInitializer {
                 }
             }
         }
+        // Lever sound: any lever right-clicked (incl. shift-right-click) in a dungeon.
+        Minecraft lm = Minecraft.getInstance();
+        if (pos != null && lm != null && lm.level != null && dungeonStateService.isInDungeon()
+            && lm.level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.LeverBlock) {
+            de.horizon.feature.misc.CustomSoundPlayer.play(configManager.getConfig().getLeverSound());
+        }
+        // Secret sound: right-clicking a tracked secret (chest/lever/essence/…).
+        if (pos != null && secretWaypointService.isSecretAt(pos, dungeonRoomDetector)) {
+            de.horizon.feature.misc.CustomSoundPlayer.play(configManager.getConfig().getSecretSound());
+        }
+        // Waypoint edit mode: right-click a block creates a waypoint there (and blocks the vanilla use).
+        if (waypointService.isEditMode() && waypointService.onBlockInteract(pos)) return true;
+        // (left-click handled via onWaypointLeftClick from the game-mode mixin)
         boolean block = simonSaysService.onBlockInteract(pos, configManager.getConfig());
-        puzzleSolverService.onBlockInteract(pos);
+        block |= puzzleSolverService.onBlockInteract(pos, configManager.getConfig());
         return block;
+    }
+
+    /**
+     * Called from the sound-packet mixin when the vanilla Etherwarp sound arrives. If the custom
+     * Etherwarp sound is enabled, plays it (accurate timing) and returns true to cancel the vanilla one.
+     */
+    public boolean replaceEtherwarpSound() {
+        var cfg = configManager.getConfig();
+        if (!cfg.isEtherwarpSoundEnabled()) return false;
+        de.horizon.feature.misc.CustomSoundPlayer.play(cfg.getEtherwarpSound());
+        return true;
+    }
+
+    /** Left-click a waypoint block in edit mode → open its config screen. @return true if consumed. */
+    public boolean onWaypointLeftClick(BlockPos pos) {
+        if (!waypointService.isEditMode()) return false;
+        var wp = waypointService.pick(pos);
+        if (wp == null) return false;
+        pendingScreen = new de.horizon.screen.WaypointScreen(null, waypointService, wp);
+        return true;
     }
 
     public void onBlockUpdate(BlockPos pos, BlockState newState, BlockState oldState, Minecraft mc) {
         puzzleSolverService.onBlockChange(pos, mc);
         simonSaysService.onBlockUpdate(pos, newState);
-        sharpShooterService.onBlockUpdate(pos, oldState, newState);
+        sharpShooterService.onBlockUpdate(pos, oldState, newState, configManager.getConfig());
         dragonService.onBlockUpdate(pos, newState);
         spiritBearService.onBlockUpdate(pos, newState, oldState);
     }
@@ -612,6 +729,163 @@ public final class HorizonClient implements ClientModInitializer {
     }
 
     /**
+     * Draws the Experimentation Table helper overlay. Called from {@code HandledScreenMixin} at
+     * {@code extractTooltip} HEAD so the re-shown Superpairs items land BEHIND the hover tooltip.
+     */
+    public void renderExperimentTableOverlay(AbstractContainerScreen<?> screen,
+                                             net.minecraft.client.gui.GuiGraphicsExtractor context) {
+        experimentTableSolver.render(screen, context, configManager.getConfig());
+    }
+
+    /** Croesus profit overlay — rendered before the tooltip so it never covers item tooltips. */
+    public void renderCroesusOverlay(AbstractContainerScreen<?> screen,
+                                     net.minecraft.client.gui.GuiGraphicsExtractor context) {
+        chestProfitService.render(screen, context, configManager.getConfig());
+        petHighlightService.render(screen, context, configManager.getConfig());
+    }
+
+    /**
+     * Decorates an item tooltip (invoked from the Fabric {@code ItemTooltipCallback}). Applies,
+     * in order: the maxed-enchant gradient (recolours existing lore, adds no lines) and one craft-value
+     * price line. Shift switches craft components to Buy Order pricing; the separate Stack-Value toggle
+     * additionally multiplies that line by the stack count while Shift is held.
+     */
+    public void decorateTooltip(
+            net.minecraft.world.item.ItemStack stack, java.util.List<net.minecraft.network.chat.Component> lines) {
+        var cfg = configManager.getConfig();
+        if (stack == null || stack.isEmpty() || lines == null) return;
+
+        if (cfg.isEnchantGradient()) {
+            try {
+                de.horizon.feature.skyblock.EnchantGradientRenderer.applyInPlace(stack, lines, cfg);
+            } catch (Exception ignored) { }
+        }
+
+        boolean baz = cfg.isBazaarValueTooltip(), auc = cfg.isAuctionValueTooltip(), craft = cfg.isItemPriceTooltip();
+        if (!(baz || auc || craft)) return;
+        try {
+            priceService.tick(); // ensure a fetch runs even before the first tick cycle
+            String id = skyblockIdOf(stack);
+            if (id != null) {
+                id = id.replaceFirst("^STARRED_", "");
+                // Market lines show for their own toggle OR the craft toggle (so one toggle gives all).
+                if ((baz || craft) && priceService.isBazaarItem(id)) {
+                    Long sell = priceService.getBazaarSell(id);
+                    Long buy = priceService.getBazaarBuy(id);
+                    if (buy != null) lines.add(priceLine("Bazaar Buy", buy));
+                    if (sell != null) lines.add(priceLine("Bazaar Sell", sell));
+                } else if ((auc || craft) && !priceService.isBazaarItem(id)) {
+                    Long lb = priceService.getLowestBin(id);
+                    Long avg = priceService.getAvgBin(id);
+                    if (lb != null) lines.add(priceLine("Lowest BIN", lb));
+                    if (avg != null) lines.add(priceLine("Avg BIN (3d)", avg));
+                }
+            }
+            if (craft) {
+                boolean shift = isShiftHeld();
+                long value = craftValueService.craftValue(stack, shift);
+                if (value > 0) {
+                    if (shift && cfg.isStackValueOnShift() && stack.getCount() > 1) value *= stack.getCount();
+                    lines.add(priceLine(shift ? "Craft Value (Buy Order)" : "Craft Value", value));
+                }
+            }
+        } catch (Exception ignored) { }
+    }
+
+    private static net.minecraft.network.chat.Component priceLine(String label, long v) {
+        return net.minecraft.network.chat.Component.literal("§7" + label + ": §6" + formatCoinsShort(v));
+    }
+
+    /** {@code /horizon price}: prints an itemised craft-value breakdown of the held item to chat. */
+    private void printHeldItemPrice() {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc == null || mc.player == null) return;
+        java.util.function.Consumer<String> msg =
+            s -> mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(s));
+        net.minecraft.world.item.ItemStack stack = mc.player.getMainHandItem();
+        if (stack == null || stack.isEmpty()) {
+            msg.accept("§b[HRZN] §7Kein Item in der Hand.");
+            return;
+        }
+        priceService.tick();
+        var entries = craftValueService.breakdown(stack, false);
+        msg.accept("§b§l[HRZN] §r§6Craft Breakdown: §f" + stack.getHoverName().getString());
+        long total = 0L;
+        for (var e : entries) {
+            total += e.amount();
+            msg.accept("§8• §7" + e.label() + ": §6" + coinsExact(e.amount()));
+        }
+        if (entries.isEmpty()) msg.accept("§7(Kein SkyBlock-Item oder Preise noch nicht geladen)");
+        long buyOrderTotal = craftValueService.craftValue(stack, true);
+        msg.accept("§8§m                              ");
+        msg.accept("§7Total §f(Instabuy)§7: §e" + coinsExact(total));
+        msg.accept("§7Total §f(Buy Order)§7: §e" + coinsExact(buyOrderTotal));
+        String id = skyblockIdOf(stack);
+        if (id != null) {
+            id = id.replaceFirst("^STARRED_", "");
+            if (priceService.isBazaarItem(id)) {
+                Long buy = priceService.getBazaarBuy(id);
+                if (buy != null) msg.accept("§7Markt §f(Bazaar Instabuy)§7: §6" + coinsExact(buy));
+            } else {
+                Long lb = priceService.getLowestBin(id);
+                if (lb != null) msg.accept("§7Markt §f(Lowest BIN)§7: §6" + coinsExact(lb));
+            }
+        }
+        if (!priceService.isLoaded()) msg.accept("§c(Preise laden noch — gleich erneut ausführen.)");
+    }
+
+    private static String coinsExact(long v) {
+        return String.format(java.util.Locale.ROOT, "%,d", v);
+    }
+
+    private static boolean isShiftHeld() {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc == null || mc.getWindow() == null) return false;
+        long handle = mc.getWindow().handle();
+        return org.lwjgl.glfw.GLFW.glfwGetKey(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS
+            || org.lwjgl.glfw.GLFW.glfwGetKey(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+    }
+
+    private static String formatCoinsShort(long v) {
+        if (v >= 1_000_000_000L) return String.format(java.util.Locale.ROOT, "%.2fb", v / 1_000_000_000.0);
+        if (v >= 1_000_000L) return String.format(java.util.Locale.ROOT, "%.2fm", v / 1_000_000.0);
+        if (v >= 1_000L) return String.format(java.util.Locale.ROOT, "%.1fk", v / 1_000.0);
+        return String.format(java.util.Locale.ROOT, "%,d", v);
+    }
+
+    private static String skyblockIdOf(net.minecraft.world.item.ItemStack stack) {
+        var cd = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        if (cd == null) return null;
+        var nbt = cd.copyTag();
+        // In MC 26.1.2 the Hypixel SkyBlock id sits at the ROOT of custom data ({id:"ENDER_PEARL"});
+        // older data nested it under ExtraAttributes. Check both.
+        String id = nbt.getStringOr("id", "");
+        if (id.isEmpty()) id = nbt.getCompoundOrEmpty("ExtraAttributes").getStringOr("id", "");
+        return id.isEmpty() ? null : id;
+    }
+
+    /**
+     * Replaces the displayed stack of a solved Experimentation Table slot (Superpairs reward /
+     * Ultrasequencer number). Called from {@code HandledScreenMixin} for both item rendering and the
+     * hover tooltip, so a remembered reward renders natively (no glass behind it) and tooltips work.
+     */
+    public net.minecraft.world.item.ItemStack modifyExperimentStack(
+            AbstractContainerScreen<?> screen, net.minecraft.world.inventory.Slot slot,
+            net.minecraft.world.item.ItemStack stack) {
+        if (!configManager.getConfig().isExperimentSolverEnabled()) return stack;
+        if (slot == null || slot.container instanceof net.minecraft.world.entity.player.Inventory) return stack;
+        if (!experimentTableSolver.isActiveMenu(screen)) return stack;
+        return experimentTableSolver.modifyDisplayStack(slot.index, stack);
+    }
+
+    /** Forwards an Experimentation Table slot click so the solver can advance its highlighted step. */
+    public void onExperimentSlotClick(AbstractContainerScreen<?> screen, int slotId,
+                                      net.minecraft.world.item.ItemStack stack, int button) {
+        if (!configManager.getConfig().isExperimentSolverEnabled()) return;
+        experimentTableSolver.onSlotClick(screen, slotId, stack, button);
+    }
+
+    /**
      * Whether the vanilla container should be fully hidden because the terminal overlay (or leap
      * menu) has replaced it. Shared by HandledScreenMixin (extractContents/extractRenderState) and
      * ContainerScreenMixin (extractBackground) so the two never disagree.
@@ -620,8 +894,21 @@ public final class HorizonClient implements ClientModInitializer {
         var cfg = configManager.getConfig();
         if (cfg.isTerminalSolverEnabled() && terminalSolverService.isActiveTerminal()) return true;
         if (cfg.isLeapMenuEnabled()) return de.horizon.feature.dungeon.LeapMenuOverlay.isLeapScreenTitle(screen);
+        if (cfg.isStorageOverlayEnabled() && storageOverlayService.isStorageMenu(screen)
+            && storageOverlayService.isOverviewOpen()) return true;
         return false;
     }
+
+    /** True while the interactive storage-page overlay is active (relocates the real slots). */
+    public boolean isStoragePageActive(AbstractContainerScreen<?> screen) {
+        return configManager.getConfig().isStorageOverlayEnabled() && storageOverlayService.isStoragePage(screen);
+    }
+
+    /** Draws the storage overlay background + relocates the real slots (called before slots render). */
+    public void renderStoragePageBackground(AbstractContainerScreen<?> screen, GuiGraphicsExtractor ctx, int mouseX, int mouseY) {
+        storageOverlayService.relocateAndRenderBackground(screen, ctx, mouseX, mouseY);
+    }
+
 
     /**
      * Called from the entity-interact mixin. Returns true when a right-click on an Arrow Align
@@ -637,6 +924,11 @@ public final class HorizonClient implements ClientModInitializer {
     public boolean shouldHideArrowFrameName(net.minecraft.world.entity.decoration.ItemFrame frame) {
         if (!configManager.getConfig().isArrowAlignEnabled() || !dungeonStateService.isInDungeon()) return false;
         return arrowAlignService.isDeviceFrame(frame);
+    }
+
+    /** True only for an orbiting Soulweaver cosmetic soul (never the static key/chest displays). */
+    public boolean shouldHideSoulweaverSkull(net.minecraft.world.entity.Entity entity) {
+        return configManager.getConfig().isSoulweaverSkullsHidden() && soulweaverService.isSoul(entity);
     }
 
     public SystemStatsService getSystemStatsService() {
@@ -727,6 +1019,10 @@ public final class HorizonClient implements ClientModInitializer {
         if (client == null || client.options.hideGui || client.player == null) {
             return;
         }
+        // Hide Horizon HUD elements while the tab list is open so it stays readable.
+        if (configManager.getConfig().isHideHudOnTab() && client.options.keyPlayerList.isDown()) {
+            return;
+        }
 
         int barScaled = PillarboxState.scaledBarWidth();
         if (barScaled > 0) {
@@ -771,9 +1067,22 @@ public final class HorizonClient implements ClientModInitializer {
                 return;
             }
 
+            // Storage overlay: reset scroll/search when a fresh Storage menu/page opens
+            if (configManager.getConfig().isStorageOverlayEnabled()) {
+                if (storageOverlayService.isStorageMenu(handledScreen)) storageOverlayService.onStorageOpen();
+                else if (storageOverlayService.isStoragePage(handledScreen)) storageOverlayService.onPageOpen();
+            }
+            // Reset the tooltip scale to the configured default whenever a screen opens.
+            de.horizon.feature.misc.TooltipState.scale = configManager.getConfig().getTooltipScale();
+            de.horizon.feature.misc.TooltipState.resetScroll();
             // Detect terminal screen opens
-            if (configManager.getConfig().isTerminalSolverEnabled()) {
+            if (configManager.getConfig().isTerminalSolverEnabled()
+                || configManager.getConfig().isMelodyAnnounceEnabled()) {
                 terminalSolverService.onScreenOpen(handledScreen);
+            }
+            // Experimentation Table (Superpairs) helper: reset memory on a fresh board
+            if (configManager.getConfig().isExperimentSolverEnabled()) {
+                experimentTableSolver.onScreenOpen(handledScreen);
             }
             // Terminal waypoints/titles: record position + show type title (independent of solver)
             if (configManager.getConfig().isTerminalWaypointsEnabled()
@@ -789,6 +1098,16 @@ public final class HorizonClient implements ClientModInitializer {
                     spotifyInventoryOverlay.render(handledScreen, context, mouseX, mouseY);
                 }
                 partyFinderOverlay.render(handledScreen, context);
+                // Croesus profit renders in HandledScreenMixin (extractTooltip HEAD) so its highlights
+                // + breakdown HUD sit BEHIND the item tooltips instead of covering them.
+                if (configManager.getConfig().isStorageOverlayEnabled()) {
+                    storageOverlayService.capture(handledScreen);
+                    if (storageOverlayService.isStorageMenu(handledScreen)) {
+                        storageOverlayService.render(handledScreen, context, mouseX, mouseY);
+                    }
+                    // Storage PAGE overlay renders in ContainerScreenMixin.extractBackground (before the
+                    // real slots) so vanilla draws the relocated slots/cursor/tooltips natively.
+                }
                 // Leap Menu overlay
                 if (leapMenuOverlay.isLeapScreen(handledScreen)) {
                     leapMenuOverlay.render(handledScreen, context, mouseX, mouseY, configManager.getConfig());
@@ -797,7 +1116,17 @@ public final class HorizonClient implements ClientModInitializer {
                 if (configManager.getConfig().isTerminalSolverEnabled()) {
                     terminalSolverService.onScreenTick(handledScreen);
                     terminalSolverService.render(handledScreen, context, configManager.getConfig());
+                } else if (configManager.getConfig().isMelodyAnnounceEnabled()) {
+                    terminalSolverService.onScreenTick(handledScreen); // compute melody state for the announce
                 }
+                // Melody progress announce (party chat), independent of the solver toggle.
+                String melodyMsg = terminalSolverService.pollMelodyAnnounce(configManager.getConfig());
+                if (melodyMsg != null && !melodyMsg.isBlank()) {
+                    Minecraft mmc = Minecraft.getInstance();
+                    if (mmc != null && mmc.player != null) mmc.player.connection.sendCommand("pc " + melodyMsg);
+                }
+                // Experimentation Table helper renders in HandledScreenMixin (extractTooltip HEAD)
+                // so the re-shown Superpairs items stay behind the hover tooltip.
                 // Slot Bind visual feedback
                 var sbAccessor = (AbstractContainerScreenAccessor)(Object) handledScreen;
                 int sbKey = configManager.getConfig().getSlotBindKey();
@@ -808,6 +1137,17 @@ public final class HorizonClient implements ClientModInitializer {
                     mouseX, mouseY, configManager.getConfig(), showActive);
             });
             ScreenMouseEvents.allowMouseClick(screen).register((currentScreen, click) -> {
+                // Storage overlay: consume clicks only when the overview is covering the menu.
+                if (configManager.getConfig().isStorageOverlayEnabled()
+                    && storageOverlayService.isStorageMenu(handledScreen)) {
+                    if (storageOverlayService.onClick(handledScreen, click.x(), click.y())) return false;
+                }
+                // Storage page: real slots are relocated + handled natively by vanilla; we only
+                // intercept clicks on the OTHER (cached) pages (navigate) or empty space (swallow).
+                if (configManager.getConfig().isStorageOverlayEnabled()
+                    && storageOverlayService.isStoragePage(handledScreen)) {
+                    if (storageOverlayService.onPageClick(handledScreen, click.x(), click.y())) return false;
+                }
                 // Leap Menu: intercept clicks on the Spirit Leap screen
                 if (leapMenuOverlay.isLeapScreen(handledScreen) && configManager.getConfig().isLeapMenuEnabled()) {
                     int slotIdx = leapMenuOverlay.getClickedSlot(handledScreen, (int) click.x(), (int) click.y(), configManager.getConfig());
@@ -816,6 +1156,15 @@ public final class HorizonClient implements ClientModInitializer {
                         if (mc != null && mc.player != null) {
                             mc.gameMode.handleContainerInput(
                                 handledScreen.getMenu().containerId, slotIdx, 0, ContainerInput.PICKUP, mc.player);
+                            // Announce who we're leaping to (configurable message).
+                            if (configManager.getConfig().isLeapMenuAnnounce()) {
+                                String target = leapMenuOverlay.getClickedPlayerName(handledScreen, (int) click.x(), (int) click.y());
+                                String tmpl = configManager.getConfig().getLeapMenuMessage();
+                                if (target != null && tmpl != null && !tmpl.isBlank()) {
+                                    String msg = tmpl.replace("{playername}", target);
+                                    mc.player.connection.sendCommand("pc " + msg);
+                                }
+                            }
                         }
                         return false; // cancel vanilla click
                     }
@@ -827,6 +1176,7 @@ public final class HorizonClient implements ClientModInitializer {
                     boolean isLeft = click.button() == 0;
                     if (terminalSolverService.onOverlayMouseClick(handledScreen, click.x(), click.y(), isLeft, configManager.getConfig())) {
                         terminalSolverService.onScreenTick(handledScreen);
+                        de.horizon.feature.misc.CustomSoundPlayer.play(configManager.getConfig().getTerminalClickSound());
                         return false; // consume click (never let it reach the vanilla chest)
                     }
                 }
@@ -868,8 +1218,42 @@ public final class HorizonClient implements ClientModInitializer {
                     ? youtubeMusicInventoryOverlay.mouseReleased(click.x(), click.y(), click.button())
                     : spotifyInventoryOverlay.mouseReleased(click.x(), click.y(), click.button())
             );
+            // Storage overlay: scroll the combined view instead of the vanilla menu.
+            ScreenMouseEvents.allowMouseScroll(screen).register((currentScreen, mx, my, horizontal, vertical) -> {
+                if (configManager.getConfig().isStorageOverlayEnabled()) {
+                    if (storageOverlayService.isStorageMenu(handledScreen)
+                        && storageOverlayService.onScroll(handledScreen, vertical)) return false;
+                    if (storageOverlayService.isStoragePage(handledScreen)
+                        && storageOverlayService.onPageScroll(handledScreen, vertical)) return false;
+                }
+                // Scrollable tooltips: while a tooltip is showing, scroll pans it; Ctrl+scroll resizes.
+                if (configManager.getConfig().isScrollableTooltips()
+                    && de.horizon.feature.misc.TooltipState.isShowing()) {
+                    Minecraft mc = Minecraft.getInstance();
+                    boolean ctrl = mc != null && (org.lwjgl.glfw.GLFW.glfwGetKey(mc.getWindow().handle(),
+                        org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL) == org.lwjgl.glfw.GLFW.GLFW_PRESS
+                        || org.lwjgl.glfw.GLFW.glfwGetKey(mc.getWindow().handle(),
+                        org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_CONTROL) == org.lwjgl.glfw.GLFW.GLFW_PRESS);
+                    if (ctrl) {
+                        de.horizon.feature.misc.TooltipState.scale = Math.max(0.5f, Math.min(3.0f,
+                            de.horizon.feature.misc.TooltipState.scale + (float) vertical * 0.1f));
+                    } else {
+                        de.horizon.feature.misc.TooltipState.scrollOffset = Math.max(0,
+                            de.horizon.feature.misc.TooltipState.scrollOffset - (int) Math.round(vertical * 10));
+                    }
+                    return false;
+                }
+                return true;
+            });
             // allowKeyPress fires before vanilla processing → can cancel hotbar-swap for wardrobe
             ScreenKeyboardEvents.allowKeyPress(screen).register((currentScreen, input) -> {
+                // Storage overlay: route typing into the search box.
+                if (configManager.getConfig().isStorageOverlayEnabled()) {
+                    if (storageOverlayService.isStorageMenu(handledScreen)
+                        && storageOverlayService.onKey(input)) return false;
+                    if (storageOverlayService.isStoragePage(handledScreen)
+                        && storageOverlayService.onPageKey(input)) return false;
+                }
                 // Terminal solver: the drop key acts as a left click on the hovered overlay slot.
                 if (configManager.getConfig().isTerminalSolverEnabled()
                     && terminalSolverService.isActiveTerminal()) {
@@ -883,6 +1267,9 @@ public final class HorizonClient implements ClientModInitializer {
                     }
                 }
                 if (wardrobeKeybindService.handleKeyPress(handledScreen, input.key(), configManager.getConfig())) {
+                    return false; // cancel vanilla (prevents hotbar slot swap)
+                }
+                if (loadoutKeybindService.handleKeyPress(handledScreen, input.key(), configManager.getConfig())) {
                     return false; // cancel vanilla (prevents hotbar slot swap)
                 }
                 return true;
