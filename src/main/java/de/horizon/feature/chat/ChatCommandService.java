@@ -139,7 +139,11 @@ public final class ChatCommandService {
                 if (arg.isBlank()) yield null;
                 String t = fuzzyResolve(mc, arg); yield "p transfer " + (t != null ? t : arg);
             }
-            case "pt"  -> "p transfer " + sender;   // hand leadership to whoever asked
+            case "pt"  -> {
+                // !pt <name> transfers to that player (fuzzy); !pt / !ptme (no arg) = to whoever asked.
+                if (arg.isBlank()) yield "p transfer " + sender;
+                String t = fuzzyResolve(mc, arg); yield "p transfer " + (t != null ? t : arg);
+            }
             case "ai"  -> "p settings allinvite";   // toggle all-invite
             case "f"   -> joinInstance(arg, false);  // !f<n>: catacombs floor n (0 = entrance)
             case "m"   -> joinInstance(arg, true);   // !m<n>: master catacombs floor n
@@ -193,6 +197,14 @@ public final class ChatCommandService {
                     else out = "Now playing: " + state.trackName() + " by " + state.artistName();
                     sendCommand(chat(ch, out));
                 });
+                yield null; // dispatched asynchronously above
+            }
+            case "play" -> {
+                if (spotifyService == null || arg.isBlank()) yield null;
+                final String ch = channel;
+                final String query = arg;
+                spotifyService.searchAndPlayAsync(query, result ->
+                    sendCommand(chat(ch, result != null ? "Playing: " + result : "Nothing found for: " + query)));
                 yield null; // dispatched asynchronously above
             }
 

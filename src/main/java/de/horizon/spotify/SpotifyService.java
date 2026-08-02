@@ -153,6 +153,31 @@ public final class SpotifyService {
         command("PUT", "/me/player/play" + playDeviceQuery(), "{\"context_uri\":\"" + playlist.uri() + "\"}", true);
     }
 
+    /**
+     * Searches the API for {@code query} (best track match) and plays it. Delivers "Name by Artist"
+     * to {@code callback}, or {@code null} if nothing was found / playback failed. Used by !play.
+     */
+    public void searchAndPlayAsync(String query, java.util.function.Consumer<String> callback) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                String q = java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
+                JsonObject res = request("GET", "/search?q=" + q + "&type=track&limit=1", null);
+                var items = res == null ? null : res.getAsJsonObject("tracks").getAsJsonArray("items");
+                if (items == null || items.isEmpty()) { callback.accept(null); return; }
+                JsonObject track = items.get(0).getAsJsonObject();
+                String uri = track.get("uri").getAsString();
+                String name = track.get("name").getAsString();
+                String artist = track.getAsJsonArray("artists").get(0).getAsJsonObject().get("name").getAsString();
+                request("PUT", "/me/player/play" + playDeviceQuery(), "{\"uris\":[\"" + uri + "\"]}");
+                requestStateRefresh(true);
+                callback.accept(name + " by " + artist);
+            } catch (Exception exception) {
+                HorizonMod.LOGGER.debug("Spotify search/play failed", exception);
+                callback.accept(null);
+            }
+        });
+    }
+
     public void requestDevicesRefresh(boolean force) {
         long now = Instant.now().toEpochMilli();
         if (now < deviceRateLimitedUntilMillis || now < rateLimitedUntilMillis) {
