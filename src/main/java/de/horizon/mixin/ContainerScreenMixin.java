@@ -22,7 +22,17 @@ public abstract class ContainerScreenMixin {
     private void horizon$cancelPanelForCustomMode(
             GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         HorizonClient h = HorizonClient.getInstance();
-        if (h != null && h.shouldHideVanillaContainer((AbstractContainerScreen<?>) (Object) this)) {
+        if (h == null) return;
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        if (h.shouldHideVanillaContainer(screen)) {
+            ci.cancel();
+            return;
+        }
+        // Storage page: draw our combined-grid background + relocate the real slots here (BEFORE the
+        // slots render), then suppress the vanilla chest panel. Vanilla draws the relocated slots,
+        // cursor, drags and tooltips itself → fully native item handling.
+        if (h.isStoragePageActive(screen)) {
+            h.renderStoragePageBackground(screen, context, mouseX, mouseY);
             ci.cancel();
         }
     }

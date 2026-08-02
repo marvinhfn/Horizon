@@ -13,6 +13,7 @@ import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundTickingStatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
+import net.minecraft.network.protocol.game.ClientboundTabListPacket;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,6 +36,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
             client.getTpsTracker().update(packet.tickRate());
         }
     }
+
 
     @Inject(method = "handleSetTime", at = @At("TAIL"))
     private void horizon$trackWorldTimePacket(ClientboundSetTimePacket packet, CallbackInfo ci) {
@@ -66,7 +68,17 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (mc == null || mc.level == null) return;
         MapItemSavedData mapData = mc.level.getMapData(packet.mapId());
         if (mapData == null) return;
-        client.onMapItemData(mapData.colors, mapData.getDecorations(), mapData.centerX, mapData.centerZ, mapData.scale);
+        // Pass the KEYED decoration map (icon-0, icon-1, …) so teammate heads can be matched by index.
+        var decorations = ((de.horizon.mixin.MapItemSavedDataAccessor) mapData).getDecorationsMap();
+        client.onMapItemData(mapData.colors, decorations, mapData.centerX, mapData.centerZ, mapData.scale);
+    }
+
+    @Inject(method = "handleTabListCustomisation", at = @At("TAIL"))
+    private void horizon$onTabList(ClientboundTabListPacket packet, CallbackInfo ci) {
+        HorizonClient client = HorizonClient.getInstance();
+        if (client != null && packet.footer() != null) {
+            client.onTabFooter(packet.footer().getString());
+        }
     }
 
     @Inject(method = "handleParticleEvent", at = @At("HEAD"))
@@ -78,8 +90,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (packet.getMaxSpeed() != 0f) return;
         double px = packet.getX(), pz = packet.getZ();
         if (px % 1 != 0.0 || pz % 1 != 0.0) return;
-        int y = (int) packet.getY();
-        if (y != 19 && y != 27) return;
+        if (packet.getY() != 19.0) return;
         HorizonClient client = HorizonClient.getInstance();
         if (client != null) {
             client.onDragonParticle((int) px, (int) pz);
