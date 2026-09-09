@@ -83,6 +83,9 @@ public final class HorizonConfig {
     public boolean isSystemHudEnabled() { return hud.systemHudEnabled; }
     public void setSystemHudEnabled(boolean v) { hud.systemHudEnabled = v; }
 
+    public boolean isMusicHudEnabled() { return hud.musicHudEnabled; }
+    public void setMusicHudEnabled(boolean v) { hud.musicHudEnabled = v; }
+
     public Map<String, HudPosition> getHudPositions() { return hud.hudPositions; }
 
     // ── DUNGEON ───────────────────────────────────────────────────────────────
@@ -904,6 +907,23 @@ public final class HorizonConfig {
     public void setTooltipScale(float v) { display.tooltipScale = Math.max(0.5f, Math.min(3.0f, v)); }
     public boolean isPetHighlightEnabled() { return display.petHighlight; }
     public void setPetHighlightEnabled(boolean v) { display.petHighlight = v; }
+
+    public boolean isSparklingAnnounceEnabled() { return display.sparklingAnnounceEnabled; }
+    public void setSparklingAnnounceEnabled(boolean v) { display.sparklingAnnounceEnabled = v; }
+
+    public boolean isTitleAnnounceEnabled() { return display.titleAnnounceEnabled; }
+    public void setTitleAnnounceEnabled(boolean v) { display.titleAnnounceEnabled = v; }
+
+    public java.util.List<DisplayConfig.TitleAnnounce> getTitleAnnounces() { return display.titleAnnounces; }
+    public void addTitleAnnounce(String trigger, String title) {
+        DisplayConfig.TitleAnnounce t = new DisplayConfig.TitleAnnounce();
+        t.trigger = trigger;
+        t.title = title;
+        display.titleAnnounces.add(t);
+    }
+    public void removeTitleAnnounce(int i) {
+        if (i >= 0 && i < display.titleAnnounces.size()) display.titleAnnounces.remove(i);
+    }
 
     private static double clamp(double v, double min, double max) {
         return Math.max(min, Math.min(max, v));

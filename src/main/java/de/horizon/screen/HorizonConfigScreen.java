@@ -106,6 +106,8 @@ public final class HorizonConfigScreen extends Screen {
     private InputFocus inputFocus = InputFocus.NONE;
     private String customCmdInput = "";
     private int customCmdCaptureIndex = -1;
+    private String titleAnnounceTriggerInput = "";
+    private String titleAnnounceTitleInput = "";
     private String leapMessageInput = "";
     private String melodyMessageInput = "";
     private static final String BLESSING_HUD_DESC = Lang.t(
@@ -165,6 +167,17 @@ public final class HorizonConfigScreen extends Screen {
         "Klick: Taste setzen. [x] rechts: entfernen.", "Click: bind key. [x] right: remove.");
     private static final String CUSTOM_CMD_ADD_DESC = Lang.t(
         "Command ohne / eingeben, Enter fuegt hinzu.", "Type a command without /, Enter adds it.");
+    private static final String SPARKLING_ANNOUNCE_DESC = Lang.t(
+        "Title + Sound wenn ein Nametag \"Sparkling\" enthaelt.", "Title + sound when a nametag contains \"Sparkling\".");
+    private static final String TITLE_ANNOUNCE_DESC = Lang.t(
+        "Zeigt bei passender Chatnachricht einen Title.", "Shows a title when a chat message matches.");
+    private static final String TITLE_ANNOUNCE_ENTRY_DESC = Lang.t(
+        "[x] rechts: entfernen.", "[x] right: remove.");
+    private static final String TITLE_ANNOUNCE_TRIGGER_DESC = Lang.t(
+        "Chat-Text der den Title ausloest. Enter fuegt hinzu (beide Felder noetig).",
+        "Chat text that triggers the title. Enter adds it (both fields required).");
+    private static final String TITLE_ANNOUNCE_TITLE_DESC = Lang.t(
+        "Title-Text der angezeigt wird. Enter fuegt hinzu.", "Title text to display. Enter adds it.");
     private static final String TT_MAXOR_DESC = Lang.t("Maxor-Phasen-Countdown (P1).", "Maxor phase countdown (P1).");
     private static final String TT_STORM_DESC = Lang.t("Storm-Phasen-Countdown (P2).", "Storm phase countdown (P2).");
     private static final String TT_GOLDOR_DESC = Lang.t("Goldor-Phasen-Countdown (P3).", "Goldor phase countdown (P3).");
@@ -422,6 +435,18 @@ public final class HorizonConfigScreen extends Screen {
             }
             return true;
         }
+        if (inputFocus == InputFocus.TITLE_ANNOUNCE_TRIGGER) {
+            if (!Character.isISOControl(input.codepoint()) && titleAnnounceTriggerInput.length() < 128) {
+                titleAnnounceTriggerInput += Character.toString(input.codepoint());
+            }
+            return true;
+        }
+        if (inputFocus == InputFocus.TITLE_ANNOUNCE_TITLE) {
+            if (!Character.isISOControl(input.codepoint()) && titleAnnounceTitleInput.length() < 128) {
+                titleAnnounceTitleInput += Character.toString(input.codepoint());
+            }
+            return true;
+        }
         if (inputFocus == InputFocus.LEAP_MESSAGE) {
             if (!Character.isISOControl(input.codepoint()) && leapMessageInput.length() < 128) {
                 leapMessageInput += Character.toString(input.codepoint());
@@ -460,6 +485,34 @@ public final class HorizonConfigScreen extends Screen {
             if (input.key() == GLFW.GLFW_KEY_ESCAPE) { customCmdInput = ""; inputFocus = InputFocus.NONE; return true; }
             if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
                 if (!customCmdInput.isEmpty()) customCmdInput = customCmdInput.substring(0, customCmdInput.length() - 1);
+                return true;
+            }
+        }
+        if (inputFocus == InputFocus.TITLE_ANNOUNCE_TRIGGER || inputFocus == InputFocus.TITLE_ANNOUNCE_TITLE) {
+            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                String trigger = titleAnnounceTriggerInput.trim();
+                String title = titleAnnounceTitleInput.trim();
+                if (!trigger.isBlank() && !title.isBlank()) {
+                    config().addTitleAnnounce(trigger, title);
+                    horizonClient.getConfigManager().save();
+                    titleAnnounceTriggerInput = "";
+                    titleAnnounceTitleInput = "";
+                    inputFocus = InputFocus.NONE;
+                }
+                return true;
+            }
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+                titleAnnounceTriggerInput = "";
+                titleAnnounceTitleInput = "";
+                inputFocus = InputFocus.NONE;
+                return true;
+            }
+            if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
+                if (inputFocus == InputFocus.TITLE_ANNOUNCE_TRIGGER) {
+                    if (!titleAnnounceTriggerInput.isEmpty()) titleAnnounceTriggerInput = titleAnnounceTriggerInput.substring(0, titleAnnounceTriggerInput.length() - 1);
+                } else {
+                    if (!titleAnnounceTitleInput.isEmpty()) titleAnnounceTitleInput = titleAnnounceTitleInput.substring(0, titleAnnounceTitleInput.length() - 1);
+                }
                 return true;
             }
         }
@@ -1105,8 +1158,30 @@ public final class HorizonConfigScreen extends Screen {
                     config().getEnchantGradientColorB(), 20);
             }
         }
-        drawToggleRow(context, viewport.x, y, Lang.t("Pet Highlight", "Pet Highlight"),
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Pet Highlight", "Pet Highlight"),
             config().isPetHighlightEnabled(), PET_HIGHLIGHT_DESC);
+
+        y = drawToggleRow(context, viewport.x, y, "Sparkling Announce",
+            config().isSparklingAnnounceEnabled(), SPARKLING_ANNOUNCE_DESC);
+
+        y = drawSectionTitle(context, viewport.x, y, "Title Announce");
+        y = drawToggleRow(context, viewport.x, y, "Title Announce",
+            config().isTitleAnnounceEnabled(), TITLE_ANNOUNCE_DESC);
+        var titleAnnounces = config().getTitleAnnounces();
+        for (int i = 0; i < titleAnnounces.size(); i++) {
+            var ta = titleAnnounces.get(i);
+            int rowY = y;
+            y = drawCycleRow(context, viewport.x, rowY,
+                    "\"" + ta.trigger + "\"  →  \"" + ta.title + "\"",
+                    "#" + (i + 1), false, TITLE_ANNOUNCE_ENTRY_DESC);
+            Rect rm = customRemoveRect(viewport.x, rowY);
+            context.fill(rm.x, rm.y, rm.right(), rm.bottom(), 0xFF7A2A2A);
+            context.centeredText(font, Component.literal("✕"), rm.centerX(), rm.y + 4, 0xFFFFFFFF);
+        }
+        y = drawFieldRow(context, viewport.x, y, Lang.t("Chat-Trigger", "Chat Trigger"),
+                titleAnnounceTriggerInput, inputFocus == InputFocus.TITLE_ANNOUNCE_TRIGGER, TITLE_ANNOUNCE_TRIGGER_DESC);
+        drawFieldRow(context, viewport.x, y, Lang.t("Title-Text", "Title Text"),
+                titleAnnounceTitleInput, inputFocus == InputFocus.TITLE_ANNOUNCE_TITLE, TITLE_ANNOUNCE_TITLE_DESC);
     }
 
     private static final String[] GRADIENT_MODE_LABELS = { "HUD", Lang.t("Eigen", "Custom"), "Rainbow" };
@@ -1189,6 +1264,39 @@ public final class HorizonConfigScreen extends Screen {
             horizonClient.getConfigManager().save();
             return true;
         }
+        y += toggleRowHeight(PET_HIGHLIGHT_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setSparklingAnnounceEnabled(!config().isSparklingAnnounceEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(SPARKLING_ANNOUNCE_DESC);
+        y += 24; // "Title Announce" section title
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setTitleAnnounceEnabled(!config().isTitleAnnounceEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(TITLE_ANNOUNCE_DESC);
+        var titleAnnounces = config().getTitleAnnounces();
+        for (int i = 0; i < titleAnnounces.size(); i++) {
+            int rowY = y;
+            y += toggleRowHeight(TITLE_ANNOUNCE_ENTRY_DESC);
+            if (customRemoveRect(viewport.x, rowY).contains(mouseX, mouseY)) {
+                config().removeTitleAnnounce(i);
+                horizonClient.getConfigManager().save();
+                return true;
+            }
+        }
+        if (rowRect(viewport.x, y, fieldRowHeight(TITLE_ANNOUNCE_TRIGGER_DESC)).contains(mouseX, mouseY)) {
+            inputFocus = InputFocus.TITLE_ANNOUNCE_TRIGGER;
+            return true;
+        }
+        y += fieldRowHeight(TITLE_ANNOUNCE_TRIGGER_DESC);
+        if (rowRect(viewport.x, y, fieldRowHeight(TITLE_ANNOUNCE_TITLE_DESC)).contains(mouseX, mouseY)) {
+            inputFocus = InputFocus.TITLE_ANNOUNCE_TITLE;
+            return true;
+        }
         return false;
     }
 
@@ -1204,6 +1312,12 @@ public final class HorizonConfigScreen extends Screen {
                 h += mobsColorSwatchHeight(19) + mobsColorSwatchHeight(20);
             }
         }
+        h += toggleRowHeight(SPARKLING_ANNOUNCE_DESC)
+            + 24 // "Title Announce" section title
+            + toggleRowHeight(TITLE_ANNOUNCE_DESC)
+            + config().getTitleAnnounces().size() * toggleRowHeight(TITLE_ANNOUNCE_ENTRY_DESC)
+            + fieldRowHeight(TITLE_ANNOUNCE_TRIGGER_DESC)
+            + fieldRowHeight(TITLE_ANNOUNCE_TITLE_DESC);
         return h;
     }
 
@@ -1534,10 +1648,15 @@ public final class HorizonConfigScreen extends Screen {
                     serviceLabel,
                     true,
                     Lang.t("Welcher Dienst im Inventar angezeigt wird.", "Which service is shown in inventory."));
-                drawToggleRow(context, viewport.x, y,
+                y = drawToggleRow(context, viewport.x, y,
                     Lang.t("Music Control HUD", "Music Control HUD"),
                     config().isSpotifyInventoryControlsEnabled(),
                     Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
+                drawToggleRow(context, viewport.x, y,
+                    Lang.t("Music HUD", "Music HUD"),
+                    config().isMusicHudEnabled(),
+                    Lang.t("Zeigt aktuellen Song mit Cover, Fortschritt und Play/Pause ingame.",
+                        "Shows the current song with cover, progress and play/pause in-game."));
             }
             case SPOTIFY -> {
                 y = drawSectionTitle(context, viewport.x, y, "Music Control / Spotify");
@@ -3355,6 +3474,13 @@ public final class HorizonConfigScreen extends Screen {
                     horizonClient.getConfigManager().save();
                     return true;
                 }
+                y += toggleRowHeight(Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
+                // Music HUD toggle
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setMusicHudEnabled(!config().isMusicHudEnabled());
+                    horizonClient.getConfigManager().save();
+                    return true;
+                }
             }
             case SPOTIFY -> {
                 if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
@@ -3708,6 +3834,7 @@ public final class HorizonConfigScreen extends Screen {
 
         addSearchResult(results, query, "Aktiver Dienst", "Music Control / General", Tab.MUSIC_CONTROL, null, "aktiver dienst spotify youtube music service");
         addSearchResult(results, query, "Music Control HUD", "Music Control / General", Tab.MUSIC_CONTROL, null, "music control hud inventarsteuerung inventar controls");
+        addSearchResult(results, query, "Music HUD", "Music Control / General", Tab.MUSIC_CONTROL, null, "music hud song cover album fortschritt progress play pause ingame spotify");
         addSearchResult(results, query, "Spotify Login", "Music Control / Spotify", Tab.MUSIC_CONTROL, null, "spotify login logout verbinden");
         addSearchResult(results, query, "YouTube Login", "Music Control / Youtube Music", Tab.MUSIC_CONTROL, null, "youtube login logout verbinden google");
         addSearchResult(results, query, "Party Finder Overlay", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "party finder overlay dungeon general");
@@ -3727,6 +3854,8 @@ public final class HorizonConfigScreen extends Screen {
         addSearchResult(results, query, "Defense Bar", "Anzeige / Misc", Tab.DISPLAY, null, "defense bar ruestung armor");
         addSearchResult(results, query, "Kompakte Herzen", "Anzeige / Misc", Tab.DISPLAY, null, "kompakte herzen hypixel health herz absorption");
         addSearchResult(results, query, "Experimentation Table", "Helper", Tab.HELPER, null, "experiment experimentation table superpairs solver helper");
+        addSearchResult(results, query, "Sparkling Announce", "Helper", Tab.HELPER, null, "sparkling announce nametag title helper");
+        addSearchResult(results, query, "Title Announce", "Helper", Tab.HELPER, null, "title announce chat message trigger helper list");
         addSearchResult(results, query, "Rag Axe Notification", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "rag axe notification necron m7 phase dungeon");
         addSearchResult(results, query, "Damage Tick Timer", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "tick timer damage goldor f7 p3 dungeon");
         addSearchResult(results, query, "Starred Mobs", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "starred mobs highlight glow stern dungeon");
@@ -3984,7 +4113,9 @@ public final class HorizonConfigScreen extends Screen {
     private int musicContentHeight() {
         return 24 + switch (activeMusicSection) {
             case GENERAL -> toggleRowHeight(Lang.t("Welcher Dienst im Inventar angezeigt wird.", "Which service is shown in inventory."))
-                + toggleRowHeight(Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."));
+                + toggleRowHeight(Lang.t("Steuerung im Inventar ein- oder ausschalten.", "Enable or disable controls in inventory."))
+                + toggleRowHeight(Lang.t("Zeigt aktuellen Song mit Cover, Fortschritt und Play/Pause ingame.",
+                    "Shows the current song with cover, progress and play/pause in-game."));
             case SPOTIFY -> actionRowHeight(spotifyService.auth().getStatusMessage());
             case YOUTUBE_MUSIC -> actionRowHeight(youtubeService.auth().getStatusMessage());
         };
@@ -4509,6 +4640,8 @@ public final class HorizonConfigScreen extends Screen {
         CMD_KEY_STATS,
         CUSTOM_CMD_TEXT,
         CUSTOM_CMD_KEY,
+        TITLE_ANNOUNCE_TRIGGER,
+        TITLE_ANNOUNCE_TITLE,
         LEAP_MESSAGE,
         SOUND_EDIT,
         MELODY_MESSAGE

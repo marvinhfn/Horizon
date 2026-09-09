@@ -23,4 +23,15 @@ public final class DisplayConfig {
     boolean scrollableTooltips = false;     // scroll long tooltips; ctrl-scroll to resize
     float tooltipScale = 1.0f;              // default tooltip scale
     boolean petHighlight = true;            // highlight the summoned pet in the Pets menu
+
+    // Announce helpers
+    boolean sparklingAnnounceEnabled = false; // title+sound when a nametag contains "Sparkling"
+    boolean titleAnnounceEnabled = true;      // master toggle for the chat-trigger title list
+
+    // User-defined chat-trigger -> title rules
+    public static final class TitleAnnounce {
+        public String trigger = "";
+        public String title = "";
+    }
+    java.util.List<TitleAnnounce> titleAnnounces = new java.util.ArrayList<>();
 }
