@@ -16,5 +16,6 @@ public final class HudConfig {
     boolean timeHudEnabled = false;
     boolean performanceHudEnabled = false;
     boolean systemHudEnabled = false;
+    boolean musicHudEnabled = false;
     Map<String, HudPosition> hudPositions = new HashMap<>();
 }

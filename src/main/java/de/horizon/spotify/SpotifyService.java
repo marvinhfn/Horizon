@@ -115,19 +115,25 @@ public final class SpotifyService {
     }
 
     public void skipNext() {
-        commandThenRefresh("POST", "/me/player/next", null);
+        commandThenBurstRefresh("POST", "/me/player/next", null);
     }
 
     public void skipPrevious() {
-        commandThenRefresh("POST", "/me/player/previous", null);
+        commandThenBurstRefresh("POST", "/me/player/previous", null);
     }
 
     public void playPause() {
-        requestStateRefresh(true);
-        if (playbackState.playing()) {
-            command("PUT", "/me/player/pause", null, true);
+        SpotifyPlaybackState current = playbackState;
+        boolean nowPlaying = !current.playing();
+        // Optimistically flip the local state so the HUD/overlay reacts instantly; the burst refresh
+        // below then confirms it against the real API state.
+        if (current.connected()) {
+            playbackState = current.withPlaying(nowPlaying);
+        }
+        if (nowPlaying) {
+            commandThenBurstRefresh("PUT", "/me/player/play", "");
         } else {
-            command("PUT", "/me/player/play", "", true);
+            commandThenBurstRefresh("PUT", "/me/player/pause", null);
         }
     }
 
@@ -255,11 +261,17 @@ public final class SpotifyService {
         boolean playing = playerState != null && playerState.has("is_playing") && playerState.get("is_playing").getAsBoolean();
         String track = "";
         String artist = "";
+        long durationMs = 0L;
+        String albumArtUrl = "";
         if (playerState != null && playerState.has("item") && playerState.get("item").isJsonObject()) {
             JsonObject item = playerState.getAsJsonObject("item");
             track = item.has("name") ? item.get("name").getAsString() : "";
             artist = artists(item.getAsJsonArray("artists"));
+            durationMs = item.has("duration_ms") && !item.get("duration_ms").isJsonNull() ? item.get("duration_ms").getAsLong() : 0L;
+            albumArtUrl = albumArt(item);
         }
+        long progressMs = playerState.has("progress_ms") && !playerState.get("progress_ms").isJsonNull()
+            ? playerState.get("progress_ms").getAsLong() : 0L;
 
         return new SpotifyPlaybackState(
             true,
@@ -272,7 +284,11 @@ public final class SpotifyService {
             activeDevice.has("name") ? activeDevice.get("name").getAsString() : "",
             activeDevice.has("id") && !activeDevice.get("id").isJsonNull() ? activeDevice.get("id").getAsString() : "",
             activeDevice.has("volume_percent") && !activeDevice.get("volume_percent").isJsonNull() ? activeDevice.get("volume_percent").getAsInt() : 0,
-            "Spotify verbunden"
+            "Spotify verbunden",
+            progressMs,
+            durationMs,
+            albumArtUrl,
+            System.currentTimeMillis()
         );
     }
 
@@ -290,24 +306,35 @@ public final class SpotifyService {
     }
 
     /**
-     * Sends a playback command and then immediately refreshes the state after a short
-     * delay, bypassing the in-flight check so the HUD updates quickly after skip.
+     * Sends a playback command and then refreshes the state several times in quick succession,
+     * bypassing the throttle/in-flight check. Spotify's {@code /me/player} endpoint can lag a few
+     * hundred milliseconds behind a skip/pause command, so a single refresh often still reports the
+     * old track; the burst keeps polling until the new state shows up, giving a near-instant HUD update.
      */
-    private void commandThenRefresh(String method, String path, String body) {
+    private void commandThenBurstRefresh(String method, String path, String body) {
         CompletableFuture.runAsync(() -> {
             try {
                 request(method, path, body);
-                Thread.sleep(300L);
-                stateFetchInFlight = true;
+            } catch (Exception exception) {
+                HorizonMod.LOGGER.debug("Spotify command failed", exception);
+            }
+            long[] delays = {200L, 350L, 600L, 900L};
+            for (long delay : delays) {
                 try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
+                    stateFetchInFlight = true;
                     playbackState = fetchPlaybackState();
                     lastStateFetch = Instant.now().toEpochMilli();
+                } catch (Exception exception) {
+                    HorizonMod.LOGGER.debug("Spotify burst refresh failed", exception);
                 } finally {
                     stateFetchInFlight = false;
                 }
-            } catch (Exception exception) {
-                HorizonMod.LOGGER.debug("Spotify command failed", exception);
-                stateFetchInFlight = false;
             }
         });
     }
@@ -458,6 +485,26 @@ public final class SpotifyService {
             HorizonMod.LOGGER.debug("Could not load Spotify playlist name", exception);
         }
         return "Playlist " + uri.substring(Math.max(0, uri.length() - 6));
+    }
+
+    /**
+     * Picks the album cover URL for the current track. Spotify returns images ordered largest to
+     * smallest; we take the smallest one (typically 64x64) since the HUD only draws a tiny thumbnail.
+     */
+    private String albumArt(JsonObject item) {
+        if (item == null || !item.has("album") || !item.get("album").isJsonObject()) {
+            return "";
+        }
+        JsonObject album = item.getAsJsonObject("album");
+        if (!album.has("images") || !album.get("images").isJsonArray()) {
+            return "";
+        }
+        JsonArray images = album.getAsJsonArray("images");
+        if (images.isEmpty()) {
+            return "";
+        }
+        JsonObject smallest = images.get(images.size() - 1).getAsJsonObject();
+        return smallest.has("url") && !smallest.get("url").isJsonNull() ? smallest.get("url").getAsString() : "";
     }
 
     private String artists(JsonArray artists) {

@@ -104,6 +104,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final ReviveTracker reviveTracker = new ReviveTracker();
     private final DungeonAlertService dungeonAlertService = new DungeonAlertService();
     private final FishingAlertService fishingAlertService = new FishingAlertService();
+    private final de.horizon.feature.helper.AnnounceService announceService = new de.horizon.feature.helper.AnnounceService();
     private final DungeonStateService dungeonStateService = new DungeonStateService();
     private final DungeonRoomDetector dungeonRoomDetector = new DungeonRoomDetector();
     private final HudRegistry hudRegistry = new HudRegistry();
@@ -112,7 +113,8 @@ public final class HorizonClient implements ClientModInitializer {
     private final PingService pingService = new PingService();
     private final SystemStatsService systemStatsService = new SystemStatsService();
     private final SpotifyService spotifyService = new SpotifyService(configManager);
-    private final SpotifyInventoryOverlay spotifyInventoryOverlay = new SpotifyInventoryOverlay(spotifyService);
+    private final de.horizon.spotify.AlbumArtCache albumArtCache = new de.horizon.spotify.AlbumArtCache();
+    private final SpotifyInventoryOverlay spotifyInventoryOverlay = new SpotifyInventoryOverlay(spotifyService, albumArtCache);
     private final YoutubeService youtubeService = new YoutubeService(configManager);
     private final YoutubeMusicInventoryOverlay youtubeMusicInventoryOverlay = new YoutubeMusicInventoryOverlay(youtubeService);
     private final InventoryButtonService inventoryButtonService = new InventoryButtonService(configManager);
@@ -192,6 +194,7 @@ public final class HorizonClient implements ClientModInitializer {
         hudRegistry.register(new RelicTimerHudElement(relicTimerService));
         hudRegistry.register(new SpiritBearTimerHudElement(spiritBearService));
         hudRegistry.register(new de.horizon.hud.DragonSpawnHudElement(dragonService, configManager));
+        hudRegistry.register(new de.horizon.hud.MusicHudElement(spotifyService, albumArtCache));
         openConfigKeyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.horizon.open_config",
             InputConstants.Type.KEYSYM,
@@ -242,6 +245,7 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonRoomDetector.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
             fishingAlertService.handleChatMessage(raw, configManager.getConfig());
+            announceService.handleChatMessage(raw, configManager.getConfig());
             handleRagAxeNotification(raw);
             handleChatCommand(raw);
             handleTickTimerMessage(raw);
@@ -283,6 +287,7 @@ public final class HorizonClient implements ClientModInitializer {
             dungeonRoomDetector.handleChatMessage(raw);
             reviveTracker.handleChatMessage(raw, configManager.getConfig());
             fishingAlertService.handleChatMessage(raw, configManager.getConfig());
+            announceService.handleChatMessage(raw, configManager.getConfig());
             handleChatCommand(raw);
             handleTickTimerMessage(raw);
             puzzleSolverService.handleChatMessage(raw, Minecraft.getInstance());
@@ -449,6 +454,7 @@ public final class HorizonClient implements ClientModInitializer {
         pingService.tick(client);
         reviveTracker.tick();
         fishingAlertService.tick(client, configManager.getConfig());
+        announceService.tick(client, configManager.getConfig());
         inventoryButtonService.tick(client);
         while (openConfigKeyBinding != null && openConfigKeyBinding.consumeClick()) {
             HorizonMod.LOGGER.info("Opening Horizon config through keybind");

@@ -31,6 +31,7 @@ public final class SpotifyInventoryOverlay {
     private static final int SPOTIFY_MUTED = 0xFF667487;
 
     private final SpotifyService spotifyService;
+    private final AlbumArtCache albumArt;
     private final List<Button> buttons = new ArrayList<>();
     private Rect minimizeButton = new Rect(0, 0, 0, 0);
     private Rect volumeSlider = new Rect(0, 0, 0, 0);
@@ -43,8 +44,9 @@ public final class SpotifyInventoryOverlay {
     private int localVolume = -1;
     private long lastVolumeSendMillis;
 
-    public SpotifyInventoryOverlay(SpotifyService spotifyService) {
+    public SpotifyInventoryOverlay(SpotifyService spotifyService, AlbumArtCache albumArt) {
         this.spotifyService = spotifyService;
+        this.albumArt = albumArt;
     }
 
     public void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor context, int mouseX, int mouseY) {
@@ -105,8 +107,16 @@ public final class SpotifyInventoryOverlay {
 
         context.fill(x + 16, y + TRACK_CARD_TOP, x + panelWidth - 16, y + TRACK_CARD_TOP + TRACK_CARD_HEIGHT, SPOTIFY_CARD_ALT);
         context.outline(x + 16, y + TRACK_CARD_TOP, panelWidth - 32, TRACK_CARD_HEIGHT, HudStyle.border());
-        drawWrapped(context, state.trackName().isBlank() ? "Kein Track" : state.trackName(), x + 28, y + 60, 236, HudStyle.text());
-        drawWrapped(context, state.artistName().isBlank() ? state.statusMessage() : state.artistName(), x + 28, y + 76, 236, SPOTIFY_MUTED);
+
+        int coverSize = 36;
+        int coverX = x + 20;
+        int coverY = y + TRACK_CARD_TOP + 4;
+        albumArt.ensure(state.albumArtUrl());
+        drawCover(context, state.albumArtUrl(), coverX, coverY, coverSize);
+        int textX = coverX + coverSize + 8;
+        int textWidth = (x + panelWidth - 16) - textX - 6;
+        drawWrapped(context, state.trackName().isBlank() ? "Kein Track" : state.trackName(), textX, y + 60, textWidth, HudStyle.text());
+        drawWrapped(context, state.artistName().isBlank() ? state.statusMessage() : state.artistName(), textX, y + 76, textWidth, SPOTIFY_MUTED);
 
         int buttonY = y + CONTROLS_TOP;
         addButton(x + 16, buttonY, 34, 20, "<<", spotifyService::skipPrevious);
@@ -297,6 +307,30 @@ public final class SpotifyInventoryOverlay {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Draws the album cover at ({@code px},{@code py}) scaled into a {@code size}×{@code size} box, or a
+     * neutral placeholder with a ♪ glyph while the art is still loading.
+     */
+    private void drawCover(GuiGraphicsExtractor context, String url, int px, int py, int size) {
+        if (albumArt.isReady(url)) {
+            int texW = albumArt.width();
+            int texH = albumArt.height();
+            context.pose().pushMatrix();
+            context.pose().translate(px, py);
+            context.pose().scale((float) size / texW, (float) size / texH);
+            context.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, albumArt.textureId(),
+                0, 0, 0f, 0f, texW, texH, texW, texH);
+            context.pose().popMatrix();
+        } else {
+            context.fill(px, py, px + size, py + size, 0xFFE0E2E6);
+            context.outline(px, py, size, size, HudStyle.border());
+            Minecraft client = Minecraft.getInstance();
+            if (client != null) {
+                context.centeredText(client.font, Component.literal("♪"), px + size / 2, py + size / 2 - 4, SPOTIFY_MUTED);
+            }
+        }
     }
 
     private void addButton(int x, int y, int width, int height, String label, Runnable action) {
