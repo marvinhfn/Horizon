@@ -74,7 +74,10 @@ public final class SpiritBearService {
         if (newIsLantern && (oldState == null || oldState.is(Blocks.COAL_BLOCK))) {
             count = Math.min(count + 1, locations.size());
             if (pos.equals(LAST_BLOCK)) {
-                timerTarget = serverTick() + BEAR_SPAWN_DELAY;
+                Minecraft mc = Minecraft.getInstance();
+                if (mc != null && mc.level != null) {
+                    timerTarget = mc.level.getGameTime() + BEAR_SPAWN_DELAY;
+                }
             }
         } else if (newIsCoal && (oldState == null || oldState.is(Blocks.SEA_LANTERN))) {
             count = Math.max(count - 1, 0);
@@ -99,15 +102,9 @@ public final class SpiritBearService {
     }
 
     public float getCountdownSeconds(Minecraft mc) {
-        if (timerTarget <= 0) return 0f;
-        long remaining = timerTarget - serverTick();
+        if (mc == null || mc.level == null || timerTarget <= 0) return 0f;
+        long remaining = timerTarget - mc.level.getGameTime();
         return Math.max(0f, remaining / 20f);
-    }
-
-    /** Server-tick clock (aligned to the real server tick, not the client-advanced game time). */
-    private static long serverTick() {
-        de.horizon.HorizonClient client = de.horizon.HorizonClient.getInstance();
-        return client != null ? client.getServerTickService().getServerTick() : 0L;
     }
 
     public int getCount() {
