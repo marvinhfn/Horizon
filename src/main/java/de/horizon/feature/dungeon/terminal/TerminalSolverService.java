@@ -87,10 +87,6 @@ public final class TerminalSolverService {
     private String lastSignature = null;
 
     private final List<TerminalClick> solution = new ArrayList<>();
-    // Persistent queue of clicks the player has made but the server may not have applied yet
-    // (Hypixel now queues terminal clicks). Survives re-solves so an already-clicked field is
-    // never re-shown until the server confirms it. Each entry mirrors a TerminalClick.
-    private final List<TerminalClick> pendingClicks = new ArrayList<>();
     private final Map<Integer, Integer> numbersSlotCounts = new HashMap<>();
 
     // Startwith bookkeeping for permanently-glinted items.
@@ -263,20 +259,6 @@ public final class TerminalSolverService {
             case MELODY -> solveMelody();
             default -> {}
         }
-        applyPendingClicks();
-    }
-
-    /**
-     * After a fresh solve, drop pending clicks the server has already applied (their slot is no
-     * longer part of the freshly-computed solution) and re-apply the rest so a clicked field is
-     * not re-shown while the server works through its click queue.
-     */
-    private void applyPendingClicks() {
-        if (pendingClicks.isEmpty()) return;
-        // A pending click is "confirmed" once its slot is no longer in the fresh solution.
-        pendingClicks.removeIf(pc -> solution.stream().noneMatch(s -> s.slotId() == pc.slotId()));
-        // Re-apply the still-pending clicks against the fresh solution (same effect as predict()).
-        for (TerminalClick pc : pendingClicks) predict(pc);
     }
 
     private void solveMelody() {
@@ -559,9 +541,6 @@ public final class TerminalSolverService {
         }
         if (click == null) return true;
 
-        // Only click-once terminals need the persistent queue. Rubix (SAME_COLOR) mutates colour
-        // counts per click, so re-applying a queued click would double-count — it is not enqueued.
-        if (currentType != TerminalType.SAME_COLOR) pendingClicks.add(click);
         predict(click);
         sendClickPacket(windowId, click.slotId(), click.btn());
         if (currentType == TerminalType.ITEM_NAME) pendingSpecialClick = click.slotId();
@@ -622,7 +601,6 @@ public final class TerminalSolverService {
         currentItems.clear();
         lastSignature = null;
         solution.clear();
-        pendingClicks.clear();
         numbersSlotCounts.clear();
         clickedSlots.clear();
         pendingSpecialClick = -1;
