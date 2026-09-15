@@ -86,14 +86,24 @@ public final class DungeonRoomDetector {
         if (recentQuizHintTicks > 0) recentQuizHintTicks--;
         if (recentWeirdosHintTicks > 0) recentWeirdosHintTicks--;
 
-        if (client == null || client.level == null || client.player == null
-                || dungeonState == null || !dungeonState.isInDungeon() || dungeonState.isInBoss()) {
+        // Transient conditions must NOT destroy the held room, or the waypoints flicker / re-rotate:
+        // a loading/lag gap (null level) or a brief boss-room reading just PAUSE detection while the
+        // last resolved room (its anchor + rotation) is preserved. Only a genuine dungeon exit clears.
+        if (client == null || client.level == null || client.player == null || dungeonState == null) {
+            return; // preserve currentRoom across the gap
+        }
+        if (!dungeonState.isInDungeon()) {
+            // Real exit / between runs — drop everything (a new run re-scans from scratch).
             currentRoom = Optional.empty();
             ticksSinceRoomSeen = 0;
             currentRoomCells.clear();
-            // Only wipe the per-run cache when we actually leave the dungeon (a new run),
-            // not merely on entering the boss — the layout is the same for the whole run.
-            if (dungeonState == null || !dungeonState.isInDungeon()) roomCache.clear();
+            roomCache.clear();
+            return;
+        }
+        if (dungeonState.isInBoss()) {
+            // In the boss room: pause scanning but KEEP the last room. Room-gated renders (secrets,
+            // puzzles) gate on isInBoss() themselves, so nothing draws — but preserving the room means
+            // no re-scan flicker when a transient boss reading clears.
             return;
         }
 
