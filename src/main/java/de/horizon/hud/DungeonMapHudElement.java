@@ -89,10 +89,11 @@ public final class DungeonMapHudElement implements HudElement {
     public void render(GuiGraphicsExtractor ctx, Minecraft mc, HudPosition pos, boolean editMode) {
         DungeonInfo info = mapService.getDungeonInfo();
         if (!editMode) {
-            // Show the map for the whole run; hide only when out of the dungeon or physically
-            // inside the boss-room bounds (isInBoss is position-based). The old bossFightStarted
-            // chat-latch suppressed the map for the rest of a fight / across runs — dropped here.
+            // Show the map only during an ACTIVE run (from the "entered ... The Catacombs" banner /
+            // countdown until the run ends), and hide inside the boss-room bounds. runActive keeps the
+            // map from showing at the end of a run — it reappears only when the next run starts.
             if (!dungeonStateService.isInDungeon()
+                || !dungeonStateService.isRunActive()
                 || dungeonStateService.isInBoss()) return;
             if (info.isEmpty()) return;
         }

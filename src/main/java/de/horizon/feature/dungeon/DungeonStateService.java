@@ -29,6 +29,10 @@ public final class DungeonStateService {
 
     private boolean inDungeon;
     private boolean inBoss;
+    // True only between a run actually STARTING (the "entered ... The Catacombs, Floor" banner /
+    // "dungeon starts in" countdown) and the run ENDING (reset on completion / leaving). The map
+    // gates on this so it does not show at the end of a run — only once the next run starts.
+    private boolean runActive;
     // True only once the actual floor-boss fight begins (a "[BOSS] <Name>:" chat line that
     // is NOT the Watcher). The blood room is NOT the boss, so this stays false through
     // blood — the score HUD uses it so the calc only disappears when the boss starts.
@@ -156,9 +160,16 @@ public final class DungeonStateService {
         if (BOSS_GREETING.matcher(normalized).find()) {
             bossFightStarted = true; // a real floor boss is speaking (not the blood Watcher)
         }
+        // New-run start: the "entered ... The Catacombs, Floor VII!" broadcast banner. This is the
+        // signal the user wants the map to (re)appear on — not before, and not at the end of a run.
+        if (normalized.contains("entered") && normalized.contains("catacombs")) {
+            runActive = true;
+            inDungeon = true;
+        }
         if (normalized.contains("dungeon starts in") || normalized.contains("dungeon starts")) {
             // Fresh run — clear per-run phase state (state now survives the boss warp, so this is the
             // authoritative "new instance" reset rather than the JOIN event).
+            runActive = true; // the countdown is the same run-start moment (robust fallback to the banner)
             inDungeon = true;
             inBoss = false;
             bossFightStarted = false;
@@ -242,6 +253,11 @@ public final class DungeonStateService {
 
     public boolean isInBoss() {
         return inBoss;
+    }
+
+    /** True only between a run starting (entered-banner / countdown) and ending (reset). */
+    public boolean isRunActive() {
+        return runActive;
     }
 
     /** True once the actual floor-boss fight has started (not the blood room). */
@@ -397,6 +413,7 @@ public final class DungeonStateService {
     private void reset() {
         inDungeon = false;
         inBoss = false;
+        runActive = false;
         bossFightStarted = false;
         currentFloor = 0;
         isMasterMode = false;
