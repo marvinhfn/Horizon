@@ -13,6 +13,7 @@
     "InGameHudMixin",
     "LivingEntityMixin",
     "ClientPlayNetworkHandlerMixin",
+    "ClientCommonPacketListenerImplMixin",
     "ClientPlayerEntityMixin",
     "AbstractContainerScreenAccessor",
     "ArmorStandRendererMixin",

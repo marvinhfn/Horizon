@@ -19,6 +19,7 @@ import de.horizon.feature.dungeon.StarredMobService;
 import de.horizon.feature.dungeon.TeammateGlowService;
 import de.horizon.feature.dungeon.LeapMenuOverlay;
 import de.horizon.feature.dungeon.TickTimerService;
+import de.horizon.feature.dungeon.ServerTickService;
 import de.horizon.feature.fishing.FishingAlertService;
 import de.horizon.feature.dungeon.DungeonStateService;
 import de.horizon.feature.dungeon.room.DungeonRoomDetector;
@@ -106,6 +107,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final FishingAlertService fishingAlertService = new FishingAlertService();
     private final de.horizon.feature.helper.AnnounceService announceService = new de.horizon.feature.helper.AnnounceService();
     private final DungeonStateService dungeonStateService = new DungeonStateService();
+    private final ServerTickService serverTickService = new ServerTickService();
     private final DungeonRoomDetector dungeonRoomDetector = new DungeonRoomDetector();
     private final HudRegistry hudRegistry = new HudRegistry();
     private final ParticleFilterService particleFilterService = new ParticleFilterService(configManager);
@@ -131,7 +133,7 @@ public final class HorizonClient implements ClientModInitializer {
     private final de.horizon.feature.misc.LoadoutKeybindService loadoutKeybindService = new de.horizon.feature.misc.LoadoutKeybindService();
     private final SlotBindService slotBindService = new SlotBindService();
     private final ChatCommandService chatCommandService = new ChatCommandService(pingService, tpsTracker, spotifyService);
-    private final TickTimerService tickTimerService = new TickTimerService();
+    private final TickTimerService tickTimerService = new TickTimerService(serverTickService);
     private final PuzzleSolverService puzzleSolverService = new PuzzleSolverService();
     private final TerminalSolverService terminalSolverService = new TerminalSolverService();
     private final de.horizon.feature.helper.ExperimentTableSolver experimentTableSolver = new de.horizon.feature.helper.ExperimentTableSolver();
@@ -561,6 +563,11 @@ public final class HorizonClient implements ClientModInitializer {
         return dungeonStateService;
     }
 
+    public ServerTickService getServerTickService() { return serverTickService; }
+
+    /** Called from the ping mixin once per received per-tick ping packet (id != 0). */
+    public void onServerPing() { serverTickService.onServerTick(); }
+
     public MimicService getMimicService() {
         return mimicService;
     }
@@ -607,6 +614,7 @@ public final class HorizonClient implements ClientModInitializer {
         doorEspService.reset();
         secretWaypointService.reset();
         tickTimerService.reset();
+        if (resetState) serverTickService.reset();
         purplePadTimerService.reset();
         simonSaysService.reset();
         arrowAlignService.reset();
