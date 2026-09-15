@@ -89,9 +89,11 @@ public final class DungeonMapHudElement implements HudElement {
     public void render(GuiGraphicsExtractor ctx, Minecraft mc, HudPosition pos, boolean editMode) {
         DungeonInfo info = mapService.getDungeonInfo();
         if (!editMode) {
+            // Show the map for the whole run; hide only when out of the dungeon or physically
+            // inside the boss-room bounds (isInBoss is position-based). The old bossFightStarted
+            // chat-latch suppressed the map for the rest of a fight / across runs — dropped here.
             if (!dungeonStateService.isInDungeon()
-                || dungeonStateService.isInBoss()
-                || dungeonStateService.isBossFightStarted()) return;
+                || dungeonStateService.isInBoss()) return;
             if (info.isEmpty()) return;
         }
 

@@ -113,7 +113,18 @@ public final class DungeonStateService {
         // floor's boss-room bounds (fixed per floor). This is deterministic — during clear you're never
         // in those bounds, so the map/renders show; in the boss room they hide. No chat/scoreboard race.
         inBoss = inDungeon && isInBossRoom(client);
-        if (!inBoss) f7Phase = F7Phase.NONE; // phase only meaningful inside the boss
+        if (!inBoss) {
+            f7Phase = F7Phase.NONE; // phase only meaningful inside the boss
+        } else if (currentFloor == 7 && client.player != null) {
+            // F7 phase is Y-deterministic inside the boss (Noamm's getPhase) — more reliable than
+            // the chat-line ordering, which can race. Position wins.
+            double y = client.player.getY();
+            f7Phase = y > 210 ? F7Phase.P1
+                    : y > 155 ? F7Phase.P2
+                    : y > 100 ? F7Phase.P3
+                    : y > 45  ? F7Phase.P4
+                    :           F7Phase.P5;
+        }
     }
 
     // Per-floor boss-room bounds (floors 1..7). If the player is inside, we're in the boss room.

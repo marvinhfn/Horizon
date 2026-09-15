@@ -1,7 +1,7 @@
 package de.horizon.feature.dungeon.boss;
 
 import de.horizon.config.HorizonConfig;
-import net.minecraft.client.Minecraft;
+import de.horizon.HorizonClient;
 
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  *       expected." until Storm is defeated.</li>
  * </ul>
  *
- * <p>Anchored to the server game tick ({@code level.getGameTime()}) so it stays aligned under lag.
+ * <p>Anchored to the true server tick ({@code ServerTickService}) so it stays aligned under lag.
  * PY takes display priority over Pad.
  */
 public final class PurplePadTimerService {
@@ -34,8 +34,8 @@ public final class PurplePadTimerService {
     private long padAnchor = 0L;
 
     private static long gameTime() {
-        Minecraft mc = Minecraft.getInstance();
-        return mc != null && mc.level != null ? mc.level.getGameTime() : 0L;
+        HorizonClient client = HorizonClient.getInstance();
+        return client != null ? client.getServerTickService().getServerTick() : 0L;
     }
 
     public void handleChatMessage(String rawMessage, HorizonConfig config) {

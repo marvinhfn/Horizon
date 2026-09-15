@@ -116,6 +116,16 @@ public final class DungeonRoomDetector {
             }
         }
 
+        // Stability: while we remain within the CURRENT room's cells, keep the already-resolved
+        // room (anchor + rotation) verbatim — do not re-scan. This holds Unknown / chat-hint rooms
+        // steady too (they are not roomCache'd), so their waypoints don't rotate as you walk around
+        // inside them. We only re-scan once the player's cell is outside the held room's cell set.
+        if (currentRoom.isPresent() && inBounds
+                && currentRoomCells.contains(cellKey(roomCx, roomCz))) {
+            ticksSinceRoomSeen = 0;
+            return;
+        }
+
         if (scanCooldown-- > 0) return;
         scanCooldown = SCAN_INTERVAL_TICKS;
 

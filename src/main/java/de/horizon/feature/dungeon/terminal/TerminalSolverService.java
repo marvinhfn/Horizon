@@ -87,6 +87,10 @@ public final class TerminalSolverService {
     private String lastSignature = null;
 
     private final List<TerminalClick> solution = new ArrayList<>();
+    // Persistent queue of clicks the player has made but the server may not have applied yet
+    // (Hypixel now queues terminal clicks). Survives re-solves so an already-clicked field is
+    // never re-shown until the server confirms it. Each entry mirrors a TerminalClick.
+    private final List<TerminalClick> pendingClicks = new ArrayList<>();
     private final Map<Integer, Integer> numbersSlotCounts = new HashMap<>();
 
     // Startwith bookkeeping for permanently-glinted items.
@@ -109,7 +113,8 @@ public final class TerminalSolverService {
         if (row == melodyLastAnnouncedRow) return null;
         melodyLastAnnouncedRow = row;
         if (row <= 0) return null; // don't announce 0%
-        int percent = Math.round(row / 4.0f * 100f); // 4 lanes → 25/50/75
+        int lanes = Math.max(1, melodyButtonSlots().size());
+        int percent = Math.round(row / (float) lanes * 100f); // e.g. 4 lanes → 25/50/75
         String msg = config.getMelodyAnnounceMessage().replace("{%}", percent + "%");
         if (msg.contains("{coords}")) {
             var mc = net.minecraft.client.Minecraft.getInstance();
@@ -258,6 +263,20 @@ public final class TerminalSolverService {
             case MELODY -> solveMelody();
             default -> {}
         }
+        applyPendingClicks();
+    }
+
+    /**
+     * After a fresh solve, drop pending clicks the server has already applied (their slot is no
+     * longer part of the freshly-computed solution) and re-apply the rest so a clicked field is
+     * not re-shown while the server works through its click queue.
+     */
+    private void applyPendingClicks() {
+        if (pendingClicks.isEmpty()) return;
+        // A pending click is "confirmed" once its slot is no longer in the fresh solution.
+        pendingClicks.removeIf(pc -> solution.stream().noneMatch(s -> s.slotId() == pc.slotId()));
+        // Re-apply the still-pending clicks against the fresh solution (same effect as predict()).
+        for (TerminalClick pc : pendingClicks) predict(pc);
     }
 
     private void solveMelody() {
@@ -278,6 +297,19 @@ public final class TerminalSolverService {
     private static int indexOf(Item[] arr, Item item) {
         for (int i = 0; i < arr.length; i++) if (arr[i] == item) return i;
         return -1;
+    }
+
+    /**
+     * Melody button slots = column 7 of each interior lane row, derived from the window's row
+     * count instead of the fixed {@code 16,25,34,43}. A 54-slot window yields rows 1..4
+     * (= 16,25,34,43); a smaller/3-lane window yields fewer, so the overlay and the announce
+     * percentage stay correct when Hypixel drops Melody to 3 lanes.
+     */
+    private java.util.List<Integer> melodyButtonSlots() {
+        int rows = currentType.slotCount() / 9;
+        java.util.List<Integer> slots = new ArrayList<>();
+        for (int r = 1; r <= rows - 2; r++) slots.add(r * 9 + 7);
+        return slots;
     }
 
     // ── Rendering (custom overlay) ────────────────────────────────────────
@@ -350,7 +382,7 @@ public final class TerminalSolverService {
                     float x = i % 9 * 18 + offsetX;
                     float y = i / 9 * 18 + offsetY;
                     if (i == buttonSlot) drawSlot(ctx, x, y, baseColor, style);
-                    else if (i == 16 || i == 25 || i == 34 || i == 43) drawSlot(ctx, x, y, melodyColor(config, 2), style);
+                    else if (melodyButtonSlots().contains(i)) drawSlot(ctx, x, y, melodyColor(config, 2), style);
                     else if (i == currentSlot) drawSlot(ctx, x, y, melodyColor(config, 1), style);
                 }
             }
@@ -505,7 +537,7 @@ public final class TerminalSolverService {
         int windowId = screen.getMenu().containerId;
 
         if (currentType == TerminalType.MELODY) {
-            if (slot == 16 || slot == 25 || slot == 34 || slot == 43) sendClickPacket(windowId, slot, 0);
+            if (melodyButtonSlots().contains(slot)) sendClickPacket(windowId, slot, 0);
             return true;
         }
 
@@ -527,6 +559,9 @@ public final class TerminalSolverService {
         }
         if (click == null) return true;
 
+        // Only click-once terminals need the persistent queue. Rubix (SAME_COLOR) mutates colour
+        // counts per click, so re-applying a queued click would double-count — it is not enqueued.
+        if (currentType != TerminalType.SAME_COLOR) pendingClicks.add(click);
         predict(click);
         sendClickPacket(windowId, click.slotId(), click.btn());
         if (currentType == TerminalType.ITEM_NAME) pendingSpecialClick = click.slotId();
@@ -587,6 +622,7 @@ public final class TerminalSolverService {
         currentItems.clear();
         lastSignature = null;
         solution.clear();
+        pendingClicks.clear();
         numbersSlotCounts.clear();
         clickedSlots.clear();
         pendingSpecialClick = -1;
