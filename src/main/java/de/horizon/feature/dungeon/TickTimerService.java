@@ -1,7 +1,6 @@
 package de.horizon.feature.dungeon;
 
 import de.horizon.config.HorizonConfig;
-import net.minecraft.client.Minecraft;
 
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -34,9 +33,14 @@ public final class TickTimerService {
     private boolean goldorCycle = false;
     private long goldorAnchor = 0L;
 
-    private static long gameTime() {
-        Minecraft mc = Minecraft.getInstance();
-        return mc != null && mc.level != null ? mc.level.getGameTime() : 0L;
+    private final ServerTickService serverTickService;
+
+    public TickTimerService(ServerTickService serverTickService) {
+        this.serverTickService = serverTickService;
+    }
+
+    private long gameTime() {
+        return serverTickService.getServerTick();
     }
 
     /** Kept for the tick wiring; all values are computed lazily from game time. */

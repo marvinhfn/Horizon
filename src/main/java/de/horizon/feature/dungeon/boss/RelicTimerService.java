@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
  *       prefix.</li>
  * </ul>
  *
- * <p>All timing is anchored to the server game tick ({@code level.getGameTime()}) so it stays aligned
+ * <p>All timing is anchored to the true server tick ({@code ServerTickService}) so it stays aligned
  * with the actual (server-side) spawn/placement under lag, instead of drifting on the client loop.
  */
 public final class RelicTimerService {
@@ -107,8 +107,8 @@ public final class RelicTimerService {
     private final List<Entry> entries = new ArrayList<>();
 
     private static long gameTime() {
-        Minecraft mc = Minecraft.getInstance();
-        return mc != null && mc.level != null ? mc.level.getGameTime() : 0L;
+        de.horizon.HorizonClient client = de.horizon.HorizonClient.getInstance();
+        return client != null ? client.getServerTickService().getServerTick() : 0L;
     }
 
     public void handleChatMessage(String rawMessage, DungeonStateService dungeonState, HorizonConfig config) {
