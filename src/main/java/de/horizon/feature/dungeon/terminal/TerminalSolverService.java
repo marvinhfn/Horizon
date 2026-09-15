@@ -88,6 +88,13 @@ public final class TerminalSolverService {
 
     private final List<TerminalClick> solution = new ArrayList<>();
     private final Map<Integer, Integer> numbersSlotCounts = new HashMap<>();
+    // Rubix: the target colour index is locked once per terminal so the solution never flips to a
+    // different target after a click (ties used to break inconsistently → the whole solution switched).
+    private int rubixTarget = -1;
+    // Test mode: clicks recorded locally and re-applied after every re-solve so a clicked field stays
+    // gone regardless of the server (Rubix: |value| clicks). Only active while the config toggle is on.
+    private final List<TerminalClick> testClicks = new ArrayList<>();
+    private boolean testMode = false;
 
     // Startwith bookkeeping for permanently-glinted items.
     private final Set<Integer> clickedSlots = new HashSet<>();
@@ -248,6 +255,10 @@ public final class TerminalSolverService {
                 }
                 int origin = 0;
                 for (int i = 1; i < 5; i++) if (costs[i] < costs[origin]) origin = i;
+                // Lock the target colour for the whole terminal: once chosen, keep it so the solution
+                // never switches to a different target after a click (only recompute if unset).
+                if (rubixTarget < 0) rubixTarget = origin;
+                origin = rubixTarget;
                 for (int[] p : panes) {
                     if (p[1] == origin) continue;
                     int diff = origin - p[1];
@@ -259,6 +270,9 @@ public final class TerminalSolverService {
             case MELODY -> solveMelody();
             default -> {}
         }
+        // Test mode: re-apply the locally recorded clicks so a clicked field stays gone across
+        // re-solves (Rubix decrements by one per recorded click and disappears at 0).
+        if (testMode) for (TerminalClick c : testClicks) predict(c);
     }
 
     private void solveMelody() {
@@ -298,6 +312,7 @@ public final class TerminalSolverService {
 
     public void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor ctx, HorizonConfig config) {
         if (currentType == TerminalType.NONE || !config.isTerminalSolverEnabled()) return;
+        testMode = config.isTerminalTestMode();
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.font == null) return;
         Font font = mc.font;
@@ -510,6 +525,7 @@ public final class TerminalSolverService {
      */
     public boolean onOverlayMouseClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY, boolean leftClick, HorizonConfig config) {
         if (currentType == TerminalType.NONE || !config.isTerminalSolverEnabled()) return false;
+        testMode = config.isTerminalTestMode();
 
         int slot = slotAt(mouseX, mouseY);
         if (slot < 0 || slot >= windowSizeCache) return true;
@@ -541,6 +557,7 @@ public final class TerminalSolverService {
         }
         if (click == null) return true;
 
+        if (testMode) testClicks.add(click);
         predict(click);
         sendClickPacket(windowId, click.slotId(), click.btn());
         if (currentType == TerminalType.ITEM_NAME) pendingSpecialClick = click.slotId();
@@ -602,6 +619,8 @@ public final class TerminalSolverService {
         lastSignature = null;
         solution.clear();
         numbersSlotCounts.clear();
+        testClicks.clear();
+        rubixTarget = -1;
         clickedSlots.clear();
         pendingSpecialClick = -1;
         melodyCorrect = melodyButton = melodyCurrent = null;

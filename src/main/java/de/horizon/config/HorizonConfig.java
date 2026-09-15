@@ -287,6 +287,8 @@ public final class HorizonConfig {
     public void setTerminalSolverBlockWrongClicks(boolean v) { dungeon.terminalSolverBlockWrongClicks = v; }
     public boolean isTerminalShowNumbers() { return dungeon.terminalShowNumbers; }
     public void setTerminalShowNumbers(boolean v) { dungeon.terminalShowNumbers = v; }
+    public boolean isTerminalTestMode() { return dungeon.terminalTestMode; }
+    public void setTerminalTestMode(boolean v) { dungeon.terminalTestMode = v; }
     public int getTerminalSlotStyle() { return dungeon.terminalSlotStyle; }
     public void setTerminalSlotStyle(int v) { dungeon.terminalSlotStyle = ((v % 3) + 3) % 3; }
     public boolean isTerminalUseHudColor() { return dungeon.terminalUseHudColor; }

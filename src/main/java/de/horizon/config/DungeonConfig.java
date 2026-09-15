@@ -98,6 +98,7 @@ public final class DungeonConfig {
     boolean terminalSolverEnabled = false;
     boolean terminalSolverBlockWrongClicks = false;
     boolean terminalShowNumbers = true;      // Numbers terminal: draw the click count on each slot
+    boolean terminalTestMode = false;        // Test: a clicked field stays gone locally (Rubix: |value| clicks)
     int terminalSlotStyle = 0;               // 0=Rect, 1=Bordered-Rect, 2=Button
     boolean terminalUseHudColor = true;      // derive all solver colours from the HUD accent color (auto offsets)
     // Terminal overlay colours (ARGB hex; alpha matters)

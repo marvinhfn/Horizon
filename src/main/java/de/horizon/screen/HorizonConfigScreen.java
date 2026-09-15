@@ -985,6 +985,7 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawToggleRow(context, viewport.x, y, "Terminal Solver", config().isTerminalSolverEnabled(), Lang.t("Ersetzt F7-Terminals durch ein eigenes Overlay mit markierten Klick-Slots.", "Replaces F7 terminals with a custom overlay highlighting the slots to click."));
                 y = drawCycleRow(context, viewport.x, y, Lang.t("Slot-Stil", "Slot Style"), Lang.t(slotStyleDE[ss], slotStyleEN[ss]), config().isTerminalSolverEnabled(), Lang.t("Darstellung der markierten Slots.", "Appearance of the highlighted slots."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Zahlen anzeigen", "Show Numbers"), config().isTerminalShowNumbers(), Lang.t("Zeigt die Klick-Reihenfolge als Zahl im Order-Terminal.", "Shows the click order as a number in the Order terminal."));
+                y = drawToggleRow(context, viewport.x, y, "Test", config().isTerminalTestMode(), Lang.t("Test-Modus: ein geklicktes Feld bleibt lokal weg (Rubix: |Wert| Klicks), unabhaengig vom Server.", "Test mode: a clicked field stays gone locally (Rubix: |value| clicks), independent of the server."));
                 y = drawSliderRow(context, viewport.x, y, "GUI Scale", config().getTerminalGuiScale(), 0.5, 3.0, Lang.t("Skalierung des Terminal-Overlays.", "Scale of the terminal overlay."));
                 y = drawToggleRow(context, viewport.x, y, "Melody Announce", config().isMelodyAnnounceEnabled(), MELODY_ANNOUNCE_DESC);
                 y = drawFieldRow(context, viewport.x, y, Lang.t("Melody-Nachricht", "Melody Message"),
@@ -2694,6 +2695,12 @@ public final class HorizonConfigScreen extends Screen {
                     yield true;
                 }
                 y += toggleRowHeight(Lang.t("Zeigt die Klick-Reihenfolge als Zahl im Order-Terminal.", "Shows the click order as a number in the Order terminal."));
+                if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+                    config().setTerminalTestMode(!config().isTerminalTestMode());
+                    horizonClient.getConfigManager().save();
+                    yield true;
+                }
+                y += toggleRowHeight(Lang.t("Test-Modus: ein geklicktes Feld bleibt lokal weg (Rubix: |Wert| Klicks), unabhaengig vom Server.", "Test mode: a clicked field stays gone locally (Rubix: |value| clicks), independent of the server."));
                 if (sliderRect(viewport.x, y).contains(mouseX, mouseY)) {
                     activeSliderIndex = 20;
                     applySliderValue(20, mouseX, viewport.x);
@@ -4225,6 +4232,7 @@ public final class HorizonConfigScreen extends Screen {
                     + toggleRowHeight(Lang.t("Ersetzt F7-Terminals durch ein eigenes Overlay mit markierten Klick-Slots.", "Replaces F7 terminals with a custom overlay highlighting the slots to click."))
                     + toggleRowHeight(Lang.t("Darstellung der markierten Slots.", "Appearance of the highlighted slots."))
                     + toggleRowHeight(Lang.t("Zeigt die Klick-Reihenfolge als Zahl im Order-Terminal.", "Shows the click order as a number in the Order terminal."))
+                    + toggleRowHeight(Lang.t("Test-Modus: ein geklicktes Feld bleibt lokal weg (Rubix: |Wert| Klicks), unabhaengig vom Server.", "Test mode: a clicked field stays gone locally (Rubix: |value| clicks), independent of the server."))
                     + sliderRowHeight()
                     + toggleRowHeight(MELODY_ANNOUNCE_DESC)
                     + fieldRowHeight(MELODY_MSG_DESC)
