@@ -240,7 +240,9 @@ public final class HorizonClient implements ClientModInitializer {
             // Fresh instance: the boss warp keeps the map/rooms (JOIN doesn't reset them), so a NEW
             // run must drop the previous run's map + room calibration here — otherwise run 2+ is stuck
             // on stale state until something re-syncs near the boss.
-            if (raw.toLowerCase(java.util.Locale.ROOT).contains("dungeon starts in")) {
+            if (raw.toLowerCase(java.util.Locale.ROOT).contains("dungeon starts in")
+                    || (raw.toLowerCase(java.util.Locale.ROOT).contains("entered")
+                        && raw.toLowerCase(java.util.Locale.ROOT).contains("the catacombs"))) {
                 dungeonMapService.reset();
                 dungeonRoomDetector.reset();
             }
@@ -282,7 +284,9 @@ public final class HorizonClient implements ClientModInitializer {
             // Fresh instance: the boss warp keeps the map/rooms (JOIN doesn't reset them), so a NEW
             // run must drop the previous run's map + room calibration here — otherwise run 2+ is stuck
             // on stale state until something re-syncs near the boss.
-            if (raw.toLowerCase(java.util.Locale.ROOT).contains("dungeon starts in")) {
+            if (raw.toLowerCase(java.util.Locale.ROOT).contains("dungeon starts in")
+                    || (raw.toLowerCase(java.util.Locale.ROOT).contains("entered")
+                        && raw.toLowerCase(java.util.Locale.ROOT).contains("the catacombs"))) {
                 dungeonMapService.reset();
                 dungeonRoomDetector.reset();
             }
