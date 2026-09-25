@@ -2,7 +2,10 @@ package de.horizon.screen;
 
 import de.horizon.feature.inventory.InventoryButtonItems;
 import de.horizon.feature.inventory.SkyBlockHeadCache;
-import de.horizon.hud.HudStyle;
+import de.horizon.screen.render.HiDpi;
+import de.horizon.screen.render.Ui;
+import de.horizon.theme.Theme;
+import de.horizon.theme.ThemeManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -38,13 +41,7 @@ public final class ItemPickerScreen extends Screen {
     private static final int PAD       = 16;
     private static final int HEADER    = 52;   // space for title + search
 
-    // ── Colors ────────────────────────────────────────────────────────────────
-    private static final int BG          = 0xD0101820;
-    private static final int CELL_BG     = 0x60F0F1F3;
-    private static final int CELL_HOVER  = 0xA0A0C0FF;
-    private static final int TEXT_COLOR  = 0xFFFFFFFF;
-    private static final int MUTED       = 0xFFB8B8B8;
-    private static final int BORDER      = 0xFF4A5568;
+    // ── Colors resolved from theme at render time ─────────────────────────────
 
     private final Screen parent;
     private final Consumer<String> callback;
@@ -64,6 +61,7 @@ public final class ItemPickerScreen extends Screen {
 
     @Override
     protected void init() {
+        HiDpi.enter(Minecraft.getInstance());
         refreshEntries();
     }
 
@@ -148,6 +146,7 @@ public final class ItemPickerScreen extends Screen {
 
     @Override
     public void onClose() {
+        HiDpi.exit(Minecraft.getInstance());
         if (minecraft != null) minecraft.setScreen(parent);
     }
 
@@ -167,23 +166,23 @@ public final class ItemPickerScreen extends Screen {
             }
         }
 
-        context.fill(0, 0, width, height, BG);
+        Theme theme = ThemeManager.current();
+        context.fill(0, 0, width, height, theme.background);
 
         // Title
-        int accent = HudStyle.accent();
         context.text(font,
-                Component.literal("Item waehlen"), PAD, 10, accent);
+                Component.literal("Item waehlen"), PAD, 10, theme.accent);
 
         // Search field
         String cursor = ((System.currentTimeMillis() / 400L) % 2L == 0L) ? "_" : "";
         String display = searchInput.isEmpty()
                 ? "Suche... (HEAD:ITEM_ID fuer SkyBlock Skulls)"
                 : searchInput + cursor;
-        int fieldColor = searchInput.isEmpty() ? MUTED : TEXT_COLOR;
+        int fieldColor = searchInput.isEmpty() ? theme.textMuted : theme.text;
         context.text(font,
                 Component.literal("Suche: " + display), PAD, 28, fieldColor);
         // underline
-        context.fill(PAD, 40, width - PAD, 41, BORDER);
+        context.fill(PAD, 40, width - PAD, 41, theme.borderSubtle);
 
         // Status for HEAD: searches
         if (searchInput.toUpperCase().startsWith("HEAD:")) {
@@ -191,7 +190,7 @@ public final class ItemPickerScreen extends Screen {
                     : SkyBlockHeadCache.hasFailed()  ? "Fehler beim Laden der SkyBlock Items."
                     : "";
             if (!status.isEmpty()) {
-                context.text(font, Component.literal(status), PAD, 44, MUTED);
+                context.text(font, Component.literal(status), PAD, 44, theme.textMuted);
             }
         }
 
@@ -209,8 +208,8 @@ public final class ItemPickerScreen extends Screen {
 
             boolean hov = mouseX >= cx && mouseX < cx + CELL_SIZE
                        && mouseY >= cy && mouseY < cy + CELL_SIZE;
-            context.fill(cx, cy, cx + CELL_SIZE, cy + CELL_SIZE,
-                    hov ? CELL_HOVER : CELL_BG);
+            Ui.roundedRect(context, cx, cy, CELL_SIZE, CELL_SIZE, 3,
+                    hov ? theme.surfaceHover : theme.surface);
             context.item(e.stack, cx + 2, cy + 2);
         }
         context.disableScissor();

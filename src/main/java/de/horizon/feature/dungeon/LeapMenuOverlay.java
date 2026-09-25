@@ -1,6 +1,8 @@
 package de.horizon.feature.dungeon;
 
 import de.horizon.config.HorizonConfig;
+import de.horizon.theme.Theme;
+import de.horizon.theme.ThemeManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -36,9 +38,7 @@ public final class LeapMenuOverlay {
     private static final int BOX_HEIGHT = 75;
     private static final int GAP = 24;
 
-    // Colors (ARGB)
-    private static final int BG_COLOR    = 0xBF262626;
-    private static final int HOVER_COLOR = 0xBF3A3A3A;
+    // Colors (ARGB) — resolved at render time from theme
     private static final int DEAD_COLOR  = 0xFFFF5555;
 
     // Class colors (ARGB)
@@ -73,7 +73,9 @@ public final class LeapMenuOverlay {
 
         refreshFromTablist(mc, config);
 
-        // No opaque backdrop — only the standard vanilla screen dim shows behind the quadrants.
+        Theme theme = ThemeManager.current();
+        // Opaque backdrop
+        ctx.fill(0, 0, screen.width, screen.height, 0xFF000000 | (theme.background & 0xFFFFFF));
         int halfW = screen.width / 2;
         int halfH = screen.height / 2;
 
@@ -93,7 +95,7 @@ public final class LeapMenuOverlay {
                            && (row == 0 ? mouseY < halfH : mouseY >= halfH);
 
             // Background
-            ctx.fill(boxX, boxY, boxX + BOX_WIDTH, boxY + BOX_HEIGHT, hovered ? HOVER_COLOR : BG_COLOR);
+            de.horizon.screen.render.Ui.roundedRect(ctx, boxX, boxY, BOX_WIDTH, BOX_HEIGHT, 6, hovered ? theme.surfaceHover : theme.surface);
 
             if (i < sortedPlayers.size()) {
                 LeapPlayer player = sortedPlayers.get(i);
@@ -120,7 +122,7 @@ public final class LeapMenuOverlay {
                 // Name
                 int textX = boxX + 14 + faceSize;
                 int nameY = boxY + (int)(BOX_HEIGHT / 2.5) - mc.font.lineHeight / 2;
-                ctx.text(mc.font, player.name, textX, nameY, classColor, true);
+                ctx.text(mc.font, player.name, textX, nameY, theme.text, true);
 
                 // Class or DEAD
                 int classY = boxY + (int)(BOX_HEIGHT / 1.7) - mc.font.lineHeight / 2;

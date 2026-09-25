@@ -55,15 +55,15 @@ public final class StorageOverlayService {
     private static final int PAGE_COLS = 3;
     private static final int PAGE_GAP = 16;
 
-    // Colours
-    private static final int BACKDROP = 0xC0101018; // translucent, like the config menu (not the opaque scoreboard)
-    private static final int CELL_BG = 0x60F0F1F3;
-    private static final int CELL_HOVER = 0xA0A0C0FF;
-    private static final int DIM = 0xC0101820;
-    private static final int TEXT = 0xFFFFFFFF;
-    private static final int MUTED = 0xFFB8B8B8;
-    private static final int ACCENT = 0xFF55FFFF;
-    private static final int CURRENT_BORDER = 0xFF55FF55;
+    // Colours — resolved from theme at render time; constants kept for HIGHLIGHT/placeholder only
+    private static int backdrop()      { return de.horizon.theme.ThemeManager.current().background; }
+    private static int cellBg()        { return de.horizon.theme.ThemeManager.current().surface; }
+    private static int cellHover()     { return de.horizon.theme.ThemeManager.current().surfaceHover; }
+    private static int dim()           { return 0xC0000000; }
+    private static int text()          { return de.horizon.theme.ThemeManager.current().text; }
+    private static int muted()         { return de.horizon.theme.ThemeManager.current().textMuted; }
+    private static int accent()        { return de.horizon.theme.ThemeManager.current().accent; }
+    private static int currentBorder() { return de.horizon.theme.ThemeManager.current().accent; }
 
     private final Map<String, Page> pages = new ConcurrentHashMap<>();
     private int maxEnderPages = 0; // learned from the "/M" in an "Ender Chest (N/M)" title
@@ -375,21 +375,21 @@ public final class StorageOverlayService {
         int height = screen.height;
         Font font = Minecraft.getInstance().font;
 
-        ctx.fill(0, 0, width, height, BACKDROP);
-        ctx.text(font, Component.literal("§bStorage"), 16, 10, ACCENT);
-        ctx.text(font, Component.literal("§8[X] / ESC → Menü"), 60, 12, MUTED);
+        ctx.fill(0, 0, width, height, backdrop());
+        ctx.text(font, Component.literal("§bStorage"), 16, 10, accent());
+        ctx.text(font, Component.literal("§8[X] / ESC → Menü"), 60, 12, muted());
 
         String cursor = ((System.currentTimeMillis() / 400L) % 2L == 0L) ? "_" : "";
         String shown = search.isEmpty() ? "Suche... (tippen)" : search + cursor;
-        ctx.text(font, Component.literal("§7Suche: §f" + shown), 16, 26, search.isEmpty() ? MUTED : TEXT);
-        ctx.fill(16, 38, width - 16, 39, 0xFF4A5568);
+        ctx.text(font, Component.literal("§7Suche: §f" + shown), 16, 26, search.isEmpty() ? muted() : text());
+        ctx.fill(16, 38, width - 16, 39, de.horizon.theme.ThemeManager.current().borderSubtle);
         ctx.text(font, Component.literal("§c[X]"), width - 20, 8, 0xFFFF7777);
 
         List<Page> pageList = orderedWithPlaceholders();
         if (pageList.isEmpty()) {
             ctx.centeredText(font, Component.literal(
                     "§7Keine gecachten Container. Oeffne Ender Chest / Backpacks zum Fuellen."),
-                width / 2, height / 2, MUTED);
+                width / 2, height / 2, muted());
             return;
         }
 
@@ -422,7 +422,7 @@ public final class StorageOverlayService {
             if (rowTop + blockH >= HEADER && rowTop <= height) {
                 String head = placeholder ? "§7" + page.label() + " §8(Klick: laden)"
                     : "§e" + page.label() + (enderNum > 0 ? " §8(Klick: öffnen)" : "");
-                ctx.text(font, Component.literal(head), px, rowTop + 2, TEXT);
+                ctx.text(font, Component.literal(head), px, rowTop + 2, text());
                 for (int i = 0; i < count; i++) {
                     int cx = px + (i % COLS) * CELL;
                     int cy = rowTop + 14 + (i / COLS) * CELL;
@@ -430,13 +430,13 @@ public final class StorageOverlayService {
                     if (placeholder) { ctx.fill(cx, cy, cx + CELL, cy + CELL, 0x40FFFFFF); continue; }
                     ItemStack stack = items.get(i);
                     boolean hov = mouseX >= cx && mouseX < cx + CELL && mouseY >= cy && mouseY < cy + CELL;
-                    ctx.fill(cx, cy, cx + CELL, cy + CELL, hov ? CELL_HOVER : CELL_BG);
+                    ctx.fill(cx, cy, cx + CELL, cy + CELL, hov ? cellHover() : cellBg());
                     if (stack.isEmpty()) continue;
                     ctx.item(stack, cx + 1, cy + 1);
                     ctx.itemDecorations(font, stack, cx + 1, cy + 1);
                     if (!(query.isEmpty()
                         || stack.getHoverName().getString().toLowerCase(Locale.ROOT).contains(query))) {
-                        ctx.fill(cx, cy, cx + CELL, cy + CELL, DIM);
+                        ctx.fill(cx, cy, cx + CELL, cy + CELL, dim());
                     }
                     if (hov) hovered = stack;
                 }
@@ -451,9 +451,8 @@ public final class StorageOverlayService {
     private void renderReopenButton(AbstractContainerScreen<?> screen, GuiGraphicsExtractor ctx, int mx, int my) {
         Font font = Minecraft.getInstance().font;
         boolean hov = mx >= BTN_X && mx < BTN_X + BTN_W && my >= BTN_Y && my < BTN_Y + BTN_H;
-        ctx.fill(BTN_X, BTN_Y, BTN_X + BTN_W, BTN_Y + BTN_H, hov ? 0xFF2A3550 : 0xE0101820);
-        ctx.fill(BTN_X, BTN_Y, BTN_X + BTN_W, BTN_Y + 1, 0xFF4A5568);
-        ctx.text(font, Component.literal("§b☰ Übersicht"), BTN_X + 6, BTN_Y + 3, ACCENT);
+        de.horizon.screen.render.Ui.roundedRect(ctx, BTN_X, BTN_Y, BTN_W, BTN_H, 4, hov ? de.horizon.theme.ThemeManager.current().surfaceHover : de.horizon.theme.ThemeManager.current().surface);
+        ctx.text(font, Component.literal("§b☰ Übersicht"), BTN_X + 6, BTN_Y + 3, accent());
     }
 
     public boolean onScroll(AbstractContainerScreen<?> screen, double vertical) {
@@ -548,18 +547,18 @@ public final class StorageOverlayService {
         pageNavPages.clear();
         for (Slot s : menu.slots) setPos(s, -9999, -9999); // park all; visible ones re-placed below
 
-        ctx.fill(0, 0, width, height, BACKDROP);
-        ctx.text(font, Component.literal("§bStorage"), 16, 10, ACCENT);
+        ctx.fill(0, 0, width, height, backdrop());
+        ctx.text(font, Component.literal("§bStorage"), 16, 10, accent());
         String cursor = ((System.currentTimeMillis() / 400L) % 2L == 0L) ? "_" : "";
         ctx.text(font, Component.literal("§7Suche: §f" + (search.isEmpty() ? "..." : search + cursor)),
-            16, 26, search.isEmpty() ? MUTED : TEXT);
-        ctx.fill(16, 38, width - 16, 39, 0xFF4A5568);
-        ctx.text(font, Component.literal("§8ESC schließt"), width - 90, 12, MUTED);
+            16, 26, search.isEmpty() ? muted() : text());
+        ctx.fill(16, 38, width - 16, 39, de.horizon.theme.ThemeManager.current().borderSubtle);
+        ctx.text(font, Component.literal("§8ESC schließt"), width - 90, 12, muted());
 
         // Player inventory (fixed bottom) — relocate the real inventory slots.
         int invOx = (width - GRID_W) / 2;
         int invTop = height - (16 + 4 * CELL) - 40; // higher so it clears the custom scoreboard
-        ctx.text(font, Component.literal("§7Inventar"), invOx, invTop, MUTED);
+        ctx.text(font, Component.literal("§7Inventar"), invOx, invTop, muted());
         for (Slot s : menu.slots) {
             if (!(s.container instanceof Inventory)) continue;
             int cs = s.getContainerSlot();
@@ -613,8 +612,8 @@ public final class StorageOverlayService {
             if (rowTop + blockH >= areaTop && rowTop <= areaBottom) {
                 String head = isCurrent ? "§a▶ " + page.label()
                     : placeholder ? "§7" + page.label() + " §8(Klick: laden)" : "§e" + page.label();
-                ctx.text(font, Component.literal(head), px, rowTop + 2, TEXT);
-                if (isCurrent) ctx.fill(px - 2, rowTop + 12, px - 1, rowTop + blockH, CURRENT_BORDER);
+                ctx.text(font, Component.literal(head), px, rowTop + 2, text());
+                if (isCurrent) ctx.fill(px - 2, rowTop + 12, px - 1, rowTop + blockH, currentBorder());
                 for (int i = 0; i < count; i++) {
                     int cx = px + (i % COLS) * CELL;
                     int cy = rowTop + 14 + (i / COLS) * CELL;
@@ -646,7 +645,7 @@ public final class StorageOverlayService {
     }
 
     private void drawCellBg(GuiGraphicsExtractor ctx, int cx, int cy, boolean highlight) {
-        ctx.fill(cx, cy, cx + CELL, cy + CELL, highlight ? HIGHLIGHT : CELL_BG);
+        ctx.fill(cx, cy, cx + CELL, cy + CELL, highlight ? HIGHLIGHT : cellBg());
     }
 
     private static boolean matches(ItemStack stack, String query) {

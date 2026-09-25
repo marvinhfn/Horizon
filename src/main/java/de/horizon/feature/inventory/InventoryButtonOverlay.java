@@ -22,10 +22,6 @@ public final class InventoryButtonOverlay {
     // visual constants
     private static final int BTN_SIZE  = 18;  // each button slot: 18 × 18
     private static final int GAP       = 4;   // gap between inventory edge and buttons
-    private static final int SLOT_FILL = 0x88333333;
-    private static final int SLOT_BORDER = 0xFFAAAAAA;
-    private static final int ACTIVE_FILL = 0x8822AA44;
-    private static final int INACTIVE_FILL = 0x88AA2222;
 
     private final ConfigManager configManager;
     private final InventoryButtonService service;
@@ -79,15 +75,17 @@ public final class InventoryButtonOverlay {
         boolean hovered = mouseX >= x && mouseX < x + BTN_SIZE
                        && mouseY >= y && mouseY < y + BTN_SIZE;
 
-        int fill = SLOT_FILL;
+        de.horizon.theme.Theme theme = de.horizon.theme.ThemeManager.current();
+        int fill;
         if (button.toggle) {
-            fill = button.toggleActive ? ACTIVE_FILL : INACTIVE_FILL;
+            fill = button.toggleActive ? theme.positive : theme.danger;
+        } else {
+            fill = hovered ? theme.surfaceHover : theme.surface;
         }
-        context.fill(x, y, x + BTN_SIZE, y + BTN_SIZE, fill);
-        if (hovered) {
-            context.fill(x, y, x + BTN_SIZE, y + BTN_SIZE, 0x33FFFFFF);
+        de.horizon.screen.render.Ui.roundedRect(context, x, y, BTN_SIZE, BTN_SIZE, 3, fill);
+        if (hovered && !button.toggle) {
+            de.horizon.screen.render.Ui.outline(context, x, y, BTN_SIZE, BTN_SIZE, 3, 1, theme.accent);
         }
-        drawBorder(context, x, y, BTN_SIZE, BTN_SIZE, SLOT_BORDER);
 
         // Item icon
         String itemId = (button.toggle && !button.toggleActive)

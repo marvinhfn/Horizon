@@ -2,7 +2,11 @@ package de.horizon.screen;
 
 import de.horizon.feature.waypoint.Waypoint;
 import de.horizon.feature.waypoint.WaypointService;
-import de.horizon.hud.HudStyle;
+import de.horizon.screen.render.HiDpi;
+import de.horizon.screen.render.Ui;
+import de.horizon.theme.Theme;
+import de.horizon.theme.ThemeManager;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
@@ -21,13 +25,7 @@ import java.util.List;
  * picker). Opening with a specific waypoint jumps straight to that waypoint's config.
  */
 public final class WaypointScreen extends Screen {
-    // Config-menu palette (frosted light panel + dark text) so it looks like the rest of the config.
-    private static final int WINDOW = 0x66F0F1F3;
-    private static final int HEADER = 0x73F7F8FA;
-    private static final int CARD = 0x60E6E8EC;
-    private static final int CARD_HOVER = 0x80CFE0FF;
-    private static final int DARK = 0xFF1E2A37;
-    private static final int MUTED = 0xFF5A6472;
+    // Colors resolved at render time from theme
 
     private static final String[] TYPE_LABELS = { "Outlined", "Box", "Outline+Box" };
 
@@ -55,6 +53,7 @@ public final class WaypointScreen extends Screen {
 
     @Override
     protected void init() {
+        HiDpi.enter(Minecraft.getInstance());
         fw = 360;
         fh = Math.min(height - 40, 320);
         fx = (width - fw) / 2;
@@ -63,6 +62,7 @@ public final class WaypointScreen extends Screen {
 
     @Override
     public void onClose() {
+        HiDpi.exit(Minecraft.getInstance());
         service.save();
         if (minecraft != null) minecraft.setScreen(parent);
     }
@@ -211,52 +211,54 @@ public final class WaypointScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
         // Centered frosted window over the vanilla dim (matches the config menu look).
-        ctx.fill(fx, fy, fx + fw, fy + fh, WINDOW);
-        ctx.fill(fx, fy, fx + fw, fy + 26, HEADER);
-        ctx.outline(fx, fy, fw, fh, HudStyle.border());
-        ctx.text(font, Component.literal("Waypoints"), fx + 12, fy + 9, HudStyle.accent());
+        Theme theme = ThemeManager.current();
+        Ui.roundedRect(ctx, fx, fy, fw, fh, 8, theme.surface);
+        Ui.roundedRect(ctx, fx, fy, fw, 26, 8, theme.surfaceAlt);
+        ctx.fill(fx, fy + 13, fx + fw, fy + 26, theme.surfaceAlt); // flatten bottom of header
+        Ui.outline(ctx, fx, fy, fw, fh, 8, 1, theme.borderSubtle);
+        ctx.text(font, Component.literal("Waypoints"), fx + 12, fy + 9, theme.accent);
         ctx.text(font, Component.literal("§c[X]"), fx + fw - 18, fy + 8, 0xFFCC3333);
 
         if (editing != null) { renderEdit(ctx, mouseX, mouseY); super.extractRenderState(ctx, mouseX, mouseY, delta); return; }
 
         int x = fx + 12, y = fy + 32;
         // Island dropdown
-        ctx.fill(x, y, fx + fw - 12, y + 16, CARD);
-        ctx.text(font, Component.literal("Insel: " + WaypointService.islandLabel(islandId) + "  ▾"), x + 4, y + 4, DARK);
+        Ui.roundedRect(ctx, x, y, fw - 24, 16, 4, theme.surfaceAlt);
+        ctx.text(font, Component.literal("Insel: " + WaypointService.islandLabel(islandId) + "  ▾"), x + 4, y + 4, theme.text);
         if (islandDropdownOpen) {
             List<String> ids = service.knownIslandIds();
             int dy = y + 18;
-            ctx.fill(x, dy, fx + fw - 12, dy + ids.size() * 14, 0xF0202428);
+            Ui.roundedRect(ctx, x, dy, fw - 24, ids.size() * 14, 4, theme.surfaceAlt);
             for (int i = 0; i < ids.size(); i++) {
                 boolean hov = in(mouseX, mouseY, x, dy + i * 14, fw - 24, 14);
-                ctx.text(font, Component.literal(WaypointService.islandLabel(ids.get(i))), x + 4, dy + i * 14 + 3, hov ? 0xFF55FFFF : 0xFFDDDDDD);
+                ctx.text(font, Component.literal(WaypointService.islandLabel(ids.get(i))), x + 4, dy + i * 14 + 3, hov ? theme.accent : theme.text);
             }
             super.extractRenderState(ctx, mouseX, mouseY, delta);
             return;
         }
         y += 22;
-        drawBtn(ctx, x, y, 110, "Edit: " + (service.isEditMode() ? "AN" : "AUS"), service.isEditMode());
-        drawBtn(ctx, x + 120, y, 100, "Export", false);
-        drawBtn(ctx, x + 230, y, 100, "Import", false);
+        drawBtn(ctx, theme, x, y, 110, "Edit: " + (service.isEditMode() ? "AN" : "AUS"), service.isEditMode());
+        drawBtn(ctx, theme, x + 120, y, 100, "Export", false);
+        drawBtn(ctx, theme, x + 230, y, 100, "Import", false);
         y += 24;
 
         List<Waypoint> list = service.waypoints(islandId);
         if (list.isEmpty()) {
-            ctx.text(font, Component.literal("Keine Waypoints. Edit Mode an + Block rechtsklicken."), x, y, MUTED);
+            ctx.text(font, Component.literal("Keine Waypoints. Edit Mode an + Block rechtsklicken."), x, y, theme.textMuted);
         }
         for (String group : service.groups(islandId)) {
             List<Waypoint> inGroup = list.stream().filter(w -> group.equals(safeGroup(w))).toList();
             if (inGroup.isEmpty() && !group.equals("Default")) continue;
             boolean sorted = service.isGroupSorted(islandId, group);
-            ctx.text(font, Component.literal("§8§l" + group), x, y + 2, DARK);
-            drawBtn(ctx, fx + fw - 100, y, 90, sorted ? "Sorted: AN" : "Sorted: AUS", sorted);
+            ctx.text(font, Component.literal("§8§l" + group), x, y + 2, theme.text);
+            drawBtn(ctx, theme, fx + fw - 100, y, 90, sorted ? "Sorted: AN" : "Sorted: AUS", sorted);
             y += 14;
             for (Waypoint w : inGroup) {
                 boolean hov = in(mouseX, mouseY, x, y, fw - 50, 12);
-                if (hov) ctx.fill(x, y, fx + fw - 30, y + 12, CARD_HOVER);
+                if (hov) Ui.roundedRect(ctx, x, y, fw - 50, 12, 3, theme.surfaceHover);
                 ctx.text(font, Component.literal(w.name + " §8[" + w.x + "," + w.y + "," + w.z + "]"), x + 2, y + 2, w.color);
-                ctx.fill(fx + fw - 30, y, fx + fw - 12, y + 12, 0xFF7A2A2A);
-                ctx.text(font, Component.literal("§f✕"), fx + fw - 26, y + 2, 0xFFFFFFFF);
+                Ui.roundedRect(ctx, fx + fw - 30, y, 18, 12, 3, theme.danger);
+                ctx.text(font, Component.literal("✕"), fx + fw - 26, y + 2, theme.onAccent);
                 y += 14;
             }
         }
@@ -264,18 +266,19 @@ public final class WaypointScreen extends Screen {
     }
 
     private void renderEdit(GuiGraphicsExtractor ctx, int mouseX, int mouseY) {
+        Theme theme = ThemeManager.current();
         int x = fx + 12, y = fy + 32;
         String cur = nameFocused && (System.currentTimeMillis() / 400 % 2 == 0) ? "_" : "";
-        ctx.fill(x, y, fx + fw - 12, y + 16, CARD);
-        ctx.text(font, Component.literal("Name: " + editing.name + cur), x + 4, y + 4, DARK);
+        Ui.roundedRect(ctx, x, y, fw - 24, 16, 4, theme.surfaceAlt);
+        ctx.text(font, Component.literal("Name: " + editing.name + cur), x + 4, y + 4, theme.text);
         y += 22;
-        drawBtn(ctx, x, y, 170, "Typ: " + TYPE_LABELS[editing.type], true);
+        drawBtn(ctx, theme, x, y, 170, "Typ: " + TYPE_LABELS[editing.type], true);
         y += 20;
-        drawBtn(ctx, x, y, 170, "Durch Waende: " + (editing.throughWalls ? "AN" : "AUS"), editing.throughWalls);
+        drawBtn(ctx, theme, x, y, 170, "Durch Waende: " + (editing.throughWalls ? "AN" : "AUS"), editing.throughWalls);
         y += 20;
-        drawBtn(ctx, x, y, 170, "Beacon: " + (editing.beacon ? "AN" : "AUS"), editing.beacon);
+        drawBtn(ctx, theme, x, y, 170, "Beacon: " + (editing.beacon ? "AN" : "AUS"), editing.beacon);
         y += 20;
-        drawBtn(ctx, x, y, 170, "Gruppe: " + safeGroup(editing), false);
+        drawBtn(ctx, theme, x, y, 170, "Gruppe: " + safeGroup(editing), false);
         y += 22;
         // HSB picker
         float[] hsb = Color.RGBtoHSB((editing.color >> 16) & 0xFF, (editing.color >> 8) & 0xFF, editing.color & 0xFF, null);
@@ -291,13 +294,13 @@ public final class WaypointScreen extends Screen {
         // preview swatch
         ctx.fill(hueX + hueW + 8, svY, hueX + hueW + 32, svY + 24, editing.color);
         y += svH + 8;
-        drawBtn(ctx, x, y, 90, "Loeschen", false);
-        drawBtn(ctx, x + 100, y, 90, "Zurueck", false);
+        drawBtn(ctx, theme, x, y, 90, "Loeschen", false);
+        drawBtn(ctx, theme, x + 100, y, 90, "Zurueck", false);
     }
 
-    private void drawBtn(GuiGraphicsExtractor ctx, int x, int y, int w, String label, boolean on) {
-        ctx.fill(x, y, x + w, y + 16, on ? 0xFF2DBA68 : CARD);
-        ctx.text(font, Component.literal(label), x + 4, y + 4, on ? 0xFFFFFFFF : DARK);
+    private void drawBtn(GuiGraphicsExtractor ctx, Theme theme, int x, int y, int w, String label, boolean on) {
+        Ui.roundedRect(ctx, x, y, w, 16, 4, on ? theme.accent : theme.surfaceAlt);
+        ctx.text(font, Component.literal(label), x + 4, y + 4, on ? theme.onAccent : theme.text);
     }
 
     private static boolean in(int mx, int my, int x, int y, int w, int h) {
