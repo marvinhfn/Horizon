@@ -13,6 +13,7 @@ import de.horizon.feature.chat.SpamFilterOption;
 import de.horizon.feature.particle.ParticleFilterService;
 import de.horizon.feature.revive.ReviveSource;
 import de.horizon.hud.HudStyle;
+import de.horizon.screen.render.Ui;
 import de.horizon.spotify.SpotifyService;
 import de.horizon.youtube.YoutubeService;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -710,7 +711,10 @@ public final class HorizonConfigScreen extends Screen {
         for (int index = 0; index < Tab.values().length; index++) {
             boolean active = Tab.values()[index] == activeTab;
             Rect rect = sidebarTabRect(sidebar, index);
-            drawTextLine(context, rect.x, rect.y, (active ? "> " : "  ") + Tab.values()[index].label, active ? accent : col_text());
+            if (active) {
+                Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+            }
+            drawTextLine(context, rect.x, rect.y, (active ? "> " : "  ") + Tab.values()[index].label, active ? theme().onAccent : theme().textMuted);
         }
 
         if (activeTab == Tab.DUNGEON) {
@@ -718,7 +722,10 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < DungeonSection.values().length; index++) {
                 boolean active = DungeonSection.values()[index] == activeDungeonSection;
                 Rect rect = subTabRect(bar, index, DungeonSection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + DungeonSection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
+                if (active) {
+                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                }
+                drawTextLine(context, rect.x, rect.y, DungeonSection.values()[index].label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -727,7 +734,10 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < MusicSection.values().length; index++) {
                 boolean active = MusicSection.values()[index] == activeMusicSection;
                 Rect rect = subTabRect(bar, index, MusicSection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + MusicSection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
+                if (active) {
+                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                }
+                drawTextLine(context, rect.x, rect.y, MusicSection.values()[index].label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -736,7 +746,10 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < ChatSection.values().length; index++) {
                 boolean active = ChatSection.values()[index] == activeChatSection;
                 Rect rect = subTabRect(bar, index, ChatSection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + ChatSection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
+                if (active) {
+                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                }
+                drawTextLine(context, rect.x, rect.y, ChatSection.values()[index].label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -745,7 +758,10 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < DisplaySection.values().length; index++) {
                 boolean active = DisplaySection.values()[index] == activeDisplaySection;
                 Rect rect = subTabRect(bar, index, DisplaySection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + DisplaySection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
+                if (active) {
+                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                }
+                drawTextLine(context, rect.x, rect.y, DisplaySection.values()[index].label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -754,20 +770,28 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < InventorySection.values().length; index++) {
                 boolean active = InventorySection.values()[index] == activeInventorySection;
                 Rect rect = subTabRect(bar, index, InventorySection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + InventorySection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
+                if (active) {
+                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                }
+                drawTextLine(context, rect.x, rect.y, InventorySection.values()[index].label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
         if (activeTab == Tab.SCOREBOARD) {
             Rect bar = scoreboardSubTabBarRect(frame);
-            drawTextLine(context, scoreboardSubTabRect(bar, 0).x, scoreboardSubTabRect(bar, 0).y,
-                (scoreboardGeneralActive ? "[" : "") + "General" + (scoreboardGeneralActive ? "]" : ""),
-                scoreboardGeneralActive ? accent : col_text());
+            Rect genRect = scoreboardSubTabRect(bar, 0);
+            if (scoreboardGeneralActive) {
+                Ui.pill(context, genRect.x - 2, genRect.y - 1, genRect.width + 4, genRect.height + 2, theme().accent);
+            }
+            drawTextLine(context, genRect.x, genRect.y, "General", scoreboardGeneralActive ? theme().onAccent : theme().textMuted);
             SkyBlockIsland[] islands = SkyBlockIsland.knownIslands();
             for (int index = 0; index < islands.length; index++) {
                 boolean active = !scoreboardGeneralActive && islands[index] == activeScoreboardIsland;
                 Rect rect = scoreboardSubTabRect(bar, index + 1);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + islands[index].label() + (active ? "]" : ""), active ? accent : col_text());
+                if (active) {
+                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                }
+                drawTextLine(context, rect.x, rect.y, islands[index].label(), active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -1956,10 +1980,9 @@ public final class HorizonConfigScreen extends Screen {
 
     private int drawToggleRow(GuiGraphicsExtractor context, int x, int y, String title, boolean enabled, String description) {
         int rowHeight = toggleRowHeight(description);
-        drawSettingCard(context, x, y, rowHeight, enabled ? 0xFF2DBA68 : 0xFF8A97A8, false);
+        drawSettingCard(context, x, y, rowHeight, enabled ? theme().toggleOn : theme().toggleOff, false);
         Rect badge = toggleBadgeRect(x, y);
-        context.fill(badge.x, badge.y, badge.right(), badge.bottom(), enabled ? 0xFF2DBA68 : 0xFF667487);
-        context.centeredText(font, Component.literal(enabled ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        Ui.toggle(context, badge.x + 6, badge.y + 2, 26, 14, enabled, theme());
         int contentX = badge.right() + 10;
         int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
         drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, col_text());
@@ -2441,7 +2464,10 @@ public final class HorizonConfigScreen extends Screen {
         int bottom = y + height - CARD_GAP + 1;
         int left = x - 12;
         int right = x + CONTENT_ROW_WIDTH + 1;
-        context.fill(left, top, right, bottom, focused ? col_cardFocused() : col_card());
+        int w = right - left;
+        int h = bottom - top;
+        Ui.roundedRect(context, left, top, w, h, 6, focused ? col_cardFocused() : col_card());
+        Ui.outline(context, left, top, w, h, 6, 1, theme().borderSubtle);
         context.fill(left, top, left + 3, bottom, markerColor);
     }
 
@@ -4460,10 +4486,9 @@ public final class HorizonConfigScreen extends Screen {
 
     private int drawScoreboardLineRow(GuiGraphicsExtractor context, int x, int y, String lineText, boolean visible, int textColor) {
         int rowHeight = scoreboardLineRowHeight();
-        drawSettingCard(context, x, y, rowHeight, visible ? 0xFF2DBA68 : 0xFF8A97A8, false);
+        drawSettingCard(context, x, y, rowHeight, visible ? theme().toggleOn : theme().toggleOff, false);
         Rect badge = toggleBadgeRect(x, y);
-        context.fill(badge.x, badge.y, badge.right(), badge.bottom(), visible ? 0xFF2DBA68 : 0xFF667487);
-        context.centeredText(font, Component.literal(visible ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        Ui.toggle(context, badge.x + 6, badge.y + 2, 26, 14, visible, theme());
         int contentX = badge.right() + 10;
         if (visible) {
             drawTextLine(context, contentX, y + CARD_PADDING_TOP, lineText, textColor);
@@ -4531,20 +4556,28 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame, Rect viewport, int accent) {
-        context.fill(frame.x, frame.y, frame.right(), frame.bottom(), col_window());
-        context.fill(viewport.x - 12, frame.y + 35, frame.right() - 1, frame.bottom() - 1, col_window());
-        context.outline(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
-        context.fill(frame.x, frame.y, frame.right(), frame.y + 34, col_windowHeader());
+        // full-screen dim scrim
+        context.fill(0, 0, width, height, 0x88000000);
+        // window background + border
+        Ui.roundedRect(context, frame.x, frame.y, frame.width, frame.height, 10, col_window());
+        Ui.outline(context, frame.x, frame.y, frame.width, frame.height, 10, 1, theme().borderSubtle);
+        // header strip as a vertical gradient
+        Ui.verticalGradient(context, frame.x, frame.y, frame.width, 34, theme().surface, theme().surfaceAlt);
+        // search field as a pill
+        Rect search = searchRect(frame);
+        Ui.pill(context, search.x - 4, search.y - 3, search.width + 8, search.height + 4, theme().surfaceAlt);
+        drawTextLine(context, search.x, search.y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : col_text());
         drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
-        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : col_text());
         drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", col_warning());
     }
 
     private void drawHeaderMask(GuiGraphicsExtractor context, Rect frame, int accent) {
-        context.fill(frame.x + 1, frame.y + 1, frame.right() - 1, frame.y + 34, col_windowHeader());
-        context.outline(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
+        Ui.verticalGradient(context, frame.x, frame.y, frame.width, 34, theme().surface, theme().surfaceAlt);
+        Ui.outline(context, frame.x, frame.y, frame.width, frame.height, 10, 1, theme().borderSubtle);
         drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
-        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : col_text());
+        Rect search = searchRect(frame);
+        Ui.pill(context, search.x - 4, search.y - 3, search.width + 8, search.height + 4, theme().surfaceAlt);
+        drawTextLine(context, search.x, search.y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : col_text());
         drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", col_warning());
     }
 
