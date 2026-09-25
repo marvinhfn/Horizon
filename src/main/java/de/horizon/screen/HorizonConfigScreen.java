@@ -716,7 +716,7 @@ public final class HorizonConfigScreen extends Screen {
             if (active) {
                 Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
             }
-            drawTextLine(context, rect.x, rect.y, (active ? "> " : "  ") + Tab.values()[index].label, active ? theme().onAccent : theme().textMuted);
+            drawTextLine(context, rect.x, rect.y, (active ? "> " : "  ") + Tab.values()[index].label(), active ? theme().onAccent : theme().textMuted);
         }
 
         if (activeTab == Tab.DUNGEON) {
@@ -763,7 +763,7 @@ public final class HorizonConfigScreen extends Screen {
                 if (active) {
                     Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
                 }
-                drawTextLine(context, rect.x, rect.y, DisplaySection.values()[index].label, active ? theme().onAccent : theme().textMuted);
+                drawTextLine(context, rect.x, rect.y, DisplaySection.values()[index].label(), active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -1376,13 +1376,13 @@ public final class HorizonConfigScreen extends Screen {
             case MISC -> renderMiscText(context, viewport);
             case PARTICLE -> renderParticleText(context, viewport);
             case GENERAL -> {
-                y = drawSectionTitle(context, viewport.x, y, "Anzeige / General");
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Anzeige / General", "Display / General"));
                 drawToggleRow(context, viewport.x, y, "16:9 Pillarbox", config().isPillarboxEnabled(),
                     Lang.t("Begrenzt die Spielansicht auf 16:9 mit schwarzen Balken links und rechts (Samsung Odyssey G9).",
                            "Limits game view to 16:9 with black bars on the sides (Samsung Odyssey G9)."));
             }
             case ANIMATIONS -> {
-                y = drawSectionTitle(context, viewport.x, y, "Anzeige / Animationen");
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Anzeige / Animationen", "Display / Animations"));
                 y = drawSliderRow(context, viewport.x, y, "Position X", config().getItemPositionX(), -1.5, 1.5,
                     Lang.t("Horizontale Position des gehaltenen Items.", "Horizontal position of the held item."));
                 y = drawSliderRow(context, viewport.x, y, "Position Y", config().getItemPositionY(), -1.5, 1.5,
@@ -1395,7 +1395,7 @@ public final class HorizonConfigScreen extends Screen {
                     Lang.t("Geschwindigkeit der Schlaganimation.", "Speed of the swing animation."));
             }
             case NO_RENDER -> {
-                y = drawSectionTitle(context, viewport.x, y, "Anzeige / NoRender");
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Anzeige / NoRender", "Display / NoRender"));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Feuer-Overlay", "Fire Overlay"), !config().isFireOverlayDisabled(),
                     Lang.t("Feuer-Overlay ausblenden wenn man brennt.", "Disable the fire overlay when on fire."));
                 y = drawToggleRow(context, viewport.x, y, "Front Cam", config().isFrontCamDisabled(),
@@ -1409,7 +1409,7 @@ public final class HorizonConfigScreen extends Screen {
                     Lang.t("0 = komplett aus, 1 = normal.", "0 = completely off, 1 = normal."));
             }
             case HELPERS -> {
-                y = drawSectionTitle(context, viewport.x, y, "Anzeige / Helpers");
+                y = drawSectionTitle(context, viewport.x, y, Lang.t("Anzeige / Helpers", "Display / Helpers"));
                 y = drawToggleRow(context, viewport.x, y, "Etherwarp Helper", config().isEtherwarpEnabled(), Lang.t("Zeigt Teleport-Ziel fuer Aspect of the Void/Dragons.", "Shows teleport destination for Aspect of the Void/Dragons."));
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Nur beim Schleichen", "Sneak Only"), config().isEtherwarpSneakOnly(), Lang.t("Box nur beim Schleichen anzeigen.", "Only show box while sneaking."));
                 String[] etherStyleDE = { "Gefuellt", "Umriss", "Gefuellt + Umriss" };
@@ -4563,21 +4563,27 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     enum Tab {
-        GENERAL("General"),
-        HUD("HUD"),
-        DUNGEON("Dungeons"),
-        DISPLAY("Anzeige"),
-        HELPER("Helper"),
-        CHAT("Chat"),
-        MUSIC_CONTROL("Music Control"),
-        SCOREBOARD("Scoreboard"),
-        INVENTORY("Inventory"),
-        FISHING("Fishing");
+        GENERAL("General", "General"),
+        HUD("HUD", "HUD"),
+        DUNGEON("Dungeons", "Dungeons"),
+        DISPLAY("Anzeige", "Display"),
+        HELPER("Helper", "Helper"),
+        CHAT("Chat", "Chat"),
+        MUSIC_CONTROL("Music Control", "Music Control"),
+        SCOREBOARD("Scoreboard", "Scoreboard"),
+        INVENTORY("Inventory", "Inventory"),
+        FISHING("Fishing", "Fishing");
 
-        private final String label;
+        private final String labelDe;
+        private final String labelEn;
 
-        Tab(String label) {
-            this.label = label;
+        Tab(String labelDe, String labelEn) {
+            this.labelDe = labelDe;
+            this.labelEn = labelEn;
+        }
+
+        String label() {
+            return de.horizon.Lang.t(labelDe, labelEn);
         }
     }
 
@@ -4624,17 +4630,23 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private enum DisplaySection {
-        GENERAL("General"),
-        MISC("Misc"),
-        PARTICLE("Particle"),
-        ANIMATIONS("Animationen"),
-        NO_RENDER("NoRender"),
-        HELPERS("Helpers");
+        GENERAL("General", "General"),
+        MISC("Misc", "Misc"),
+        PARTICLE("Particle", "Particle"),
+        ANIMATIONS("Animationen", "Animations"),
+        NO_RENDER("NoRender", "NoRender"),
+        HELPERS("Helpers", "Helpers");
 
-        private final String label;
+        private final String labelDe;
+        private final String labelEn;
 
-        DisplaySection(String label) {
-            this.label = label;
+        DisplaySection(String labelDe, String labelEn) {
+            this.labelDe = labelDe;
+            this.labelEn = labelEn;
+        }
+
+        String label() {
+            return de.horizon.Lang.t(labelDe, labelEn);
         }
     }
 
