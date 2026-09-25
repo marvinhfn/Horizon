@@ -2080,10 +2080,10 @@ public final class HorizonConfigScreen extends Screen {
 
     private int drawCycleRow(GuiGraphicsExtractor context, int x, int y, String title, String modeLabel, boolean active, String description) {
         int rowHeight = toggleRowHeight(description);
-        drawSettingCard(context, x, y, rowHeight, active ? 0xFF2DBA68 : 0xFF8A97A8, false);
+        drawSettingCard(context, x, y, rowHeight, active ? theme().accent : theme().surfaceAlt, false);
         Rect badge = cycleBadgeRect(x, y);
-        context.fill(badge.x, badge.y, badge.right(), badge.bottom(), active ? 0xFF2DBA68 : 0xFF667487);
-        context.centeredText(font, Component.literal(modeLabel), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
+        Ui.pill(context, badge.x, badge.y, badge.width, badge.height, active ? theme().accent : theme().surfaceAlt);
+        context.centeredText(font, Component.literal(modeLabel), badge.centerX(), badge.y + 4, active ? theme().onAccent : theme().textMuted);
         int contentX = badge.right() + 10;
         int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
         drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, col_text());
@@ -4497,29 +4497,29 @@ public final class HorizonConfigScreen extends Screen {
         int w = 320, h = 94;
         int ox = frame.x + (frame.width - w) / 2;
         int oy = frame.y + (frame.height - h) / 2;
-        context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
-        context.outline(ox, oy, w, h, HudStyle.border());
-        drawTextLine(context, ox + 12, oy + 12, Lang.t("Globale Aenderung", "Global Change"), accent);
+        Ui.roundedRect(context, ox, oy, w, h, 8, col_card());
+        Ui.outline(context, ox, oy, w, h, 8, 1, theme().borderSubtle);
+        drawTextLine(context, ox + 12, oy + 12, Lang.t("Globale Aenderung", "Global Change"), col_text());
         drawTextLine(context, ox + 12, oy + 28, "\"" + pendingGlobalToggleLabel + "\"" + Lang.t(" fuer alle Islands toggeln?", " toggle for all islands?"), col_muted());
         Rect yes = confirmYesRect(frame);
         Rect no = confirmNoRect(frame);
-        context.fill(yes.x, yes.y, yes.right(), yes.bottom(), 0xFF2DBA68);
-        context.centeredText(font, Component.literal(Lang.t("JA", "YES")), yes.centerX(), yes.y + 5, 0xFFF7FBFF);
-        context.fill(no.x, no.y, no.right(), no.bottom(), 0xFF8A3A3A);
-        context.centeredText(font, Component.literal(Lang.t("NEIN", "NO")), no.centerX(), no.y + 5, 0xFFF7FBFF);
+        Ui.roundedRect(context, yes.x, yes.y, yes.width, yes.height, 4, theme().accent);
+        context.centeredText(font, Component.literal(Lang.t("JA", "YES")), yes.centerX(), yes.y + 5, theme().onAccent);
+        Ui.roundedRect(context, no.x, no.y, no.width, no.height, 4, theme().danger);
+        context.centeredText(font, Component.literal(Lang.t("NEIN", "NO")), no.centerX(), no.y + 5, theme().onAccent);
     }
 
     private void drawReloadPopup(GuiGraphicsExtractor context, Rect frame, int accent) {
         int w = 280, h = 82;
         int ox = frame.x + (frame.width - w) / 2;
         int oy = frame.y + (frame.height - h) / 2;
-        context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
-        context.outline(ox, oy, w, h, HudStyle.border());
-        drawTextLine(context, ox + 12, oy + 12, Lang.t("Config Reload", "Config Reload"), accent);
+        Ui.roundedRect(context, ox, oy, w, h, 8, col_card());
+        Ui.outline(context, ox, oy, w, h, 8, 1, theme().borderSubtle);
+        drawTextLine(context, ox + 12, oy + 12, Lang.t("Config Reload", "Config Reload"), col_text());
         drawTextLine(context, ox + 12, oy + 28, Lang.t("Konfiguration wurde neu geladen.", "Configuration reloaded successfully."), col_muted());
         int bw = 80, bx = ox + (w - bw) / 2, by = oy + h - 28;
-        context.fill(bx, by, bx + bw, by + 18, 0xFF2DBA68);
-        context.centeredText(font, Component.literal("OK"), bx + bw / 2, by + 5, 0xFFF7FBFF);
+        Ui.roundedRect(context, bx, by, bw, 18, 4, theme().accent);
+        context.centeredText(font, Component.literal("OK"), bx + bw / 2, by + 5, theme().onAccent);
     }
 
     private Rect confirmYesRect(Rect frame) {

@@ -788,6 +788,6 @@ public final class FeatureRegistry {
     }
 
     public static List<FeatureEntry> all() {
-        return ENTRIES;
+        return java.util.Collections.unmodifiableList(ENTRIES);
     }
 }

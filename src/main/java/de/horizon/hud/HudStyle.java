@@ -5,14 +5,6 @@ import de.horizon.config.HorizonConfig;
 
 public final class HudStyle {
     private static final int DEFAULT_ACCENT_RGB = 0x75E7CA;
-    private static final int TEXT = 0xFFEAF3FF;
-    private static final int MUTED = 0xFF9FB0C7;
-    private static final int WARNING = 0xFFFFD27C;
-    private static final int BACKDROP = 0xD0080F18;
-    private static final int PANEL = 0xE0121822;
-    private static final int PANEL_ALT = 0xE0182230;
-    private static final int ACTION = 0xFF131B25;
-    private static final int ACTION_HOVER = 0xFF1A2532;
 
     private HudStyle() {
     }
