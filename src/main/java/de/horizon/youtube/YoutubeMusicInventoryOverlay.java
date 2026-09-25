@@ -1,7 +1,8 @@
 package de.horizon.youtube;
 
 import de.horizon.HorizonMod;
-import de.horizon.hud.HudStyle;
+import de.horizon.theme.Theme;
+import de.horizon.theme.ThemeManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -35,13 +36,6 @@ public final class YoutubeMusicInventoryOverlay {
     private static final int BASE_CONTENT_BOTTOM   = 208;
     private static final int BASE_EXPANDED_HEIGHT  = 224;
 
-    // Colors — identical to SpotifyInventoryOverlay
-    private static final int CARD        = 0xFFF0F1F3;
-    private static final int CARD_ALT    = 0xFFF7F8FA;
-    private static final int BUTTON      = 0xFFE6E8EC;
-    private static final int BUTTON_HOVER = 0xFFD9DDE3;
-    private static final int TEXT_COLOR  = 0xFF1E2A37;
-    private static final int MUTED       = 0xFF667487;
 
     private final YoutubeService youtubeService;
     private final List<Button> buttons = new ArrayList<>();
@@ -65,6 +59,7 @@ public final class YoutubeMusicInventoryOverlay {
             return;
         }
 
+        Theme theme = ThemeManager.current();
         int visiblePlaylistRows = visiblePlaylistRows(screen.height);
         int panelHeight = panelHeight(visiblePlaylistRows);
         int x = panelX(screen.width);
@@ -74,9 +69,9 @@ public final class YoutubeMusicInventoryOverlay {
             int btnX = screen.width - 30;
             int btnY = screen.height - 30;
             minimizeButton = new Rect(btnX, btnY, 22, 22);
-            context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), CARD);
-            context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-            context.centeredText(client.font, Component.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, TEXT_COLOR);
+            context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), theme.surface);
+            context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, theme.borderSubtle);
+            context.centeredText(client.font, Component.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, theme.text);
             buttons.clear();
             volumeSlider = new Rect(0, 0, 0, 0);
             playlistDropdown = new Rect(0, 0, 0, 0);
@@ -84,27 +79,27 @@ public final class YoutubeMusicInventoryOverlay {
         }
 
         buttons.clear();
-        context.fill(x, y, x + PANEL_WIDTH, y + panelHeight, CARD);
-        context.outline(x, y, PANEL_WIDTH, panelHeight, HudStyle.border());
-        context.fill(x, y, x + PANEL_WIDTH, y + HEADER_HEIGHT, CARD_ALT);
-        context.fill(x + 16, y + 16, x + 172, y + 18, HudStyle.accent());
-        context.text(client.font, Component.literal("YouTube Music Control"), x + 16, y + 24, TEXT_COLOR);
+        context.fill(x, y, x + PANEL_WIDTH, y + panelHeight, theme.surface);
+        context.outline(x, y, PANEL_WIDTH, panelHeight, theme.borderSubtle);
+        context.fill(x, y, x + PANEL_WIDTH, y + HEADER_HEIGHT, theme.surfaceAlt);
+        context.fill(x + 16, y + 16, x + 172, y + 18, theme.accent);
+        context.text(client.font, Component.literal("YouTube Music Control"), x + 16, y + 24, theme.text);
         minimizeButton = new Rect(x + PANEL_WIDTH - 26, y + 10, 18, 18);
-        context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), BUTTON);
-        context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-        context.centeredText(client.font, Component.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, TEXT_COLOR);
+        context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), theme.surfaceAlt);
+        context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, theme.borderSubtle);
+        context.centeredText(client.font, Component.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, theme.text);
 
         if (!youtubeService.auth().isLoggedIn()) {
-            context.text(client.font, Component.literal("Nicht verbunden"), x + 16, y + 54, HudStyle.accent());
-            drawWrapped(context, youtubeService.auth().getStatusMessage(), x + 16, y + 72, 268, MUTED);
+            context.text(client.font, Component.literal("Nicht verbunden"), x + 16, y + 54, theme.accent);
+            drawWrapped(context, youtubeService.auth().getStatusMessage(), x + 16, y + 72, 268, theme.textMuted);
             return;
         }
 
         // Track card — no API for current track; show service label
-        context.fill(x + 16, y + TRACK_CARD_TOP, x + PANEL_WIDTH - 16, y + TRACK_CARD_TOP + TRACK_CARD_HEIGHT, CARD_ALT);
-        context.outline(x + 16, y + TRACK_CARD_TOP, PANEL_WIDTH - 32, TRACK_CARD_HEIGHT, HudStyle.border());
-        context.text(client.font, Component.literal("YouTube Music"), x + 28, y + 60, HudStyle.text());
-        context.text(client.font, Component.literal(youtubeService.auth().getStatusMessage()), x + 28, y + 76, MUTED);
+        context.fill(x + 16, y + TRACK_CARD_TOP, x + PANEL_WIDTH - 16, y + TRACK_CARD_TOP + TRACK_CARD_HEIGHT, theme.surfaceAlt);
+        context.outline(x + 16, y + TRACK_CARD_TOP, PANEL_WIDTH - 32, TRACK_CARD_HEIGHT, theme.borderSubtle);
+        context.text(client.font, Component.literal("YouTube Music"), x + 28, y + 60, theme.text);
+        context.text(client.font, Component.literal(youtubeService.auth().getStatusMessage()), x + 28, y + 76, theme.textMuted);
 
         // Playback controls (media keys)
         int btnY = y + CONTROLS_TOP;
@@ -116,39 +111,39 @@ public final class YoutubeMusicInventoryOverlay {
         int sliderX = x + 16;
         int sliderY = y + VOLUME_SLIDER_TOP;
         volumeSlider = new Rect(sliderX, sliderY, 214, 5);
-        context.fill(volumeSlider.x, volumeSlider.y, volumeSlider.right(), volumeSlider.bottom(), 0xFF27313A);
+        context.fill(volumeSlider.x, volumeSlider.y, volumeSlider.right(), volumeSlider.bottom(), theme.surfaceAlt);
         int knobX = volumeSlider.x + Math.round((volumeSlider.width * localVolume) / 100.0F);
-        context.fill(volumeSlider.x, volumeSlider.y, knobX, volumeSlider.bottom(), HudStyle.accent());
-        context.fill(knobX - 4, volumeSlider.y - 4, knobX + 4, volumeSlider.y + 9, TEXT_COLOR);
-        context.text(client.font, Component.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, MUTED);
-        context.text(client.font, Component.literal(localVolume + "%"), x + 246, y + 136, MUTED);
+        context.fill(volumeSlider.x, volumeSlider.y, knobX, volumeSlider.bottom(), theme.accent);
+        context.fill(knobX - 4, volumeSlider.y - 4, knobX + 4, volumeSlider.y + 9, theme.text);
+        context.text(client.font, Component.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, theme.textMuted);
+        context.text(client.font, Component.literal(localVolume + "%"), x + 246, y + 136, theme.textMuted);
 
         // Playlist dropdown (at same position as Spotify's device dropdown)
         int playlistY = y + PLAYLIST_DROPDOWN_TOP;
         playlistDropdown = new Rect(x + 16, playlistY, PANEL_WIDTH - 32, DROPDOWN_HEADER_HEIGHT);
-        context.fill(playlistDropdown.x, playlistDropdown.y, playlistDropdown.right(), playlistDropdown.bottom(), BUTTON);
-        context.outline(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? HudStyle.accent() : HudStyle.border());
-        context.text(client.font, Component.literal("YouTube Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, TEXT_COLOR);
-        context.text(client.font, Component.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, MUTED);
+        context.fill(playlistDropdown.x, playlistDropdown.y, playlistDropdown.right(), playlistDropdown.bottom(), theme.surfaceAlt);
+        context.outline(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? theme.accent : theme.borderSubtle);
+        context.text(client.font, Component.literal("YouTube Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, theme.text);
+        context.text(client.font, Component.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, theme.textMuted);
 
         if (playlistsOpen) {
             youtubeService.requestPlaylistsRefresh(false);
             List<YoutubePlaylist> playlists = youtubeService.getPlaylists();
             if (playlists.isEmpty()) {
-                context.text(client.font, Component.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, MUTED);
+                context.text(client.font, Component.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, theme.textMuted);
             }
             for (int i = 0; i < Math.min(visiblePlaylistRows, playlists.size()); i++) {
                 YoutubePlaylist playlist = playlists.get(i);
                 Rect row = playlistRowRect(x, playlistDropdown.bottom() + 6, i);
-                context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? BUTTON_HOVER : BUTTON);
-                context.text(client.font, Component.literal(trim(client, playlist.title(), row.width - 20)), row.x + 10, row.y + 6, TEXT_COLOR);
+                context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? theme.surfaceHover : theme.surfaceAlt);
+                context.text(client.font, Component.literal(trim(client, playlist.title(), row.width - 20)), row.x + 10, row.y + 6, theme.text);
             }
         }
 
         for (Button button : buttons) {
-            context.fill(button.x, button.y, button.x + button.width, button.y + button.height, BUTTON);
-            context.outline(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? HudStyle.accent() : HudStyle.border());
-            context.centeredText(client.font, Component.literal(button.label), button.x + (button.width / 2), button.y + 4, TEXT_COLOR);
+            context.fill(button.x, button.y, button.x + button.width, button.y + button.height, theme.surfaceAlt);
+            context.outline(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? theme.accent : theme.borderSubtle);
+            context.centeredText(client.font, Component.literal(button.label), button.x + (button.width / 2), button.y + 4, theme.text);
         }
     }
 

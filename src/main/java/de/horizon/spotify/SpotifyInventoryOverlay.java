@@ -1,7 +1,8 @@
 package de.horizon.spotify;
 
 import de.horizon.config.HorizonConfig;
-import de.horizon.hud.HudStyle;
+import de.horizon.theme.Theme;
+import de.horizon.theme.ThemeManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -23,12 +24,6 @@ public final class SpotifyInventoryOverlay {
     private static final int ROW_HEIGHT = 18;
     private static final int BASE_CONTENT_BOTTOM = 208;
     private static final int BASE_EXPANDED_HEIGHT = 224;
-    private static final int SPOTIFY_CARD = 0xFFF0F1F3;
-    private static final int SPOTIFY_CARD_ALT = 0xFFF7F8FA;
-    private static final int SPOTIFY_BUTTON = 0xFFE6E8EC;
-    private static final int SPOTIFY_BUTTON_HOVER = 0xFFD9DDE3;
-    private static final int SPOTIFY_TEXT = 0xFF1E2A37;
-    private static final int SPOTIFY_MUTED = 0xFF667487;
 
     private final SpotifyService spotifyService;
     private final AlbumArtCache albumArt;
@@ -61,6 +56,7 @@ public final class SpotifyInventoryOverlay {
         }
 
         spotifyService.requestStateRefresh(false);
+        Theme theme = ThemeManager.current();
         SpotifyPlaybackState state = spotifyService.getPlaybackState();
         int panelWidth = PANEL_WIDTH;
         int visibleDeviceRows = visibleDeviceRows(screen.height);
@@ -75,9 +71,9 @@ public final class SpotifyInventoryOverlay {
             int btnX = screen.width - 30;
             int btnY = screen.height - 30;
             minimizeButton = new Rect(btnX, btnY, 22, 22);
-            context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), SPOTIFY_CARD);
-            context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-            context.centeredText(client.font, Component.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, SPOTIFY_TEXT);
+            context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), theme.surface);
+            context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, theme.borderSubtle);
+            context.centeredText(client.font, Component.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, theme.text);
             buttons.clear();
             volumeSlider = new Rect(0, 0, 0, 0);
             deviceDropdown = new Rect(0, 0, 0, 0);
@@ -89,24 +85,24 @@ public final class SpotifyInventoryOverlay {
             localVolume = state.volumePercent();
         }
         buttons.clear();
-        context.fill(x, y, x + panelWidth, y + panelHeight, SPOTIFY_CARD);
-        context.outline(x, y, panelWidth, panelHeight, HudStyle.border());
-        context.fill(x, y, x + panelWidth, y + HEADER_HEIGHT, SPOTIFY_CARD_ALT);
-        context.fill(x + 16, y + 16, x + 108, y + 18, HudStyle.accent());
-        context.text(client.font, Component.literal("Spotify Control"), x + 16, y + 24, SPOTIFY_TEXT);
+        context.fill(x, y, x + panelWidth, y + panelHeight, theme.surface);
+        context.outline(x, y, panelWidth, panelHeight, theme.borderSubtle);
+        context.fill(x, y, x + panelWidth, y + HEADER_HEIGHT, theme.surfaceAlt);
+        context.fill(x + 16, y + 16, x + 108, y + 18, theme.accent);
+        context.text(client.font, Component.literal("Spotify Control"), x + 16, y + 24, theme.text);
         minimizeButton = new Rect(x + panelWidth - 26, y + 10, 18, 18);
-        context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), SPOTIFY_BUTTON);
-        context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, HudStyle.border());
-        context.centeredText(client.font, Component.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, SPOTIFY_TEXT);
+        context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), theme.surfaceAlt);
+        context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, theme.borderSubtle);
+        context.centeredText(client.font, Component.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, theme.text);
 
         if (!state.connected()) {
-            context.text(client.font, Component.literal("Nicht verbunden"), x + 16, y + 54, HudStyle.accent());
-            drawWrapped(context, state.statusMessage(), x + 16, y + 72, 268, SPOTIFY_MUTED);
+            context.text(client.font, Component.literal("Nicht verbunden"), x + 16, y + 54, theme.accent);
+            drawWrapped(context, state.statusMessage(), x + 16, y + 72, 268, theme.textMuted);
             return;
         }
 
-        context.fill(x + 16, y + TRACK_CARD_TOP, x + panelWidth - 16, y + TRACK_CARD_TOP + TRACK_CARD_HEIGHT, SPOTIFY_CARD_ALT);
-        context.outline(x + 16, y + TRACK_CARD_TOP, panelWidth - 32, TRACK_CARD_HEIGHT, HudStyle.border());
+        context.fill(x + 16, y + TRACK_CARD_TOP, x + panelWidth - 16, y + TRACK_CARD_TOP + TRACK_CARD_HEIGHT, theme.surfaceAlt);
+        context.outline(x + 16, y + TRACK_CARD_TOP, panelWidth - 32, TRACK_CARD_HEIGHT, theme.borderSubtle);
 
         int coverSize = 36;
         int coverX = x + 20;
@@ -115,71 +111,71 @@ public final class SpotifyInventoryOverlay {
         drawCover(context, state.albumArtUrl(), coverX, coverY, coverSize);
         int textX = coverX + coverSize + 8;
         int textWidth = (x + panelWidth - 16) - textX - 6;
-        drawWrapped(context, state.trackName().isBlank() ? "Kein Track" : state.trackName(), textX, y + 60, textWidth, HudStyle.text());
-        drawWrapped(context, state.artistName().isBlank() ? state.statusMessage() : state.artistName(), textX, y + 76, textWidth, SPOTIFY_MUTED);
+        drawWrapped(context, state.trackName().isBlank() ? "Kein Track" : state.trackName(), textX, y + 60, textWidth, theme.text);
+        drawWrapped(context, state.artistName().isBlank() ? state.statusMessage() : state.artistName(), textX, y + 76, textWidth, theme.textMuted);
 
         int buttonY = y + CONTROLS_TOP;
         addButton(x + 16, buttonY, 34, 20, "<<", spotifyService::skipPrevious);
         addButton(x + 56, buttonY, 62, 20, state.playing() ? "Pause" : "Play", spotifyService::playPause);
         addButton(x + 124, buttonY, 34, 20, ">>", spotifyService::skipNext);
-        context.text(client.font, Component.literal(state.deviceName().isBlank() ? "Kein Geraet" : trim(client, state.deviceName(), 118)), x + 174, buttonY + 6, SPOTIFY_MUTED);
+        context.text(client.font, Component.literal(state.deviceName().isBlank() ? "Kein Geraet" : trim(client, state.deviceName(), 118)), x + 174, buttonY + 6, theme.textMuted);
 
         int sliderX = x + 16;
         int sliderY = y + VOLUME_SLIDER_TOP;
         volumeSlider = new Rect(sliderX, sliderY, 214, 5);
-        context.fill(volumeSlider.x, volumeSlider.y, volumeSlider.right(), volumeSlider.bottom(), 0xFF27313A);
+        context.fill(volumeSlider.x, volumeSlider.y, volumeSlider.right(), volumeSlider.bottom(), theme.surfaceAlt);
         int displayVolume = state.supportsVolume() ? displayVolume(state) : 0;
         int knobX = volumeSlider.x + Math.round((volumeSlider.width * displayVolume) / 100.0F);
-        context.fill(volumeSlider.x, volumeSlider.y, knobX, volumeSlider.bottom(), HudStyle.accent());
-        context.fill(knobX - 4, volumeSlider.y - 4, knobX + 4, volumeSlider.y + 9, state.supportsVolume() ? SPOTIFY_TEXT : SPOTIFY_MUTED);
-        context.text(client.font, Component.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, SPOTIFY_MUTED);
-        context.text(client.font, Component.literal(state.supportsVolume() ? displayVolume + "%" : "n/a"), x + 246, y + 136, SPOTIFY_MUTED);
+        context.fill(volumeSlider.x, volumeSlider.y, knobX, volumeSlider.bottom(), theme.accent);
+        context.fill(knobX - 4, volumeSlider.y - 4, knobX + 4, volumeSlider.y + 9, state.supportsVolume() ? theme.text : theme.textMuted);
+        context.text(client.font, Component.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, theme.textMuted);
+        context.text(client.font, Component.literal(state.supportsVolume() ? displayVolume + "%" : "n/a"), x + 246, y + 136, theme.textMuted);
 
         deviceDropdown = new Rect(x + 16, y + DEVICE_DROPDOWN_TOP, panelWidth - 32, DROPDOWN_HEADER_HEIGHT);
-        context.fill(deviceDropdown.x, deviceDropdown.y, deviceDropdown.right(), deviceDropdown.bottom(), SPOTIFY_BUTTON);
-        context.outline(deviceDropdown.x, deviceDropdown.y, deviceDropdown.width, deviceDropdown.height, devicesOpen ? HudStyle.accent() : HudStyle.border());
-        context.text(client.font, Component.literal(trim(client, "Geraet: " + (state.deviceName().isBlank() ? "keins" : state.deviceName()), deviceDropdown.width - 24)), deviceDropdown.x + 10, deviceDropdown.y + 7, SPOTIFY_TEXT);
-        context.text(client.font, Component.literal(devicesOpen ? "^" : "v"), deviceDropdown.right() - 16, deviceDropdown.y + 7, SPOTIFY_MUTED);
+        context.fill(deviceDropdown.x, deviceDropdown.y, deviceDropdown.right(), deviceDropdown.bottom(), theme.surfaceAlt);
+        context.outline(deviceDropdown.x, deviceDropdown.y, deviceDropdown.width, deviceDropdown.height, devicesOpen ? theme.accent : theme.borderSubtle);
+        context.text(client.font, Component.literal(trim(client, "Geraet: " + (state.deviceName().isBlank() ? "keins" : state.deviceName()), deviceDropdown.width - 24)), deviceDropdown.x + 10, deviceDropdown.y + 7, theme.text);
+        context.text(client.font, Component.literal(devicesOpen ? "^" : "v"), deviceDropdown.right() - 16, deviceDropdown.y + 7, theme.textMuted);
         if (devicesOpen) {
             spotifyService.requestDevicesRefresh(false);
             List<SpotifyDevice> devices = spotifyService.getDevices();
             if (devices.isEmpty()) {
-                context.text(client.font, Component.literal("Keine Geraete gefunden"), x + 26, y + 190, SPOTIFY_MUTED);
+                context.text(client.font, Component.literal("Keine Geraete gefunden"), x + 26, y + 190, theme.textMuted);
             }
             for (int index = 0; index < Math.min(visibleDeviceRows, devices.size()); index++) {
                 SpotifyDevice device = devices.get(index);
                 Rect row = deviceRowRect(x, y, panelWidth, index);
-                context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? SPOTIFY_BUTTON_HOVER : SPOTIFY_BUTTON);
+                context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? theme.surfaceHover : theme.surfaceAlt);
                 String prefix = device.active() ? "* " : "";
-                context.text(client.font, Component.literal(trim(client, prefix + device.name(), row.width - 20)), row.x + 10, row.y + 6, device.restricted() ? SPOTIFY_MUTED : SPOTIFY_TEXT);
+                context.text(client.font, Component.literal(trim(client, prefix + device.name(), row.width - 20)), row.x + 10, row.y + 6, device.restricted() ? theme.textMuted : theme.text);
             }
         }
 
         int playlistY = y + playlistHeaderY;
         playlistDropdown = new Rect(x + 16, playlistY, panelWidth - 32, DROPDOWN_HEADER_HEIGHT);
-        context.fill(playlistDropdown.x, playlistDropdown.y, playlistDropdown.right(), playlistDropdown.bottom(), SPOTIFY_BUTTON);
-        context.outline(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? HudStyle.accent() : HudStyle.border());
-        context.text(client.font, Component.literal("Spotify Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, SPOTIFY_TEXT);
-        context.text(client.font, Component.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, SPOTIFY_MUTED);
+        context.fill(playlistDropdown.x, playlistDropdown.y, playlistDropdown.right(), playlistDropdown.bottom(), theme.surfaceAlt);
+        context.outline(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? theme.accent : theme.borderSubtle);
+        context.text(client.font, Component.literal("Spotify Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, theme.text);
+        context.text(client.font, Component.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, theme.textMuted);
 
         if (playlistsOpen) {
             spotifyService.requestRecentPlaylistsRefresh(false);
             List<SpotifyPlaylist> playlists = spotifyService.getRecentPlaylists();
             if (playlists.isEmpty()) {
-                context.text(client.font, Component.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, SPOTIFY_MUTED);
+                context.text(client.font, Component.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, theme.textMuted);
             }
             for (int index = 0; index < Math.min(visiblePlaylistRows, playlists.size()); index++) {
                 SpotifyPlaylist playlist = playlists.get(index);
                 Rect row = playlistRowRect(x, playlistDropdown.bottom() + 6, panelWidth, index);
-                context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? SPOTIFY_BUTTON_HOVER : SPOTIFY_BUTTON);
-                context.text(client.font, Component.literal(trim(client, playlist.name(), row.width - 20)), row.x + 10, row.y + 6, SPOTIFY_TEXT);
+                context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? theme.surfaceHover : theme.surfaceAlt);
+                context.text(client.font, Component.literal(trim(client, playlist.name(), row.width - 20)), row.x + 10, row.y + 6, theme.text);
             }
         }
 
         for (Button button : buttons) {
-            context.fill(button.x, button.y, button.x + button.width, button.y + button.height, SPOTIFY_BUTTON);
-            context.outline(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? HudStyle.accent() : HudStyle.border());
-            context.centeredText(client.font, Component.literal(button.label), button.x + (button.width / 2), button.y + 4, SPOTIFY_TEXT);
+            context.fill(button.x, button.y, button.x + button.width, button.y + button.height, theme.surfaceAlt);
+            context.outline(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? theme.accent : theme.borderSubtle);
+            context.centeredText(client.font, Component.literal(button.label), button.x + (button.width / 2), button.y + 4, theme.text);
         }
     }
 
@@ -324,11 +320,12 @@ public final class SpotifyInventoryOverlay {
                 0, 0, 0f, 0f, texW, texH, texW, texH);
             context.pose().popMatrix();
         } else {
-            context.fill(px, py, px + size, py + size, 0xFFE0E2E6);
-            context.outline(px, py, size, size, HudStyle.border());
+            Theme theme = ThemeManager.current();
+            context.fill(px, py, px + size, py + size, theme.surfaceAlt);
+            context.outline(px, py, size, size, theme.borderSubtle);
             Minecraft client = Minecraft.getInstance();
             if (client != null) {
-                context.centeredText(client.font, Component.literal("♪"), px + size / 2, py + size / 2 - 4, SPOTIFY_MUTED);
+                context.centeredText(client.font, Component.literal("♪"), px + size / 2, py + size / 2 - 4, theme.textMuted);
             }
         }
     }

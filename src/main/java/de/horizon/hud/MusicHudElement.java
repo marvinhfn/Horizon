@@ -81,7 +81,7 @@ public final class MusicHudElement implements HudElement {
         ctx.pose().scale(scale, scale);
 
         // Panel background
-        ctx.fill(0, 0, BASE_W, BASE_H, 0xC00A0E14);
+        ctx.fill(0, 0, BASE_W, BASE_H, HudStyle.backdrop());
         ctx.fill(0, 0, BASE_W, 1, HudStyle.accent());
 
         // Album cover (or placeholder)
@@ -94,7 +94,7 @@ public final class MusicHudElement implements HudElement {
             ctx.blit(RenderPipelines.GUI_TEXTURED, albumArt.textureId(), 0, 0, 0f, 0f, texW, texH, texW, texH);
             ctx.pose().popMatrix();
         } else {
-            ctx.fill(ART_X, ART_Y, ART_X + ART_SIZE, ART_Y + ART_SIZE, 0xFF1B2230);
+            ctx.fill(ART_X, ART_Y, ART_X + ART_SIZE, ART_Y + ART_SIZE, HudStyle.panel());
             ctx.centeredText(mc.font, "♪", ART_X + ART_SIZE / 2, ART_Y + ART_SIZE / 2 - 4, HudStyle.muted());
         }
 
@@ -123,7 +123,7 @@ public final class MusicHudElement implements HudElement {
         int barW = BASE_W - 8 - CONTENT_X;
         int barH = 4;
         float frac = duration > 0 ? Math.max(0f, Math.min(1f, (float) progress / duration)) : 0f;
-        ctx.fill(barX, barY, barX + barW, barY + barH, 0xFF2A3444);
+        ctx.fill(barX, barY, barX + barW, barY + barH, HudStyle.panelAlt());
         ctx.fill(barX, barY, barX + (int) (barW * frac), barY + barH, HudStyle.accent());
 
         ctx.pose().popMatrix();
