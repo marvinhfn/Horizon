@@ -14,13 +14,27 @@ public final class Ui {
         ctx.fill(x + r, y, x + w - r, y + h, color);
         ctx.fill(x, y + r, x + r, y + h - r, color);
         ctx.fill(x + w - r, y + r, x + w, y + h - r, color);
-        // four corner arcs
+        // four corner arcs (with one AA boundary pixel per row per corner)
         for (int dy = 0; dy < r; dy++) {
-            int dx = r - (int) Math.floor(Math.sqrt((double) r * r - (r - 1 - dy) * (r - 1 - dy)));
-            ctx.fill(x + dx, y + dy, x + r, y + dy + 1, color);                 // top-left
-            ctx.fill(x + w - r, y + dy, x + w - dx, y + dy + 1, color);         // top-right
-            ctx.fill(x + dx, y + h - 1 - dy, x + r, y + h - dy, color);         // bottom-left
-            ctx.fill(x + w - r, y + h - 1 - dy, x + w - dx, y + h - dy, color); // bottom-right
+            double exact = Math.sqrt((double) r * r - (r - 1 - dy) * (r - 1 - dy));
+            int dxFull = r - (int) Math.floor(exact);
+            double frac = exact - Math.floor(exact);
+            int edgeAlpha = (int) (((color >>> 24) & 0xFF) * frac);
+            int edge = (edgeAlpha << 24) | (color & 0xFFFFFF);
+            // full-coverage spans
+            ctx.fill(x + dxFull,         y + dy,          x + r,         y + dy + 1,      color); // top-left
+            ctx.fill(x + w - r,          y + dy,          x + w - dxFull, y + dy + 1,     color); // top-right
+            ctx.fill(x + dxFull,         y + h - 1 - dy,  x + r,         y + h - dy,      color); // bottom-left
+            ctx.fill(x + w - r,          y + h - 1 - dy,  x + w - dxFull, y + h - dy,     color); // bottom-right
+            // AA boundary pixels (one pixel just outside the full span)
+            if (dxFull - 1 >= 0)
+                ctx.fill(x + dxFull - 1, y + dy,         x + dxFull,     y + dy + 1,      edge); // top-left AA
+            if (x + w - dxFull + 1 <= x + w)
+                ctx.fill(x + w - dxFull, y + dy,         x + w - dxFull + 1, y + dy + 1,  edge); // top-right AA
+            if (dxFull - 1 >= 0)
+                ctx.fill(x + dxFull - 1, y + h - 1 - dy, x + dxFull,    y + h - dy,       edge); // bottom-left AA
+            if (x + w - dxFull + 1 <= x + w)
+                ctx.fill(x + w - dxFull, y + h - 1 - dy, x + w - dxFull + 1, y + h - dy, edge); // bottom-right AA
         }
     }
 
