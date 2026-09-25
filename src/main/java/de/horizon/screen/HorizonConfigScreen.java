@@ -226,7 +226,14 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     @Override
+    protected void init() {
+        de.horizon.screen.render.HiDpi.enter(net.minecraft.client.Minecraft.getInstance());
+        super.init();
+    }
+
+    @Override
     public void onClose() {
+        de.horizon.screen.render.HiDpi.exit(net.minecraft.client.Minecraft.getInstance());
         commitInputs();
         horizonClient.getConfigManager().save();
         if (minecraft != null) {
