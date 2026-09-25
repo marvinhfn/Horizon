@@ -19,43 +19,48 @@ public final class HudStyle {
 
     public static int accent() {
         HorizonClient client = HorizonClient.getInstance();
-        return client == null ? argb(DEFAULT_ACCENT_RGB) : accent(client.getConfigManager().getConfig());
+        HorizonConfig cfg = client == null ? null : client.getConfigManager().getConfig();
+        String override = cfg == null ? null : cfg.getHudAccentColor();
+        if (override != null && isCompleteHex(override) && !override.equalsIgnoreCase("#75E7CA")) {
+            return argb(parseAccentRgb(override));
+        }
+        return de.horizon.theme.ThemeManager.current().accent;
     }
 
     public static int accent(HorizonConfig config) {
-        return argb(parseAccentRgb(config == null ? null : config.getHudAccentColor()));
+        return accent();
     }
 
     public static int text() {
-        return TEXT;
+        return de.horizon.theme.ThemeManager.current().hudText;
     }
 
     public static int muted() {
-        return MUTED;
+        return de.horizon.theme.ThemeManager.current().hudMuted;
     }
 
     public static int warning() {
-        return WARNING;
+        return de.horizon.theme.ThemeManager.current().warning;
     }
 
     public static int backdrop() {
-        return BACKDROP;
+        return de.horizon.theme.ThemeManager.current().hudBackdrop;
     }
 
     public static int panel() {
-        return PANEL;
+        return de.horizon.theme.ThemeManager.current().hudSurface;
     }
 
     public static int panelAlt() {
-        return PANEL_ALT;
+        return de.horizon.theme.ThemeManager.current().hudSurfaceAlt;
     }
 
     public static int action() {
-        return ACTION;
+        return de.horizon.theme.ThemeManager.current().hudSurface;
     }
 
     public static int actionHover() {
-        return ACTION_HOVER;
+        return de.horizon.theme.ThemeManager.current().hudSurfaceAlt;
     }
 
     public static int border() {
