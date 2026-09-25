@@ -208,6 +208,8 @@ public final class HorizonConfigScreen extends Screen {
     private int colorPickerRowY = -1;
     private int colorPickerArea = -1; // 0 = hue bar, 1 = SV field
     private boolean hudColorPickerExpanded = false;
+    private final java.util.List<Rect> themeChipRects = new java.util.ArrayList<>();
+    private Rect themeModeToggleRect;
     private boolean fishingCreatureListExpanded = false;
     private boolean chatCommandListExpanded = false;
 
@@ -868,6 +870,37 @@ public final class HorizonConfigScreen extends Screen {
 
     private void renderHudText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
+        // ── Theme section ────────────────────────────────────────────────────────────
+        y = drawSectionTitle(context, viewport.x, y, Lang.t("Theme", "Theme"));
+        // Draw 6 family chips
+        themeChipRects.clear();
+        de.horizon.theme.ThemeFamily[] families = de.horizon.theme.ThemeFamily.values();
+        int chipSize = 22;
+        int chipStep = 28;
+        for (int i = 0; i < families.length; i++) {
+            de.horizon.theme.ThemeFamily f = families[i];
+            int cx = viewport.x + i * chipStep;
+            int cy = y;
+            Rect chipRect = new Rect(cx, cy, chipSize, chipSize);
+            themeChipRects.add(chipRect);
+            Ui.roundedRect(context, cx, cy, chipSize, chipSize, 5, f.chip());
+            if (f == de.horizon.theme.ThemeManager.family()) {
+                Ui.outline(context, cx - 2, cy - 2, chipSize + 4, chipSize + 4, 6, 2, theme().accent);
+            }
+        }
+        y += 30; // chip row height
+        // Dark mode toggle row
+        boolean isDark = de.horizon.theme.ThemeManager.mode() == de.horizon.theme.ThemeMode.DARK;
+        int modeRowHeight = toggleRowHeight(Lang.t("Dunkel", "Dark"));
+        drawSettingCard(context, viewport.x, y, modeRowHeight, isDark ? theme().toggleOn : theme().toggleOff, false);
+        Rect modeBadge = toggleBadgeRect(viewport.x, y);
+        Ui.toggle(context, modeBadge.x + 6, modeBadge.y + 2, 26, 14, isDark, theme());
+        int modeTextX = modeBadge.right() + 10;
+        drawTextLine(context, modeTextX, y + CARD_PADDING_TOP, Lang.t("Dunkel", "Dark"), col_text());
+        drawWrappedText(context, modeTextX, y + CARD_PADDING_TOP + LINE_HEIGHT, Lang.t("Dunkel", "Dark"), Math.max(80, CONTENT_ROW_WIDTH - (modeTextX - viewport.x) - 10), col_muted());
+        themeModeToggleRect = new Rect(viewport.x - 12, y, CONTENT_CARD_WIDTH + 4, Math.max(24, modeRowHeight - CARD_GAP));
+        y += modeRowHeight;
+        // ── HUD section ──────────────────────────────────────────────────────────────
         y = drawSectionTitle(context, viewport.x, y, "HUD");
         y = drawActionRow(context, viewport.x, y, Lang.t("HUD bearbeiten", "Edit HUD"), "HUD reset", Lang.t("Layout bearbeiten oder Positionen zuruecksetzen.", "Edit layout or reset positions."));
         drawHudColorRow(context, viewport.x, y);
@@ -2482,7 +2515,28 @@ public final class HorizonConfigScreen extends Screen {
 
     private boolean handleHudClick(double mouseX, double mouseY, Rect frame) {
         Rect viewport = contentViewportRect(frame);
-        int y = viewport.y - contentScrollOffset + 24;
+        int y = viewport.y - contentScrollOffset + 24; // skips "Theme" section title
+        // ── Theme chip clicks (use stored rects from draw) ──────────────────────────
+        de.horizon.theme.ThemeFamily[] families = de.horizon.theme.ThemeFamily.values();
+        for (int i = 0; i < themeChipRects.size(); i++) {
+            if (themeChipRects.get(i).contains(mouseX, mouseY)) {
+                de.horizon.theme.ThemeManager.setFamily(families[i]);
+                horizonClient.getConfigManager().save();
+                return true;
+            }
+        }
+        y += 30; // chip row height
+        // ── Dark mode toggle click ────────────────────────────────────────────────
+        if (themeModeToggleRect != null && themeModeToggleRect.contains(mouseX, mouseY)) {
+            de.horizon.theme.ThemeManager.setMode(
+                de.horizon.theme.ThemeManager.mode() == de.horizon.theme.ThemeMode.DARK
+                    ? de.horizon.theme.ThemeMode.LIGHT
+                    : de.horizon.theme.ThemeMode.DARK);
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(Lang.t("Dunkel", "Dark")); // mode toggle row height
+        y += 24; // "HUD" section title
         if (actionButtonRect(viewport.x, y, true).contains(mouseX, mouseY)) {
             minecraft.setScreen(new HudLayoutScreen(this, horizonClient));
             return true;
@@ -4141,7 +4195,10 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private int hudContentHeight() {
-        return 24
+        return 24                                                                          // "Theme" section title
+            + 30                                                                           // theme chip row
+            + toggleRowHeight(Lang.t("Dunkel", "Dark"))                                   // dark mode toggle row
+            + 24                                                                           // "HUD" section title
             + actionRowHeight(Lang.t("Layout bearbeiten oder Positionen zuruecksetzen.", "Edit layout or reset positions."))
             + hudColorRowHeight();
     }
