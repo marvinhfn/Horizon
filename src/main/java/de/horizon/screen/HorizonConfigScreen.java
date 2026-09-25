@@ -30,9 +30,6 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class HorizonConfigScreen extends Screen {
-    private static final int TEXT = 0xFFFFFFFF;
-    private static final int MUTED = 0xFFB8B8B8;
-    private static final int WARNING = 0xFFFFD27C;
     private static final int CONTENT_ROW_WIDTH = 620;
     private static final int CONTENT_CARD_WIDTH = CONTENT_ROW_WIDTH + 8;
     private static final int CARD_PADDING_TOP = 8;
@@ -40,12 +37,6 @@ public final class HorizonConfigScreen extends Screen {
     private static final int CARD_GAP = 10;
     private static final int LINE_HEIGHT = 12;
     private static final int DESCRIPTION_INDENT = 14;
-    private static final int CONFIG_WINDOW = 0x66F0F1F3;
-    private static final int CONFIG_WINDOW_HEADER = 0x73F7F8FA;
-    private static final int CONFIG_CARD = 0x60F0F1F3;
-    private static final int CONFIG_CARD_FOCUSED = 0x60F7F8FA;
-    private static final int CONFIG_BUTTON = 0x60E6E8EC;
-    private static final int CONFIG_BUTTON_TEXT = 0xFF1E2A37;
     private static final String[][] GLOBAL_SCOREBOARD_LINES = {
         {"location", "Standort (⏣-Zeile)"},
         {"season", "Season"},
@@ -719,7 +710,7 @@ public final class HorizonConfigScreen extends Screen {
         for (int index = 0; index < Tab.values().length; index++) {
             boolean active = Tab.values()[index] == activeTab;
             Rect rect = sidebarTabRect(sidebar, index);
-            drawTextLine(context, rect.x, rect.y, (active ? "> " : "  ") + Tab.values()[index].label, active ? accent : TEXT);
+            drawTextLine(context, rect.x, rect.y, (active ? "> " : "  ") + Tab.values()[index].label, active ? accent : col_text());
         }
 
         if (activeTab == Tab.DUNGEON) {
@@ -727,7 +718,7 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < DungeonSection.values().length; index++) {
                 boolean active = DungeonSection.values()[index] == activeDungeonSection;
                 Rect rect = subTabRect(bar, index, DungeonSection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + DungeonSection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + DungeonSection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
             }
         }
 
@@ -736,7 +727,7 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < MusicSection.values().length; index++) {
                 boolean active = MusicSection.values()[index] == activeMusicSection;
                 Rect rect = subTabRect(bar, index, MusicSection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + MusicSection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + MusicSection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
             }
         }
 
@@ -745,7 +736,7 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < ChatSection.values().length; index++) {
                 boolean active = ChatSection.values()[index] == activeChatSection;
                 Rect rect = subTabRect(bar, index, ChatSection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + ChatSection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + ChatSection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
             }
         }
 
@@ -754,7 +745,7 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < DisplaySection.values().length; index++) {
                 boolean active = DisplaySection.values()[index] == activeDisplaySection;
                 Rect rect = subTabRect(bar, index, DisplaySection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + DisplaySection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + DisplaySection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
             }
         }
 
@@ -763,7 +754,7 @@ public final class HorizonConfigScreen extends Screen {
             for (int index = 0; index < InventorySection.values().length; index++) {
                 boolean active = InventorySection.values()[index] == activeInventorySection;
                 Rect rect = subTabRect(bar, index, InventorySection.values().length);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + InventorySection.values()[index].label + (active ? "]" : ""), active ? accent : TEXT);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + InventorySection.values()[index].label + (active ? "]" : ""), active ? accent : col_text());
             }
         }
 
@@ -771,12 +762,12 @@ public final class HorizonConfigScreen extends Screen {
             Rect bar = scoreboardSubTabBarRect(frame);
             drawTextLine(context, scoreboardSubTabRect(bar, 0).x, scoreboardSubTabRect(bar, 0).y,
                 (scoreboardGeneralActive ? "[" : "") + "General" + (scoreboardGeneralActive ? "]" : ""),
-                scoreboardGeneralActive ? accent : TEXT);
+                scoreboardGeneralActive ? accent : col_text());
             SkyBlockIsland[] islands = SkyBlockIsland.knownIslands();
             for (int index = 0; index < islands.length; index++) {
                 boolean active = !scoreboardGeneralActive && islands[index] == activeScoreboardIsland;
                 Rect rect = scoreboardSubTabRect(bar, index + 1);
-                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + islands[index].label() + (active ? "]" : ""), active ? accent : TEXT);
+                drawTextLine(context, rect.x, rect.y, (active ? "[" : "") + islands[index].label() + (active ? "]" : ""), active ? accent : col_text());
             }
         }
 
@@ -1083,7 +1074,7 @@ public final class HorizonConfigScreen extends Screen {
         for (String particleId : particles) {
             String name = particleFilterService.displayName(particleId);
             boolean enabled = particleFilterService.isEnabled(particleId);
-            drawTextLine(context, viewport.x, baseY, "[" + Lang.t(enabled ? "AN" : "AUS", enabled ? "ON" : "OFF") + "] " + name + " - " + particleId, enabled ? TEXT : MUTED);
+            drawTextLine(context, viewport.x, baseY, "[" + Lang.t(enabled ? "AN" : "AUS", enabled ? "ON" : "OFF") + "] " + name + " - " + particleId, enabled ? col_text() : col_muted());
             baseY += 14;
         }
     }
@@ -1565,11 +1556,11 @@ public final class HorizonConfigScreen extends Screen {
                 y = drawSectionTitle(context, viewport.x, y, "Chat / Shortcuts");
                 y = drawToggleRow(context, viewport.x, y, Lang.t("Command Shortcuts", "Command Shortcuts"), config().isCommandShortcutsEnabled(),
                     Lang.t("/f1-/f7, /m1-/m7, /d, /dh als Kurzbefehle verwenden.", "Use /f1-/f7, /m1-/m7, /d, /dh as command shortcuts."));
-                drawTextLine(context, viewport.x + DESCRIPTION_INDENT, y, "/f1-/f7  \u2192  /joininstance CATACOMBS_FLOOR_...", MUTED);
+                drawTextLine(context, viewport.x + DESCRIPTION_INDENT, y, "/f1-/f7  \u2192  /joininstance CATACOMBS_FLOOR_...", col_muted());
                 y += LINE_HEIGHT;
-                drawTextLine(context, viewport.x + DESCRIPTION_INDENT, y, "/m1-/m7  \u2192  /joininstance MASTER_CATACOMBS_FLOOR_...", MUTED);
+                drawTextLine(context, viewport.x + DESCRIPTION_INDENT, y, "/m1-/m7  \u2192  /joininstance MASTER_CATACOMBS_FLOOR_...", col_muted());
                 y += LINE_HEIGHT;
-                drawTextLine(context, viewport.x + DESCRIPTION_INDENT, y, "/d, /dh  \u2192  /warp dungeon_hub", MUTED);
+                drawTextLine(context, viewport.x + DESCRIPTION_INDENT, y, "/d, /dh  \u2192  /warp dungeon_hub", col_muted());
             }
         }
     }
@@ -1598,7 +1589,7 @@ public final class HorizonConfigScreen extends Screen {
         y = drawSectionTitle(context, viewport.x, y, "Scoreboard / " + activeScoreboardIsland.label());
         Map<String, String> known = islandDisplayLines();
         if (known.isEmpty()) {
-            drawTextLine(context, viewport.x, y, Lang.t("Keine Daten gespeichert. Besuche diese Island ingame.", "No data stored. Visit this island in-game."), MUTED);
+            drawTextLine(context, viewport.x, y, Lang.t("Keine Daten gespeichert. Besuche diese Island ingame.", "No data stored. Visit this island in-game."), col_muted());
             return;
         }
         List<Map.Entry<String, String>> entries = new ArrayList<>(known.entrySet());
@@ -1625,7 +1616,7 @@ public final class HorizonConfigScreen extends Screen {
             boolean visible = !config().isScoreboardLineEffectivelyHidden(activeScoreboardIsland.id(), entry.getKey());
             int rowTop = y;
             y = drawScoreboardLineRow(context, viewport.x, y, HorizonConfig.formatScoreboardKeyLabel(entry.getKey()), visible, HorizonConfig.scoreboardKeyColor(entry.getKey()));
-            drawTextLine(context, viewport.x + CONTENT_ROW_WIDTH - 14, rowTop + CARD_PADDING_TOP, "≡", MUTED);
+            drawTextLine(context, viewport.x + CONTENT_ROW_WIDTH - 14, rowTop + CARD_PADDING_TOP, "≡", col_muted());
             visualIndex++;
         }
         if (isDragging && visualIndex == dropIndex) {
@@ -1905,11 +1896,11 @@ public final class HorizonConfigScreen extends Screen {
         for (int index = 0; index < Math.min(12, results.size()); index++) {
             SearchResult result = results.get(index);
             drawTextLine(context, viewport.x, y, result.title(), accentColor());
-            drawTextLine(context, viewport.x + 12, y + 12, result.location(), MUTED);
+            drawTextLine(context, viewport.x + 12, y + 12, result.location(), col_muted());
             y += 28;
         }
         if (results.isEmpty()) {
-            drawTextLine(context, viewport.x, y, Lang.t("Keine Treffer.", "No results."), MUTED);
+            drawTextLine(context, viewport.x, y, Lang.t("Keine Treffer.", "No results."), col_muted());
         }
     }
 
@@ -1971,8 +1962,8 @@ public final class HorizonConfigScreen extends Screen {
         context.centeredText(font, Component.literal(enabled ? Lang.t("AN", "ON") : Lang.t("AUS", "OFF")), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
         int contentX = badge.right() + 10;
         int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
-        drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, TEXT);
-        drawWrappedText(context, contentX, y + CARD_PADDING_TOP + LINE_HEIGHT, description, contentWidth, MUTED);
+        drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, col_text());
+        drawWrappedText(context, contentX, y + CARD_PADDING_TOP + LINE_HEIGHT, description, contentWidth, col_muted());
         return y + rowHeight;
     }
 
@@ -1984,14 +1975,14 @@ public final class HorizonConfigScreen extends Screen {
         int rowHeight = sliderRowHeight();
         drawSettingCard(context, x, y, rowHeight, accentColor(), false);
         String formatted = String.format("%.2f", value);
-        drawTextLine(context, x + 4, y + CARD_PADDING_TOP, title + ": " + formatted, TEXT);
+        drawTextLine(context, x + 4, y + CARD_PADDING_TOP, title + ": " + formatted, col_text());
         int sliderX = x + CONTENT_ROW_WIDTH - SLIDER_WIDTH - 10;
         int sliderY = y + CARD_PADDING_TOP;
         context.fill(sliderX, sliderY, sliderX + SLIDER_WIDTH, sliderY + SLIDER_HEIGHT, 0xFF3A3F4B);
         double fraction = (value - min) / (max - min);
         int thumbX = sliderX + (int) (fraction * (SLIDER_WIDTH - 6));
         context.fill(thumbX, sliderY, thumbX + 6, sliderY + SLIDER_HEIGHT, accentColor());
-        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT + 2, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
+        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT + 2, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, col_muted());
         return y + rowHeight;
     }
 
@@ -2039,8 +2030,8 @@ public final class HorizonConfigScreen extends Screen {
         context.centeredText(font, Component.literal(modeLabel), badge.centerX(), badge.y + 4, 0xFFF7FBFF);
         int contentX = badge.right() + 10;
         int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
-        drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, TEXT);
-        drawWrappedText(context, contentX, y + CARD_PADDING_TOP + LINE_HEIGHT, description, contentWidth, MUTED);
+        drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, col_text());
+        drawWrappedText(context, contentX, y + CARD_PADDING_TOP + LINE_HEIGHT, description, contentWidth, col_muted());
         return y + rowHeight;
     }
 
@@ -2060,28 +2051,28 @@ public final class HorizonConfigScreen extends Screen {
         if (right != null && !right.isBlank()) {
             drawInlineAction(context, actionButtonRect(x, y, false), right);
         }
-        drawWrappedText(context, x + DESCRIPTION_INDENT, leftRect.bottom() + 6, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
+        drawWrappedText(context, x + DESCRIPTION_INDENT, leftRect.bottom() + 6, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, col_muted());
         return y + rowHeight;
     }
 
     private int drawFieldRow(GuiGraphicsExtractor context, int x, int y, String title, String value, boolean focused, String description) {
         int rowHeight = fieldRowHeight(description);
         drawSettingCard(context, x, y, rowHeight, focused ? HudStyle.accent() : HudStyle.border(), focused);
-        drawTextLine(context, x, y + CARD_PADDING_TOP, title + ": " + fieldValue(value, focused), TEXT);
-        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
+        drawTextLine(context, x, y + CARD_PADDING_TOP, title + ": " + fieldValue(value, focused), col_text());
+        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, col_muted());
         return y + rowHeight;
     }
 
     private int drawHudColorRow(GuiGraphicsExtractor context, int x, int y) {
         int rowHeight = hudColorRowHeight();
         drawSettingCard(context, x, y, rowHeight, inputFocus == InputFocus.HUD_ACCENT_COLOR ? HudStyle.accent() : HudStyle.selected(), inputFocus == InputFocus.HUD_ACCENT_COLOR);
-        drawTextLine(context, x, y + CARD_PADDING_TOP, Lang.t("HUD Farbe: ", "HUD Color: ") + fieldValue(hudAccentColorInput, inputFocus == InputFocus.HUD_ACCENT_COLOR), TEXT);
-        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT, Lang.t("Preview und Palette. Hexwert bleibt weiter editierbar.", "Preview and palette. Hex value remains editable."), CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
+        drawTextLine(context, x, y + CARD_PADDING_TOP, Lang.t("HUD Farbe: ", "HUD Color: ") + fieldValue(hudAccentColorInput, inputFocus == InputFocus.HUD_ACCENT_COLOR), col_text());
+        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT, Lang.t("Preview und Palette. Hexwert bleibt weiter editierbar.", "Preview and palette. Hex value remains editable."), CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, col_muted());
 
         int previewY = y + CARD_PADDING_TOP + LINE_HEIGHT + wrappedLines(Lang.t("Preview und Palette. Hexwert bleibt weiter editierbar.", "Preview and palette. Hex value remains editable."), CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10).size() * LINE_HEIGHT + 6;
         Rect preview = hudColorPreviewRect(x, previewY);
         context.fill(preview.x, preview.y, preview.right(), preview.bottom(), parsePreviewColor());
-        drawTextLine(context, preview.right() + 10, preview.y + 6, HudStyle.isCompleteHex(hudAccentColorInput) ? Lang.t("Aktive HUD-Farbe", "Active HUD Color") : Lang.t("Ungueltig -> Default", "Invalid -> Default"), MUTED);
+        drawTextLine(context, preview.right() + 10, preview.y + 6, HudStyle.isCompleteHex(hudAccentColorInput) ? Lang.t("Aktive HUD-Farbe", "Active HUD Color") : Lang.t("Ungueltig -> Default", "Invalid -> Default"), col_muted());
 
         for (int index = 0; index < HUD_COLOR_SWATCHES.length; index++) {
             Rect swatch = hudColorSwatchRect(x, previewY, index);
@@ -2101,8 +2092,8 @@ public final class HorizonConfigScreen extends Screen {
         Rect plusRect = cataButtonRect(x, y, false);
         drawInlineAction(context, minusRect, "-");
         drawInlineAction(context, plusRect, "+");
-        drawTextLine(context, x, y + CARD_PADDING_TOP, title + ": " + fieldValue(value, focused), TEXT);
-        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, MUTED);
+        drawTextLine(context, x, y + CARD_PADDING_TOP, title + ": " + fieldValue(value, focused), col_text());
+        drawWrappedText(context, x + DESCRIPTION_INDENT, y + CARD_PADDING_TOP + LINE_HEIGHT, description, CONTENT_ROW_WIDTH - DESCRIPTION_INDENT - 10, col_muted());
         return y + rowHeight;
     }
 
@@ -2137,7 +2128,7 @@ public final class HorizonConfigScreen extends Screen {
         int swatchX = x + 4;
         int swatchY = y + CARD_PADDING_TOP;
         drawColorPreviewSwatch(context, swatchX, swatchY, 12, currentColor);
-        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), TEXT);
+        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), col_text());
         if (expanded) {
             drawColorPickerFields(context, x + 4, y + CARD_PADDING_TOP + LINE_HEIGHT + 4, currentColor);
         }
@@ -2151,7 +2142,7 @@ public final class HorizonConfigScreen extends Screen {
         int swatchX = x + 4;
         int swatchY = y + CARD_PADDING_TOP;
         drawColorPreviewSwatch(context, swatchX, swatchY, 12, currentColor);
-        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), TEXT);
+        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), col_text());
         if (expanded) {
             drawColorPickerFields(context, x + 4, y + CARD_PADDING_TOP + LINE_HEIGHT + 4, currentColor);
         }
@@ -2422,7 +2413,7 @@ public final class HorizonConfigScreen extends Screen {
         int swatchX = x + 4;
         int swatchY = y + CARD_PADDING_TOP;
         drawColorPreviewSwatch(context, swatchX, swatchY, 12, currentColor);
-        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), TEXT);
+        drawTextLine(context, swatchX + 16, swatchY, label + ": " + colorLabelHex(currentColor), col_text());
         if (expanded) {
             drawColorPickerFields(context, x + 4, y + CARD_PADDING_TOP + LINE_HEIGHT + 4, currentColor);
         }
@@ -2450,7 +2441,7 @@ public final class HorizonConfigScreen extends Screen {
         int bottom = y + height - CARD_GAP + 1;
         int left = x - 12;
         int right = x + CONTENT_ROW_WIDTH + 1;
-        context.fill(left, top, right, bottom, focused ? CONFIG_CARD_FOCUSED : CONFIG_CARD);
+        context.fill(left, top, right, bottom, focused ? col_cardFocused() : col_card());
         context.fill(left, top, left + 3, bottom, markerColor);
     }
 
@@ -3987,6 +3978,18 @@ public final class HorizonConfigScreen extends Screen {
         return HudStyle.accent(config());
     }
 
+    private de.horizon.theme.Theme theme() { return de.horizon.theme.ThemeManager.current(); }
+
+    private int col_text()        { return theme().text; }
+    private int col_muted()       { return theme().textMuted; }
+    private int col_warning()     { return theme().warning; }
+    private int col_window()      { return theme().background; }
+    private int col_windowHeader(){ return theme().surfaceAlt; }
+    private int col_card()        { return theme().surface; }
+    private int col_cardFocused() { return theme().surfaceHover; }
+    private int col_button()      { return theme().surfaceAlt; }
+    private int col_buttonText()  { return theme().text; }
+
     private Rect hudColorPreviewRect(int x, int y) {
         return new Rect(x, y, 32, 18);
     }
@@ -4107,8 +4110,8 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private void drawInlineAction(GuiGraphicsExtractor context, Rect rect, String label) {
-        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), CONFIG_BUTTON);
-        context.centeredText(font, Component.literal(label), rect.centerX(), rect.y + 5, CONFIG_BUTTON_TEXT);
+        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), col_button());
+        context.centeredText(font, Component.literal(label), rect.centerX(), rect.y + 5, col_buttonText());
     }
 
     private int hudContentHeight() {
@@ -4465,7 +4468,7 @@ public final class HorizonConfigScreen extends Screen {
         if (visible) {
             drawTextLine(context, contentX, y + CARD_PADDING_TOP, lineText, textColor);
         } else {
-            context.text(font, Component.literal(lineText).withStyle(ChatFormatting.STRIKETHROUGH), contentX, y + CARD_PADDING_TOP, MUTED);
+            context.text(font, Component.literal(lineText).withStyle(ChatFormatting.STRIKETHROUGH), contentX, y + CARD_PADDING_TOP, col_muted());
         }
         return y + rowHeight;
     }
@@ -4491,7 +4494,7 @@ public final class HorizonConfigScreen extends Screen {
         context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
         context.outline(ox, oy, w, h, HudStyle.border());
         drawTextLine(context, ox + 12, oy + 12, Lang.t("Globale Aenderung", "Global Change"), accent);
-        drawTextLine(context, ox + 12, oy + 28, "\"" + pendingGlobalToggleLabel + "\"" + Lang.t(" fuer alle Islands toggeln?", " toggle for all islands?"), MUTED);
+        drawTextLine(context, ox + 12, oy + 28, "\"" + pendingGlobalToggleLabel + "\"" + Lang.t(" fuer alle Islands toggeln?", " toggle for all islands?"), col_muted());
         Rect yes = confirmYesRect(frame);
         Rect no = confirmNoRect(frame);
         context.fill(yes.x, yes.y, yes.right(), yes.bottom(), 0xFF2DBA68);
@@ -4507,7 +4510,7 @@ public final class HorizonConfigScreen extends Screen {
         context.fill(ox, oy, ox + w, oy + h, 0xE8151C25);
         context.outline(ox, oy, w, h, HudStyle.border());
         drawTextLine(context, ox + 12, oy + 12, Lang.t("Config Reload", "Config Reload"), accent);
-        drawTextLine(context, ox + 12, oy + 28, Lang.t("Konfiguration wurde neu geladen.", "Configuration reloaded successfully."), MUTED);
+        drawTextLine(context, ox + 12, oy + 28, Lang.t("Konfiguration wurde neu geladen.", "Configuration reloaded successfully."), col_muted());
         int bw = 80, bx = ox + (w - bw) / 2, by = oy + h - 28;
         context.fill(bx, by, bx + bw, by + 18, 0xFF2DBA68);
         context.centeredText(font, Component.literal("OK"), bx + bw / 2, by + 5, 0xFFF7FBFF);
@@ -4528,21 +4531,21 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame, Rect viewport, int accent) {
-        context.fill(frame.x, frame.y, frame.right(), frame.bottom(), CONFIG_WINDOW);
-        context.fill(viewport.x - 12, frame.y + 35, frame.right() - 1, frame.bottom() - 1, CONFIG_WINDOW);
+        context.fill(frame.x, frame.y, frame.right(), frame.bottom(), col_window());
+        context.fill(viewport.x - 12, frame.y + 35, frame.right() - 1, frame.bottom() - 1, col_window());
         context.outline(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
-        context.fill(frame.x, frame.y, frame.right(), frame.y + 34, CONFIG_WINDOW_HEADER);
+        context.fill(frame.x, frame.y, frame.right(), frame.y + 34, col_windowHeader());
         drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
-        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : TEXT);
-        drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", WARNING);
+        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : col_text());
+        drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", col_warning());
     }
 
     private void drawHeaderMask(GuiGraphicsExtractor context, Rect frame, int accent) {
-        context.fill(frame.x + 1, frame.y + 1, frame.right() - 1, frame.y + 34, CONFIG_WINDOW_HEADER);
+        context.fill(frame.x + 1, frame.y + 1, frame.right() - 1, frame.y + 34, col_windowHeader());
         context.outline(frame.x, frame.y, frame.width, frame.height, HudStyle.border());
         drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
-        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : TEXT);
-        drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", WARNING);
+        drawTextLine(context, searchRect(frame).x, searchRect(frame).y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : col_text());
+        drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", col_warning());
     }
 
     private enum Tab {
