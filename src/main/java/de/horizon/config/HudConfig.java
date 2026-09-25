@@ -6,6 +6,8 @@ import java.util.Map;
 public final class HudConfig {
     boolean reviveHudEnabled = true;
     String hudAccentColor = "#75E7CA";
+    String themeFamily = "rose";
+    String themeMode = "light";
     boolean reviveHudOnlyInBoss = false;
     boolean reviveHudAlwaysVisible = false;
     boolean spiritMaskEnabled = true;

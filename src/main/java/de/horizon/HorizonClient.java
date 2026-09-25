@@ -182,6 +182,7 @@ public final class HorizonClient implements ClientModInitializer {
 
         HorizonSounds.register();
         configManager.load();
+        de.horizon.theme.ThemeManager.init(configManager.getConfig());
         Lang.set(configManager.getConfig().getLanguage());
         hudRegistry.register(new RevivalStatusHudElement(configManager, reviveTracker, dungeonStateService));
         hudRegistry.register(new TimeHudElement());

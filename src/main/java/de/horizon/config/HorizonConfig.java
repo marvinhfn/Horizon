@@ -53,6 +53,11 @@ public final class HorizonConfig {
     public String getHudAccentColor() { return normalizeHudAccentColor(hud.hudAccentColor); }
     public void setHudAccentColor(String v) { hud.hudAccentColor = normalizeHudAccentColor(v); }
 
+    public String getThemeFamily() { return hud.themeFamily == null ? "rose" : hud.themeFamily; }
+    public void setThemeFamily(String v) { hud.themeFamily = v; }
+    public String getThemeMode() { return hud.themeMode == null ? "light" : hud.themeMode; }
+    public void setThemeMode(String v) { hud.themeMode = v; }
+
     public boolean isReviveHudOnlyInBoss() { return hud.reviveHudOnlyInBoss; }
     public void setReviveHudOnlyInBoss(boolean v) { hud.reviveHudOnlyInBoss = v; }
 
