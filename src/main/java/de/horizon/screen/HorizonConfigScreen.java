@@ -3902,93 +3902,17 @@ public final class HorizonConfigScreen extends Screen {
     }
 
     private List<SearchResult> searchResults() {
-        if (globalSearchInput.isBlank()) {
-            return List.of();
-        }
-        String query = globalSearchInput.toLowerCase(Locale.ROOT);
+        String query = globalSearchInput.trim();
         List<SearchResult> results = new ArrayList<>();
-        addSearchResult(results, query, "HUD bearbeiten", "HUD", Tab.HUD, null, "hud bearbeiten layout reset");
-        addSearchResult(results, query, "HUD Farbe", "HUD", Tab.HUD, null, "hud farbe accent color hex");
-
-        addSearchResult(results, query, "Aktiver Dienst", "Music Control / General", Tab.MUSIC_CONTROL, null, "aktiver dienst spotify youtube music service");
-        addSearchResult(results, query, "Music Control HUD", "Music Control / General", Tab.MUSIC_CONTROL, null, "music control hud inventarsteuerung inventar controls");
-        addSearchResult(results, query, "Music HUD", "Music Control / General", Tab.MUSIC_CONTROL, null, "music hud song cover album fortschritt progress play pause ingame spotify");
-        addSearchResult(results, query, "Spotify Login", "Music Control / Spotify", Tab.MUSIC_CONTROL, null, "spotify login logout verbinden");
-        addSearchResult(results, query, "YouTube Login", "Music Control / Youtube Music", Tab.MUSIC_CONTROL, null, "youtube login logout verbinden google");
-        addSearchResult(results, query, "Party Finder Overlay", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "party finder overlay dungeon general");
-        addSearchResult(results, query, "Rare Room Alerts", "Dungeons / General", Tab.DUNGEON, DungeonSection.GENERAL, "rare room alerts trinity tomioka duncan");
-        addSearchResult(results, query, "Revive HUD", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "revive hud spirit bonzo phoenix");
-        addSearchResult(results, query, "Catacombs Level", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "catacombs level revive");
-        addSearchResult(results, query, "Boss Only", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "boss only revive");
-        addSearchResult(results, query, "Always Visible", "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, "always visible revive");
-        for (ReviveSource source : ReviveSource.values()) {
-            addSearchResult(results, query, source.displayName(), "Dungeons / Revive", Tab.DUNGEON, DungeonSection.REVIVAL, source.displayName() + " revive");
+        if (query.isBlank()) return results;
+        boolean german = Lang.isGerman();
+        for (FeatureEntry e : FeatureRegistry.all()) {
+            if (e.matches(query, german)) {
+                results.add(new SearchResult(e.title(german), e.location(), e.tab(), e.section()));
+                if (results.size() >= 40) break;
+            }
         }
-        addSearchResult(results, query, "Break Particles", "Anzeige / Particle", Tab.DISPLAY, null, "break particles block abbauen partikel");
-        addSearchResult(results, query, "Particle Suche", "Anzeige / Particle", Tab.DISPLAY, null, "particle suche filter");
-        addSearchResult(results, query, "Zeit HUD", "Anzeige / Misc", Tab.DISPLAY, null, "zeit hud clock");
-        addSearchResult(results, query, "FPS / TPS / Ping", "Anzeige / Misc", Tab.DISPLAY, null, "fps tps ping performance");
-        addSearchResult(results, query, "System HUD", "Anzeige / Misc", Tab.DISPLAY, null, "system hud cpu gpu temperatur");
-        addSearchResult(results, query, "Defense Bar", "Anzeige / Misc", Tab.DISPLAY, null, "defense bar ruestung armor");
-        addSearchResult(results, query, "Kompakte Herzen", "Anzeige / Misc", Tab.DISPLAY, null, "kompakte herzen hypixel health herz absorption");
-        addSearchResult(results, query, "Experimentation Table", "Helper", Tab.HELPER, null, "experiment experimentation table superpairs solver helper");
-        addSearchResult(results, query, "Sparkling Announce", "Helper", Tab.HELPER, null, "sparkling announce nametag title helper");
-        addSearchResult(results, query, "Title Announce", "Helper", Tab.HELPER, null, "title announce chat message trigger helper list");
-        addSearchResult(results, query, "Rag Axe Notification", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "rag axe notification necron m7 phase dungeon");
-        addSearchResult(results, query, "Damage Tick Timer", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "tick timer damage goldor f7 p3 dungeon");
-        addSearchResult(results, query, "Starred Mobs", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "starred mobs highlight glow stern dungeon");
-        addSearchResult(results, query, "Highlight Bats", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "bats fledermaeuse highlight dungeon");
-        addSearchResult(results, query, "Highlight Fels", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "fels enderman invisible highlight dungeon");
-        addSearchResult(results, query, "Teammate Glow", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "teammate glow dungeon party class archer berserk healer mage tank");
-        addSearchResult(results, query, "Mimic Detection", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "mimic detection kill zombie baby dungeon f6 f7");
-        addSearchResult(results, query, "Mimic Message", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "mimic party chat message killed dungeon");
-        addSearchResult(results, query, "Prince Message", "Dungeons / Mobs", Tab.DUNGEON, DungeonSection.MOBS, "prince party chat message killed dungeon bonus score");
-        addSearchResult(results, query, "Wither Door ESP", "Dungeons / Clear", Tab.DUNGEON, DungeonSection.SECRETS, "wither door esp highlight dungeon");
-        addSearchResult(results, query, "Blood Door ESP", "Dungeons / Clear", Tab.DUNGEON, DungeonSection.SECRETS, "blood door esp highlight dungeon");
-        addSearchResult(results, query, "Door Key Highlight", "Dungeons / Clear", Tab.DUNGEON, DungeonSection.SECRETS, "door key highlight wither blood tracer dungeon");
-        addSearchResult(results, query, "Spirit Bear Timer", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "spirit bear timer f4 m4 boss spawn dungeon");
-        addSearchResult(results, query, "Spirit Bear Highlight", "Dungeons / Boss", Tab.DUNGEON, DungeonSection.BOSS, "spirit bear highlight glow f4 m4 dungeon");
-        addSearchResult(results, query, "Secret Waypoints", "Dungeons / Secrets", Tab.DUNGEON, DungeonSection.SECRETS, "secret waypoints chest item essence bat redstone lever dungeon room");
-        addSearchResult(results, query, "Secrets Through Walls", "Dungeons / Secrets", Tab.DUNGEON, DungeonSection.SECRETS, "secret waypoints through walls durch waende dungeon");
-        addSearchResult(results, query, "Bridge verstecken", "Chat / General", Tab.CHAT, null, "bridge discord guild bot verstecken ausblenden");
-        addSearchResult(results, query, "Bridge Bot Name", "Chat / General", Tab.CHAT, null, "bridge bot name catgirlfc guild discord");
-        addSearchResult(results, query, "Nachrichten kopieren", "Chat / General", Tab.CHAT, null, "chat nachricht kopieren clipboard copy ctrl rechts klick");
-        addSearchResult(results, query, "Anti Spam Gesamt", "Chat / Spam Filters", Tab.CHAT, null, "anti spam gesamt");
-        for (SpamFilterOption option : SpamFilterOption.values()) {
-            addSearchResult(results, query, option.title(), "Chat / Spam Filters", Tab.CHAT, null, option.title() + " " + option.description());
-        }
-        addSearchResult(results, query, Lang.t("Sea Creatures filtern", "Filter Sea Creatures"), "Chat / Spam Filters", Tab.CHAT, null, "sea creatures filtern fishing fang nachrichten atoll lotus");
-        addSearchResult(results, query, Lang.t("Elusive Creatures filtern", "Filter Elusive Creatures"), "Chat / Spam Filters", Tab.CHAT, null, "elusive creatures filtern fishing rare fang nachrichten");
-        addSearchResult(results, query, Lang.t("Trophy Fish filtern", "Filter Trophy Fish"), "Chat / Spam Filters", Tab.CHAT, null, "trophy fish filtern fishing fang nachrichten");
-        addSearchResult(results, query, Lang.t("Trophy Frogs filtern", "Filter Trophy Frogs"), "Chat / Spam Filters", Tab.CHAT, null, "trophy frogs filtern fishing fang nachrichten");
-        addSearchResult(results, query, Lang.t("Diamond Trophies filtern", "Filter Diamond Trophies"), "Chat / Spam Filters", Tab.CHAT, null, "diamond trophies filtern fishing fang nachrichten");
-        addSearchResult(results, query, Lang.t("Good/Great/Outstanding filtern", "Filter Good/Great/Outstanding"), "Chat / Spam Filters", Tab.CHAT, null, "good great outstanding perfect catch filtern fishing");
-        addSearchResult(results, query, "Command Shortcuts", "Chat / Shortcuts", Tab.CHAT, null, "command shortcuts f1 f7 m1 m7 joininstance catacombs master dungeon hub warp");
-        addSearchResult(results, query, "Custom Scoreboard", "Scoreboard", Tab.SCOREBOARD, null, "custom scoreboard sidebar hypixel leiste");
-        for (SkyBlockIsland island : SkyBlockIsland.knownIslands()) {
-            addSearchResult(results, query, island.label(), "Scoreboard", Tab.SCOREBOARD, null, "scoreboard " + island.label().toLowerCase(Locale.ROOT) + " island zeilen filter");
-        }
-        addSearchResult(results, query, "Inventory Buttons", "Inventory / General", Tab.INVENTORY, null, "inventory buttons inventar");
-        addSearchResult(results, query, "Announce Rare Sea Creatures", "Fishing", Tab.FISHING, null, "fishing rare sea creatures elusive announce title sound alert");
-        addSearchResult(results, query, Lang.t("Alert Sound", "Alert Sound"), "Fishing", Tab.FISHING, null, "fishing alert sound rare meow katze custom boo womp");
-        addSearchResult(results, query, "Creature Filter", "Fishing", Tab.FISHING, null, "fishing creature filter sea creatures toggle enable disable");
-        for (ElusiveSeaCreature creature : ElusiveSeaCreature.values()) {
-            addSearchResult(results, query, creature.displayName(), "Fishing", Tab.FISHING, null, "fishing " + creature.displayName().toLowerCase(Locale.ROOT) + " elusive sea creature");
-        }
-        addSearchResult(results, query, "16:9 Pillarbox", "Anzeige", Tab.DISPLAY, null, "pillarbox 16:9 anzeige display monitor ultrawide 32:9 odyssey g9 schwarze balken letterbox");
-        addSearchResult(results, query, "Position X", "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand item position x horizontal");
-        addSearchResult(results, query, "Position Y", "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand item position y vertikal vertical");
-        addSearchResult(results, query, "Position Z", "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand item position z tiefe depth");
-        addSearchResult(results, query, Lang.t("Groesse", "Scale"), "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand item groesse scale size skalierung");
-        addSearchResult(results, query, Lang.t("Schlaggeschwindigkeit", "Swing Speed"), "Anzeige / Animationen", Tab.DISPLAY, null, "animation hand swing speed schlaggeschwindigkeit geschwindigkeit");
         return results;
-    }
-
-    private void addSearchResult(List<SearchResult> results, String query, String title, String location, Tab tab, DungeonSection section, String haystack) {
-        String lowerHaystack = (title + " " + location + " " + haystack).toLowerCase(Locale.ROOT);
-        if (lowerHaystack.contains(query)) {
-            results.add(new SearchResult(title, location, tab, section));
-        }
     }
 
     private void adjustCatacombsLevel(int delta) {
@@ -4638,7 +4562,7 @@ public final class HorizonConfigScreen extends Screen {
         drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", col_warning());
     }
 
-    private enum Tab {
+    enum Tab {
         GENERAL("General"),
         HUD("HUD"),
         DUNGEON("Dungeons"),
@@ -4682,7 +4606,7 @@ public final class HorizonConfigScreen extends Screen {
         }
     }
 
-    private enum DungeonSection {
+    enum DungeonSection {
         GENERAL("General"),
         MOBS("Entities"),
         REVIVAL("Revive"),

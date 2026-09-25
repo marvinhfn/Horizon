@@ -18,4 +18,8 @@ public final class Lang {
     public static String t(String de, String en) {
         return current == Language.EN ? en : de;
     }
+
+    public static boolean isGerman() {
+        return current == Language.DE;
+    }
 }
