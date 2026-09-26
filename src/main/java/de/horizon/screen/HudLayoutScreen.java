@@ -5,6 +5,7 @@ import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
 import de.horizon.hud.HudElement;
 import de.horizon.hud.HudStyle;
+import de.horizon.theme.ThemeManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -223,7 +224,7 @@ public final class HudLayoutScreen extends Screen {
     private void drawDone(GuiGraphicsExtractor context, Rect rect, String label) {
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), HudStyle.accent());
         context.outline(rect.x, rect.y, rect.width, rect.height, HudStyle.border());
-        context.centeredText(font, Component.literal(label), rect.centerX(), rect.y + 8, 0xFF0A1016);
+        context.centeredText(font, Component.literal(label), rect.centerX(), rect.y + 8, ThemeManager.current().onAccent);
     }
 
     private int clamp(int value, int min, int max) {

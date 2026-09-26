@@ -13,6 +13,9 @@ import de.horizon.api.profile.HorizonSkill;
 import de.horizon.api.profile.HorizonSlayerBoss;
 import de.horizon.api.profile.HorizonStoragePage;
 import de.horizon.hud.HudStyle;
+import de.horizon.screen.render.HiDpi;
+import de.horizon.theme.Theme;
+import de.horizon.theme.ThemeManager;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
@@ -58,17 +61,7 @@ public final class PlayerProfileScreen extends Screen {
     private static final int INVENTORY_CHIPS_PER_ROW = 8;
     private static final int INVENTORY_CHIP_SIZE = 28;
     private static final int INVENTORY_CHIP_GAP = 8;
-    private static final int TEXT = 0xFFFFFFFF;
-    private static final int MUTED = 0xFFAFBAC7;
-    private static final int WARNING = 0xFFF9C978;
-    private static final int WINDOW = 0x7A10161D;
-    private static final int WINDOW_HEADER = 0xC8161E28;
-    private static final int CARD = 0xBE18212C;
-    private static final int CARD_ALT = 0xBE111920;
-    private static final int SLOT = 0xD1243443;
-    private static final int SLOT_EMPTY = 0xAA17222D;
-    private static final int BUTTON = 0xCC20303E;
-    private static final int BUTTON_TEXT = 0xFFF6F7F8;
+    private static Theme theme() { return ThemeManager.current(); }
 
     private final Screen parent;
     private final String requestedPlayer;
@@ -92,6 +85,7 @@ public final class PlayerProfileScreen extends Screen {
 
     @Override
     protected void init() {
+        HiDpi.enter(Minecraft.getInstance());
         super.init();
         if (loadFuture != null) {
             return;
@@ -121,6 +115,7 @@ public final class PlayerProfileScreen extends Screen {
 
     @Override
     public void onClose() {
+        HiDpi.exit(Minecraft.getInstance());
         if (minecraft != null) {
             minecraft.setScreen(parent);
         }
@@ -221,8 +216,8 @@ public final class PlayerProfileScreen extends Screen {
         for (int index = 0; index < ViewerTab.values().length; index++) {
             ViewerTab tab = ViewerTab.values()[index];
             Rect rect = sidebarTabRect(sidebar, index);
-            context.fill(rect.x, rect.y, rect.right(), rect.bottom(), tab == activeTab ? CARD : CARD_ALT);
-            drawText(context, rect.x + 8, rect.y + 7, tab.label, tab == activeTab ? HudStyle.accent() : TEXT);
+            context.fill(rect.x, rect.y, rect.right(), rect.bottom(), tab == activeTab ? theme().surface : theme().surfaceAlt);
+            drawText(context, rect.x + 8, rect.y + 7, tab.label, tab == activeTab ? HudStyle.accent() : theme().text);
         }
     }
 
@@ -265,11 +260,11 @@ public final class PlayerProfileScreen extends Screen {
         for (HorizonSkill skill : skills) {
             Rect card = statGridRect(viewport.x, y, index++);
             boolean maxed = isMaxedSkill(skill);
-            context.fill(card.x, card.y, card.right(), card.bottom(), maxed ? BUTTON : index % 2 == 0 ? CARD : CARD_ALT);
-            drawText(context, card.x + 10, card.y + 8, skill.displayName(), TEXT);
+            context.fill(card.x, card.y, card.right(), card.bottom(), maxed ? theme().surfaceHover : index % 2 == 0 ? theme().surface : theme().surfaceAlt);
+            drawText(context, card.x + 10, card.y + 8, skill.displayName(), theme().text);
             drawText(context, card.x + 10, card.y + 24, "Level " + skill.level(), maxed ? rarityColor("LEGENDARY") : HudStyle.accent());
             drawProgressBar(context, card.x + 10, card.y + 42, card.width - 20, 8, (float) skill.progress(), HudStyle.selected(), "Progress");
-            drawText(context, card.x + 10, card.y + 56, formatNumber((long) skill.experience()) + " XP", MUTED);
+            drawText(context, card.x + 10, card.y + 56, formatNumber((long) skill.experience()) + " XP", theme().textMuted);
             if (maxed) {
                 drawText(context, card.x + 138, card.y + 8, "MAX", rarityColor("LEGENDARY"));
             }
@@ -283,13 +278,13 @@ public final class PlayerProfileScreen extends Screen {
         for (HorizonSlayerBoss slayer : sortedSlayers()) {
             Rect card = new Rect(viewport.x - 12, y + row * 66, 622, 58);
             boolean maxed = isMaxedSlayer(slayer);
-            context.fill(card.x, card.y, card.right(), card.bottom(), maxed ? BUTTON : row % 2 == 0 ? CARD : CARD_ALT);
+            context.fill(card.x, card.y, card.right(), card.bottom(), maxed ? theme().surfaceHover : row % 2 == 0 ? theme().surface : theme().surfaceAlt);
             drawSlayerMob(context, new Rect(card.x + 8, card.y + 4, 44, 48), slayer);
-            drawText(context, card.x + 60, card.y + 10, slayer.displayName(), TEXT);
-            drawText(context, card.x + 60, card.y + 28, slayerMobName(slayer.id()), MUTED);
+            drawText(context, card.x + 60, card.y + 10, slayer.displayName(), theme().text);
+            drawText(context, card.x + 60, card.y + 28, slayerMobName(slayer.id()), theme().textMuted);
             drawText(context, card.x + 248, card.y + 10, "Level " + slayer.level(), maxed ? rarityColor("LEGENDARY") : HudStyle.accent());
-            drawText(context, card.x + 378, card.y + 10, formatNumber(slayer.experience()) + " XP", TEXT);
-            drawText(context, card.x + 538, card.y + 10, formatNumber(slayer.kills()) + " Kills", MUTED);
+            drawText(context, card.x + 378, card.y + 10, formatNumber(slayer.experience()) + " XP", theme().text);
+            drawText(context, card.x + 538, card.y + 10, formatNumber(slayer.kills()) + " Kills", theme().textMuted);
             if (maxed) {
                 drawText(context, card.x + 560, card.y + 32, "MAX", rarityColor("LEGENDARY"));
             }
@@ -317,7 +312,7 @@ public final class PlayerProfileScreen extends Screen {
     private int drawDungeonOverview(GuiGraphicsExtractor context, int x, int y) {
         int height = 152;
         drawSettingCard(context, x, y, height, HudStyle.selected());
-        drawText(context, x, y + 10, "Catacombs Overview", TEXT);
+        drawText(context, x, y + 10, "Catacombs Overview", theme().text);
         drawMetric(context, new Rect(x - 4, y + 28, 145, 54), "Catacombs", String.valueOf(profile.catacombsLevel()));
         drawMetric(context, new Rect(x + 145, y + 28, 145, 54), "Secrets", formatNumber(profile.dungeons().secrets()));
         drawMetric(context, new Rect(x + 294, y + 28, 145, 54), "Selected", profile.dungeons().selectedClass().isBlank() ? "--" : humanize(profile.dungeons().selectedClass()));
@@ -327,10 +322,10 @@ public final class PlayerProfileScreen extends Screen {
         for (HorizonDungeonClass dungeonClass : sortedDungeonClasses()) {
             Rect card = statGridRect(x, y + 88, index++);
             boolean maxed = isMaxedDungeonClass(dungeonClass);
-            context.fill(card.x, card.y, card.right(), card.bottom(), maxed || dungeonClass.selected() ? BUTTON : CARD_ALT);
-            drawText(context, card.x + 10, card.y + 8, dungeonClass.displayName(), TEXT);
+            context.fill(card.x, card.y, card.right(), card.bottom(), maxed || dungeonClass.selected() ? theme().surfaceHover : theme().surfaceAlt);
+            drawText(context, card.x + 10, card.y + 8, dungeonClass.displayName(), theme().text);
             drawText(context, card.x + 10, card.y + 24, "Level " + dungeonClass.level(), maxed ? rarityColor("LEGENDARY") : HudStyle.accent());
-            drawText(context, card.x + 10, card.y + 40, formatNumber((long) dungeonClass.experience()) + " XP", MUTED);
+            drawText(context, card.x + 10, card.y + 40, formatNumber((long) dungeonClass.experience()) + " XP", theme().textMuted);
             if (dungeonClass.selected()) {
                 drawText(context, card.x + 10, card.y + 56, "Ausgewaehlt", rarityColor("LEGENDARY"));
             } else if (maxed) {
@@ -343,9 +338,9 @@ public final class PlayerProfileScreen extends Screen {
     private int drawDungeonFloorRows(GuiGraphicsExtractor context, int x, int y) {
         int height = 114;
         drawSettingCard(context, x, y, height, HudStyle.border());
-        drawText(context, x, y + 10, "Floors", TEXT);
-        drawText(context, x, y + 28, "Catacombs", MUTED);
-        drawText(context, x, y + 68, "Master Mode", MUTED);
+        drawText(context, x, y + 10, "Floors", theme().text);
+        drawText(context, x, y + 28, "Catacombs", theme().textMuted);
+        drawText(context, x, y + 68, "Master Mode", theme().textMuted);
         drawDungeonFloorRow(context, x, y + 36, false);
         drawDungeonFloorRow(context, x, y + 76, true);
         return y + height;
@@ -356,18 +351,18 @@ public final class PlayerProfileScreen extends Screen {
             HorizonDungeonFloor data = dungeonFloor(masterMode, floor);
             Rect rect = dungeonFloorChipRect(x, y, floor - 1);
             boolean expanded = data != null && data.id().equals(expandedDungeonFloorId);
-            context.fill(rect.x, rect.y, rect.right(), rect.bottom(), expanded ? BUTTON : CARD_ALT);
-            context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, expanded ? 0xFF304356 : 0xCC16202A);
+            context.fill(rect.x, rect.y, rect.right(), rect.bottom(), expanded ? theme().surfaceHover : theme().surfaceAlt);
+            context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, expanded ? theme().surfaceHover : theme().surfaceAlt);
             String label = masterMode ? "M" + floor : "F" + floor;
-            drawCenteredText(context, rect.centerX(), rect.y + 6, label, TEXT);
-            drawCenteredText(context, rect.centerX(), rect.y + 18, data == null ? "--" : String.valueOf(data.completions()), data == null ? MUTED : HudStyle.accent());
+            drawCenteredText(context, rect.centerX(), rect.y + 6, label, theme().text);
+            drawCenteredText(context, rect.centerX(), rect.y + 18, data == null ? "--" : String.valueOf(data.completions()), data == null ? theme().textMuted : HudStyle.accent());
         }
     }
 
     private void drawDungeonFloorDetail(GuiGraphicsExtractor context, int x, int y, HorizonDungeonFloor floor) {
         int height = 104;
         drawSettingCard(context, x, y, height, HudStyle.selected());
-        drawText(context, x, y + 10, floor.displayName(), TEXT);
+        drawText(context, x, y + 10, floor.displayName(), theme().text);
         drawKeyValue(context, x, y + 34, "Completions", formatNumber(floor.completions()));
         drawKeyValue(context, x + 280, y + 34, "Best Score", floor.bestScore() > 0 ? String.valueOf(floor.bestScore()) : "--");
         drawKeyValue(context, x, y + 56, "Fastest Time", floor.fastestTimeMs() > 0 ? formatDuration(floor.fastestTimeMs()) : "--:--");
@@ -382,10 +377,10 @@ public final class PlayerProfileScreen extends Screen {
         int index = 0;
         for (HorizonAccessory accessory : sortedAccessories()) {
             Rect card = statGridRect(viewport.x, y, index++);
-            context.fill(card.x, card.y, card.right(), card.bottom(), index % 2 == 0 ? CARD : CARD_ALT);
-            drawText(context, card.x + 10, card.y + 8, plainText(accessory.displayName()), TEXT);
+            context.fill(card.x, card.y, card.right(), card.bottom(), index % 2 == 0 ? theme().surface : theme().surfaceAlt);
+            drawText(context, card.x + 10, card.y + 8, plainText(accessory.displayName()), theme().text);
             drawText(context, card.x + 10, card.y + 24, accessory.rarity().isBlank() ? "Rarity unbekannt" : accessory.rarity(), rarityColor(accessory.rarity()));
-            drawWrappedText(context, card.x + 10, card.y + 38, accessory.enrichment().isBlank() ? "Kein Enrichment gelesen." : accessory.enrichment(), card.width - 20, MUTED);
+            drawWrappedText(context, card.x + 10, card.y + 38, accessory.enrichment().isBlank() ? "Kein Enrichment gelesen." : accessory.enrichment(), card.width - 20, theme().textMuted);
         }
     }
 
@@ -393,14 +388,14 @@ public final class PlayerProfileScreen extends Screen {
         int height = 152;
         drawSettingCard(context, x, y, height, HudStyle.accent());
         Rect avatar = new Rect(x + 8, y + 10, 88, 88);
-        context.fill(avatar.x, avatar.y, avatar.right(), avatar.bottom(), CARD_ALT);
+        context.fill(avatar.x, avatar.y, avatar.right(), avatar.bottom(), theme().surfaceAlt);
         drawPlayerModel(context, avatar);
-        drawText(context, x + 110, y + 12, title, TEXT);
-        drawWrappedText(context, x + 110, y + 28, subtitle, 480, MUTED);
+        drawText(context, x + 110, y + 12, title, theme().text);
+        drawWrappedText(context, x + 110, y + 28, subtitle, 480, theme().textMuted);
         drawText(context, x + 110, y + 66, profile == null ? displayRequestedPlayer() : profile.playerName(), HudStyle.accent());
-        drawText(context, x + 110, y + 82, "Profil " + profileName(), TEXT);
-        drawText(context, x + 110, y + 98, "UUID " + compactUuid(), MUTED);
-        drawText(context, x + 110, y + 114, gameModeText(), MUTED);
+        drawText(context, x + 110, y + 82, "Profil " + profileName(), theme().text);
+        drawText(context, x + 110, y + 98, "UUID " + compactUuid(), theme().textMuted);
+        drawText(context, x + 110, y + 114, gameModeText(), theme().textMuted);
         drawProgressBar(context, x + 110, y + 130, 220, 8, progress(profile == null ? 0 : profile.skyblockLevel(), 500), HudStyle.accent(), "SkyBlock");
         drawProgressBar(context, x + 352, y + 130, 220, 8, progress(profile == null ? 0 : profile.catacombsLevel(), 50), HudStyle.selected(), "Catacombs");
         return y + height;
@@ -409,8 +404,8 @@ public final class PlayerProfileScreen extends Screen {
     private int drawSectionHeader(GuiGraphicsExtractor context, int x, int y, String title, String subtitle) {
         int height = 92;
         drawSettingCard(context, x, y, height, HudStyle.accent());
-        drawText(context, x, y + 12, title, TEXT);
-        drawWrappedText(context, x, y + 30, subtitle, 584, MUTED);
+        drawText(context, x, y + 12, title, theme().text);
+        drawWrappedText(context, x, y + 30, subtitle, 584, theme().textMuted);
         return y + height;
     }
 
@@ -427,7 +422,7 @@ public final class PlayerProfileScreen extends Screen {
     private int drawOverviewHighlights(GuiGraphicsExtractor context, int x, int y) {
         int height = 104;
         drawSettingCard(context, x, y, height, HudStyle.border());
-        drawText(context, x, y + 10, "Highlights", TEXT);
+        drawText(context, x, y + 10, "Highlights", theme().text);
         drawHighlightPill(context, x, y + 36, 180, "Top Skill", topSkillLabel());
         drawHighlightPill(context, x + 196, y + 36, 180, "Top Slayer", topSlayerLabel());
         drawHighlightPill(context, x + 392, y + 36, 196, "Maxed", maxedSummaryLabel());
@@ -437,7 +432,7 @@ public final class PlayerProfileScreen extends Screen {
     private int drawProfileSummary(GuiGraphicsExtractor context, int x, int y) {
         int height = 126;
         drawSettingCard(context, x, y, height, HudStyle.selected());
-        drawText(context, x, y + 10, "Profile Summary", TEXT);
+        drawText(context, x, y + 10, "Profile Summary", theme().text);
         drawKeyValue(context, x, y + 34, "Storage Pages", String.valueOf(profile.storages().size()));
         drawKeyValue(context, x, y + 54, "Accessories", String.valueOf(profile.accessories().size()));
         drawKeyValue(context, x, y + 74, "Purse", formatCoins(profile.purse()));
@@ -450,10 +445,10 @@ public final class PlayerProfileScreen extends Screen {
 
     private void drawHighlightPill(GuiGraphicsExtractor context, int x, int y, int width, String label, String value) {
         Rect rect = new Rect(x - 4, y, width, 46);
-        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), CARD_ALT);
+        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), theme().surfaceAlt);
         context.fill(rect.x, rect.y, rect.x + 3, rect.bottom(), HudStyle.accent());
-        drawText(context, rect.x + 10, rect.y + 8, label, MUTED);
-        drawWrappedTextClamped(context, rect.x + 10, rect.y + 22, value, rect.width - 20, 1, TEXT);
+        drawText(context, rect.x + 10, rect.y + 8, label, theme().textMuted);
+        drawWrappedTextClamped(context, rect.x + 10, rect.y + 22, value, rect.width - 20, 1, theme().text);
     }
 
     private void drawPetBrowser(GuiGraphicsExtractor context, Rect viewport, int y, int mouseX, int mouseY) {
@@ -461,11 +456,11 @@ public final class PlayerProfileScreen extends Screen {
         int rows = Math.max(1, (pets.size() + 7) / 8);
         int height = Math.max(276, rows * 40 + 56);
         drawSettingCard(context, viewport.x, y, height, HudStyle.selected());
-        drawText(context, viewport.x, y + 10, "Pet Menu", TEXT);
-        drawText(context, viewport.x + 180, y + 10, "Hover fuer Tooltip, Level, Rarity und Pet-Item", MUTED);
+        drawText(context, viewport.x, y + 10, "Pet Menu", theme().text);
+        drawText(context, viewport.x + 180, y + 10, "Hover fuer Tooltip, Level, Rarity und Pet-Item", theme().textMuted);
 
         Rect detail = new Rect(viewport.x + 404, y + 30, 194, height - 42);
-        context.fill(detail.x, detail.y, detail.right(), detail.bottom(), CARD_ALT);
+        context.fill(detail.x, detail.y, detail.right(), detail.bottom(), theme().surfaceAlt);
 
         HorizonPet hoveredPet = hoveredPet(pets, viewport.x, y + 34, mouseX, mouseY);
         if (hoveredPet != null) {
@@ -483,9 +478,9 @@ public final class PlayerProfileScreen extends Screen {
     }
 
     private void drawPetSlot(GuiGraphicsExtractor context, Rect rect, HorizonPet pet, boolean hovered) {
-        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), hovered ? 0xFF3A4958 : pet.active() ? BUTTON : CARD_ALT);
-        context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, hovered ? 0xE2354657 : 0xCC16202A);
-        context.fill(rect.x, rect.y, rect.x + 2, rect.bottom(), pet.active() ? rarityColor(pet.tier()) : 0x664F5A66);
+        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), hovered ? theme().surfaceHover : pet.active() ? theme().surfaceHover : theme().surfaceAlt);
+        context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, hovered ? theme().surface : theme().surfaceAlt);
+        context.fill(rect.x, rect.y, rect.x + 2, rect.bottom(), pet.active() ? rarityColor(pet.tier()) : theme().borderSubtle);
         ItemStack stack = buildPetStack(pet);
         context.item(stack, rect.x + 9, rect.y + 9);
         if (isMaxedPet(pet)) {
@@ -495,22 +490,22 @@ public final class PlayerProfileScreen extends Screen {
 
     private void drawPetDetail(GuiGraphicsExtractor context, Rect rect, HorizonPet pet) {
         if (pet == null) {
-            drawText(context, rect.x + 10, rect.y + 12, "Keine Pets", TEXT);
+            drawText(context, rect.x + 10, rect.y + 12, "Keine Pets", theme().text);
             return;
         }
         ItemStack stack = buildPetStack(pet);
         context.item(stack, rect.x + 10, rect.y + 10);
-        drawWrappedTextClamped(context, rect.x + 34, rect.y + 12, plainText(pet.displayName()), rect.width - 44, 2, TEXT);
+        drawWrappedTextClamped(context, rect.x + 34, rect.y + 12, plainText(pet.displayName()), rect.width - 44, 2, theme().text);
         drawText(context, rect.x + 10, rect.y + 44, pet.tier().isBlank() ? "Tier unbekannt" : pet.tier(), rarityColor(pet.tier()));
-        drawText(context, rect.x + 10, rect.y + 60, pet.level() > 0 ? "Level " + pet.level() : "Level --", isMaxedPet(pet) ? rarityColor("LEGENDARY") : TEXT);
-        drawText(context, rect.x + 10, rect.y + 76, "XP " + formatNumber((long) pet.experience()), MUTED);
-        drawText(context, rect.x + 10, rect.y + 94, pet.active() ? "Aktiv" : "Nicht aktiv", pet.active() ? HudStyle.accent() : MUTED);
-        drawWrappedTextClamped(context, rect.x + 10, rect.y + 114, pet.heldItemDisplayName().isBlank() ? "Kein Pet Item" : pet.heldItemDisplayName(), rect.width - 20, 2, TEXT);
-        drawText(context, rect.x + 10, rect.y + 144, "Candies " + pet.candyUsed(), MUTED);
-        drawText(context, rect.x + 10, rect.y + 160, pet.soulbound() ? "Soulbound" : "Nicht soulbound", pet.soulbound() ? WARNING : MUTED);
+        drawText(context, rect.x + 10, rect.y + 60, pet.level() > 0 ? "Level " + pet.level() : "Level --", isMaxedPet(pet) ? rarityColor("LEGENDARY") : theme().text);
+        drawText(context, rect.x + 10, rect.y + 76, "XP " + formatNumber((long) pet.experience()), theme().textMuted);
+        drawText(context, rect.x + 10, rect.y + 94, pet.active() ? "Aktiv" : "Nicht aktiv", pet.active() ? HudStyle.accent() : theme().textMuted);
+        drawWrappedTextClamped(context, rect.x + 10, rect.y + 114, pet.heldItemDisplayName().isBlank() ? "Kein Pet Item" : pet.heldItemDisplayName(), rect.width - 20, 2, theme().text);
+        drawText(context, rect.x + 10, rect.y + 144, "Candies " + pet.candyUsed(), theme().textMuted);
+        drawText(context, rect.x + 10, rect.y + 160, pet.soulbound() ? "Soulbound" : "Nicht soulbound", pet.soulbound() ? theme().warning : theme().textMuted);
         if (!pet.skin().isBlank()) {
             String skinDisplayName = pet.skinDisplayName().isBlank() ? humanize(pet.skin()) : plainText(pet.skinDisplayName());
-            drawWrappedTextClamped(context, rect.x + 10, rect.y + 178, "Skin " + skinDisplayName, rect.width - 20, 2, MUTED);
+            drawWrappedTextClamped(context, rect.x + 10, rect.y + 178, "Skin " + skinDisplayName, rect.width - 20, 2, theme().textMuted);
         }
     }
 
@@ -518,7 +513,7 @@ public final class PlayerProfileScreen extends Screen {
         HorizonAccessoryStorage storage = profile.accessoryStorage();
         int height = 118;
         drawSettingCard(context, x, y, height, HudStyle.border());
-        drawText(context, x, y + 10, "Accessory Storage", TEXT);
+        drawText(context, x, y + 10, "Accessory Storage", theme().text);
         drawKeyValue(context, x, y + 34, "Selected Power", storage.selectedPower().isBlank() ? "--" : humanize(storage.selectedPower()));
         drawKeyValue(context, x, y + 54, "Magical Power", storage.highestMagicalPower() <= 0 ? "--" : formatNumber(storage.highestMagicalPower()));
         drawKeyValue(context, x + 280, y + 34, "Bag Upgrades", String.valueOf(storage.bagUpgradesPurchased()));
@@ -528,7 +523,7 @@ public final class PlayerProfileScreen extends Screen {
             .map(entry -> humanize(entry.getKey()) + ": " + entry.getValue())
             .reduce((left, right) -> left + " | " + right)
             .orElse("Kein Tuning gelesen.");
-        drawWrappedTextClamped(context, x + 10, y + 78, tuning, 584, 2, MUTED);
+        drawWrappedTextClamped(context, x + 10, y + 78, tuning, 584, 2, theme().textMuted);
         return y + height;
     }
 
@@ -540,8 +535,8 @@ public final class PlayerProfileScreen extends Screen {
         for (HorizonStoragePage page : pages) {
             int height = Math.max(224, page.rows() * 40 + 56);
             drawSettingCard(context, viewport.x, y, height, HudStyle.selected());
-            drawText(context, viewport.x, y + 10, page.title(), TEXT);
-            drawText(context, viewport.x + 180, y + 10, page.columns() + "x" + page.rows(), MUTED);
+            drawText(context, viewport.x, y + 10, page.title(), theme().text);
+            drawText(context, viewport.x + 180, y + 10, page.columns() + "x" + page.rows(), theme().textMuted);
             for (int row = 0; row < page.rows(); row++) {
                 for (int column = 0; column < page.columns(); column++) {
                     int index = row * page.columns() + column;
@@ -561,11 +556,11 @@ public final class PlayerProfileScreen extends Screen {
     private int drawMetadataCard(GuiGraphicsExtractor context, int x, int y) {
         int height = 34 + Math.max(1, profile.metadata().size()) * 20;
         drawSettingCard(context, x, y, height, HudStyle.border());
-        drawText(context, x, y + 10, "Metadata", TEXT);
+        drawText(context, x, y + 10, "Metadata", theme().text);
         int rowY = y + 34;
         for (Map.Entry<String, String> entry : profile.metadata().entrySet()) {
-            drawText(context, x + 10, rowY, humanize(entry.getKey()), MUTED);
-            drawText(context, x + 170, rowY, entry.getValue(), TEXT);
+            drawText(context, x + 10, rowY, humanize(entry.getKey()), theme().textMuted);
+            drawText(context, x + 170, rowY, entry.getValue(), theme().text);
             rowY += 20;
         }
         return y + height;
@@ -574,10 +569,10 @@ public final class PlayerProfileScreen extends Screen {
     private void drawProfileListCard(GuiGraphicsExtractor context, int x, int y) {
         int height = 34 + Math.max(1, profile.profileNames().size()) * 22;
         drawSettingCard(context, x, y, height, HudStyle.selected());
-        drawText(context, x, y + 10, "Profiles", TEXT);
+        drawText(context, x, y + 10, "Profiles", theme().text);
         int rowY = y + 34;
         for (String name : profile.profileNames()) {
-            drawText(context, x + 12, rowY, name, name.startsWith(profile.profileName()) ? HudStyle.accent() : TEXT);
+            drawText(context, x + 12, rowY, name, name.startsWith(profile.profileName()) ? HudStyle.accent() : theme().text);
             rowY += 22;
         }
     }
@@ -596,10 +591,10 @@ public final class PlayerProfileScreen extends Screen {
         int rows = inventoryChipRows();
         int height = 24 + rows * 34;
         drawSettingCard(context, x, y, height, HudStyle.border());
-        drawText(context, x, y + 10, "Pages", TEXT);
+        drawText(context, x, y + 10, "Pages", theme().text);
         HorizonStoragePage selected = selectedStoragePage();
         if (selected != null) {
-            drawText(context, x + 70, y + 10, selected.title(), MUTED);
+            drawText(context, x + 70, y + 10, selected.title(), theme().textMuted);
         }
         int chipY = y + 26;
         Rect viewport = new Rect(x, 0, 622, 0);
@@ -624,8 +619,8 @@ public final class PlayerProfileScreen extends Screen {
 
         int height = Math.max(224, page.rows() * 40 + 56);
         drawSettingCard(context, viewport.x, y, height, HudStyle.selected());
-        drawText(context, viewport.x, y + 10, page.title(), TEXT);
-        drawText(context, viewport.x + 180, y + 10, page.columns() + "x" + page.rows(), MUTED);
+        drawText(context, viewport.x, y + 10, page.title(), theme().text);
+        drawText(context, viewport.x + 180, y + 10, page.columns() + "x" + page.rows(), theme().textMuted);
 
         HorizonInventorySlot hovered = hoveredSlot(page, viewport.x, y + 34, mouseX, mouseY);
         if (hovered != null && hovered.item() != null && !hovered.item().isEmpty()) {
@@ -644,17 +639,17 @@ public final class PlayerProfileScreen extends Screen {
 
         if (hovered != null && !hovered.item().isEmpty()) {
             Rect panel = new Rect(viewport.x + 380, y + 30, 218, height - 42);
-            context.fill(panel.x, panel.y, panel.right(), panel.bottom(), CARD_ALT);
+            context.fill(panel.x, panel.y, panel.right(), panel.bottom(), theme().surfaceAlt);
             drawInventoryDetail(context, panel, hovered);
         }
     }
 
     private void drawInventorySlot(GuiGraphicsExtractor context, Rect rect, HorizonInventorySlot slot, boolean hovered) {
         HorizonInventoryItem item = slot == null ? HorizonInventoryItem.empty() : slot.item();
-        int background = item.isEmpty() ? 0xFF1B2630 : 0xFF2A3744;
-        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), hovered ? 0xFF3A4958 : background);
-        context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, hovered ? 0xE2354657 : 0xCC1E2A35);
-        context.fill(rect.x, rect.y, rect.x + 2, rect.bottom(), item.isEmpty() ? CARD_ALT : rarityColor(item.rarity()));
+        int background = item.isEmpty() ? theme().surfaceAlt : theme().surface;
+        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), hovered ? theme().surfaceHover : background);
+        context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, hovered ? theme().surface : theme().surfaceAlt);
+        context.fill(rect.x, rect.y, rect.x + 2, rect.bottom(), item.isEmpty() ? theme().surfaceAlt : rarityColor(item.rarity()));
         if (item.isEmpty()) {
             return;
         }
@@ -667,52 +662,52 @@ public final class PlayerProfileScreen extends Screen {
 
     private void drawInventoryDetail(GuiGraphicsExtractor context, Rect rect, HorizonInventorySlot slot) {
         if (slot == null || slot.item().isEmpty()) {
-            drawText(context, rect.x + 10, rect.y + 12, "Item Details", TEXT);
-            drawWrappedText(context, rect.x + 10, rect.y + 32, "Fahre mit der Maus ueber einen Slot, um Name, Rarity und Lore anzuzeigen.", rect.width - 20, MUTED);
+            drawText(context, rect.x + 10, rect.y + 12, "Item Details", theme().text);
+            drawWrappedText(context, rect.x + 10, rect.y + 32, "Fahre mit der Maus ueber einen Slot, um Name, Rarity und Lore anzuzeigen.", rect.width - 20, theme().textMuted);
             return;
         }
 
         HorizonInventoryItem item = slot.item();
         ItemStack stack = buildItemStack(item);
         context.item(stack, rect.x + 10, rect.y + 10);
-        drawWrappedTextClamped(context, rect.x + 34, rect.y + 12, plainText(item.displayName()), rect.width - 44, 2, TEXT);
+        drawWrappedTextClamped(context, rect.x + 34, rect.y + 12, plainText(item.displayName()), rect.width - 44, 2, theme().text);
         drawText(context, rect.x + 34, rect.y + 38, item.rarity().isBlank() ? "Rarity unbekannt" : item.rarity(), rarityColor(item.rarity()));
-        drawText(context, rect.x + 10, rect.y + 58, "Stack " + item.count(), MUTED);
-        drawText(context, rect.x + 10, rect.y + 72, item.itemId().isBlank() ? "Item ID unbekannt" : item.itemId(), MUTED);
+        drawText(context, rect.x + 10, rect.y + 58, "Stack " + item.count(), theme().textMuted);
+        drawText(context, rect.x + 10, rect.y + 72, item.itemId().isBlank() ? "Item ID unbekannt" : item.itemId(), theme().textMuted);
         int maxLoreLines = Math.max(4, (rect.height - 100) / 12);
-        drawWrappedTextClamped(context, rect.x + 10, rect.y + 92, item.lore().isBlank() ? "Keine Lore verfuegbar." : plainText(item.lore()), rect.width - 20, maxLoreLines, TEXT);
+        drawWrappedTextClamped(context, rect.x + 10, rect.y + 92, item.lore().isBlank() ? "Keine Lore verfuegbar." : plainText(item.lore()), rect.width - 20, maxLoreLines, theme().text);
     }
 
     private int drawInfoCard(GuiGraphicsExtractor context, int x, int y, String title, String value) {
         int height = 48 + wrappedLines(value, 590).size() * 12;
         drawSettingCard(context, x, y, height, HudStyle.selected());
-        drawText(context, x, y + 10, title, TEXT);
-        drawWrappedText(context, x + 10, y + 28, value, 590, MUTED);
+        drawText(context, x, y + 10, title, theme().text);
+        drawWrappedText(context, x + 10, y + 28, value, 590, theme().textMuted);
         return y + height;
     }
 
     private void drawMetric(GuiGraphicsExtractor context, Rect rect, String label, String value) {
-        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), CARD_ALT);
-        drawText(context, rect.x + 10, rect.y + 8, label, MUTED);
-        drawText(context, rect.x + 10, rect.y + 24, value, TEXT);
+        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), theme().surfaceAlt);
+        drawText(context, rect.x + 10, rect.y + 8, label, theme().textMuted);
+        drawText(context, rect.x + 10, rect.y + 24, value, theme().text);
     }
 
     private void drawSettingCard(GuiGraphicsExtractor context, int x, int y, int height, int markerColor) {
         int left = x - 12;
         int right = x + 622;
-        context.fill(left, y, right, y + height - 10, CARD);
+        context.fill(left, y, right, y + height - 10, theme().surface);
         context.fill(left, y, left + 3, y + height - 10, markerColor);
     }
 
     private void drawKeyValue(GuiGraphicsExtractor context, int x, int y, String key, String value) {
-        drawText(context, x, y, key, MUTED);
-        drawText(context, x + 120, y, value, TEXT);
+        drawText(context, x, y, key, theme().textMuted);
+        drawText(context, x + 120, y, value, theme().text);
     }
 
     private void drawProgressBar(GuiGraphicsExtractor context, int x, int y, int width, int height, float progress, int color, String label) {
-        context.fill(x, y, x + width, y + height, BUTTON);
+        context.fill(x, y, x + width, y + height, theme().surfaceHover);
         context.fill(x, y, x + Math.max(0, Math.min(width, Math.round(width * progress))), y + height, color);
-        drawText(context, x, y - 10, label, MUTED);
+        drawText(context, x, y - 10, label, theme().textMuted);
     }
 
     private void drawWrappedText(GuiGraphicsExtractor context, int x, int y, String text, int maxWidth, int color) {
@@ -772,11 +767,11 @@ public final class PlayerProfileScreen extends Screen {
     }
 
     private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame) {
-        context.fill(frame.x, frame.y, frame.right(), frame.bottom(), WINDOW);
-        context.fill(frame.x, frame.y, frame.right(), frame.y + 34, WINDOW_HEADER);
+        context.fill(frame.x, frame.y, frame.right(), frame.bottom(), theme().background);
+        context.fill(frame.x, frame.y, frame.right(), frame.y + 34, theme().surface);
         drawText(context, frame.x + 12, frame.y + 12, "HORIZON", HudStyle.accent());
-        drawText(context, frame.x + 100, frame.y + 12, "Viewer: " + displayRequestedPlayer(), TEXT);
-        drawText(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", WARNING);
+        drawText(context, frame.x + 100, frame.y + 12, "Viewer: " + displayRequestedPlayer(), theme().text);
+        drawText(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", theme().warning);
     }
 
     private void drawScrollBar(GuiGraphicsExtractor context, Rect viewport) {
@@ -785,7 +780,7 @@ public final class PlayerProfileScreen extends Screen {
             return;
         }
         int barX = viewport.right() - 4;
-        context.fill(barX, viewport.y, barX + 2, viewport.bottom(), BUTTON);
+        context.fill(barX, viewport.y, barX + 2, viewport.bottom(), theme().surfaceHover);
         int thumbHeight = Math.max(24, Math.round((viewport.height / (float) totalHeight) * viewport.height));
         int maxThumbTravel = viewport.height - thumbHeight;
         int thumbY = viewport.y + Math.round((contentScrollOffset / (float) (totalHeight - viewport.height)) * maxThumbTravel);
@@ -1194,9 +1189,9 @@ public final class PlayerProfileScreen extends Screen {
     }
 
     private void renderStorageButton(GuiGraphicsExtractor context, Rect rect, HorizonStoragePage page, boolean selected) {
-        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), selected ? BUTTON : CARD_ALT);
-        context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, selected ? 0xFF304356 : 0xCC16202A);
-        context.fill(rect.x, rect.y, rect.right(), rect.y + 2, selected ? HudStyle.accent() : 0x664F5A66);
+        context.fill(rect.x, rect.y, rect.right(), rect.bottom(), selected ? theme().surfaceHover : theme().surfaceAlt);
+        context.fill(rect.x + 1, rect.y + 1, rect.right() - 1, rect.bottom() - 1, selected ? theme().surfaceHover : theme().surfaceAlt);
+        context.fill(rect.x, rect.y, rect.right(), rect.y + 2, selected ? HudStyle.accent() : theme().borderSubtle);
         context.item(buildItemStack(page.buttonItem()), rect.x + 6, rect.y + 6);
     }
 
@@ -1580,7 +1575,7 @@ public final class PlayerProfileScreen extends Screen {
 
     private int rarityColor(String rarity) {
         if (rarity == null) {
-            return TEXT;
+            return theme().text;
         }
         return switch (rarity.toUpperCase(Locale.ROOT)) {
             case "COMMON" -> 0xFFD7D9DE;
