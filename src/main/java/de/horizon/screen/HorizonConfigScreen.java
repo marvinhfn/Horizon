@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public final class HorizonConfigScreen extends Screen {
+public final class HorizonConfigScreen extends Screen implements de.horizon.screen.render.HiDpiScreen {
     private static final int CONTENT_ROW_WIDTH = 620;
     private static final int CONTENT_CARD_WIDTH = CONTENT_ROW_WIDTH + 8;
     private static final int CARD_PADDING_TOP = 8;
@@ -227,13 +227,12 @@ public final class HorizonConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        de.horizon.screen.render.HiDpi.enter(net.minecraft.client.Minecraft.getInstance());
+        de.horizon.screen.render.HiDpi.sync(net.minecraft.client.Minecraft.getInstance());
         super.init();
     }
 
     @Override
     public void onClose() {
-        de.horizon.screen.render.HiDpi.exit(net.minecraft.client.Minecraft.getInstance());
         commitInputs();
         horizonClient.getConfigManager().save();
         if (minecraft != null) {

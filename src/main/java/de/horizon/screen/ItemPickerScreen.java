@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  *
  * The caller receives the selected item-ID string via the {@code callback}.
  */
-public final class ItemPickerScreen extends Screen {
+public final class ItemPickerScreen extends Screen implements de.horizon.screen.render.HiDpiScreen {
 
     // ── Layout ────────────────────────────────────────────────────────────────
     private static final int COLS      = 9;
@@ -61,7 +61,7 @@ public final class ItemPickerScreen extends Screen {
 
     @Override
     protected void init() {
-        HiDpi.enter(Minecraft.getInstance());
+        HiDpi.sync(Minecraft.getInstance());
         refreshEntries();
     }
 
@@ -146,7 +146,6 @@ public final class ItemPickerScreen extends Screen {
 
     @Override
     public void onClose() {
-        HiDpi.exit(Minecraft.getInstance());
         if (minecraft != null) minecraft.setScreen(parent);
     }
 

@@ -5,7 +5,7 @@ final class Palettes {
     private static int c(int rgb) { return 0xFF000000 | rgb; }
 
     static final Theme ROSE_LIGHT = new Theme(
-        c(0xF7F5F6), c(0xFFFFFF), c(0xFBEEF1), 0x14E11D64,   // background, surface, surfaceAlt, surfaceHover (accent-tinted, low alpha)
+        c(0xF7F5F6), c(0xFFFFFF), c(0xFBEEF1), 0x33E11D64,   // background, surface, surfaceAlt, surfaceHover (accent-tinted, low alpha)
         c(0xE11D64), c(0xF7A8C4), c(0xFFFFFF),               // accent, accentMuted, onAccent
         c(0x1F2430), c(0x6B7280), c(0x9CA3AF),               // text, textMuted, textFaint
         0x22E11D64, 0x14000000,                              // border (accent, low alpha), borderSubtle
@@ -22,15 +22,15 @@ final class Palettes {
         c(0xF59E0B), c(0x34D399), c(0xF87171),
         0xE0120E12, 0xE01E1820, 0xE0271E28, c(0xF3E9EE), c(0xB79AA6));
 
-    static final Theme OCEAN_LIGHT    = rose(ROSE_LIGHT, c(0x2563EB), c(0xA9C5F7), 0x142563EB, 0x222563EB); // blue
+    static final Theme OCEAN_LIGHT    = rose(ROSE_LIGHT, c(0x2563EB), c(0xA9C5F7), 0x332563EB, 0x222563EB); // blue
     static final Theme OCEAN_DARK     = roseDark(ROSE_DARK,  c(0x60A5FA), c(0x2E4B7A), 0x2260A5FA, 0x3360A5FA);
-    static final Theme MINT_LIGHT     = rose(ROSE_LIGHT, c(0x10B981), c(0x9BE3CE), 0x1410B981, 0x2210B981); // green
+    static final Theme MINT_LIGHT     = rose(ROSE_LIGHT, c(0x10B981), c(0x9BE3CE), 0x3310B981, 0x2210B981); // green
     static final Theme MINT_DARK      = roseDark(ROSE_DARK,  c(0x34D399), c(0x1F4E42), 0x2234D399, 0x3334D399);
-    static final Theme LAVENDER_LIGHT = rose(ROSE_LIGHT, c(0x7C3AED), c(0xC3AEF3), 0x147C3AED, 0x227C3AED); // purple
+    static final Theme LAVENDER_LIGHT = rose(ROSE_LIGHT, c(0x7C3AED), c(0xC3AEF3), 0x337C3AED, 0x227C3AED); // purple
     static final Theme LAVENDER_DARK  = roseDark(ROSE_DARK,  c(0xA78BFA), c(0x40337A), 0x22A78BFA, 0x33A78BFA);
-    static final Theme AMBER_LIGHT    = rose(ROSE_LIGHT, c(0xF59E0B), c(0xF3D9A0), 0x14F59E0B, 0x22F59E0B); // amber
+    static final Theme AMBER_LIGHT    = rose(ROSE_LIGHT, c(0xF59E0B), c(0xF3D9A0), 0x33F59E0B, 0x22F59E0B); // amber
     static final Theme AMBER_DARK     = roseDark(ROSE_DARK,  c(0xFBBF24), c(0x6B5218), 0x22FBBF24, 0x33FBBF24);
-    static final Theme SLATE_LIGHT    = rose(ROSE_LIGHT, c(0x475569), c(0xB4BECC), 0x14475569, 0x22475569); // neutral
+    static final Theme SLATE_LIGHT    = rose(ROSE_LIGHT, c(0x475569), c(0xB4BECC), 0x33475569, 0x22475569); // neutral
     static final Theme SLATE_DARK     = roseDark(ROSE_DARK,  c(0x94A3B8), c(0x3A4452), 0x2294A3B8, 0x3394A3B8);
 
     static Theme light(ThemeFamily f) {

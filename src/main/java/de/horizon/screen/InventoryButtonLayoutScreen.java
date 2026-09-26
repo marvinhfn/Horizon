@@ -24,7 +24,7 @@ import java.util.List;
  * Clicking a slot opens an inline popup to configure or delete the button.
  * Changes are saved immediately to the ConfigManager.
  */
-public final class InventoryButtonLayoutScreen extends Screen {
+public final class InventoryButtonLayoutScreen extends Screen implements de.horizon.screen.render.HiDpiScreen {
 
     // ── Colors ────────────────────────────────────────────────────────────────
     private static final int BG            = 0xD0101820;
@@ -91,6 +91,7 @@ public final class InventoryButtonLayoutScreen extends Screen {
 
     @Override
     protected void init() {
+        de.horizon.screen.render.HiDpi.sync(net.minecraft.client.Minecraft.getInstance());
         slots.clear();
         int cx = width  / 2;
         int cy = height / 2;

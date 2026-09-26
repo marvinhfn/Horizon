@@ -24,7 +24,7 @@ import java.util.List;
  * route, and configure each waypoint (name, type, through-walls, beacon, group, colour via an HSB
  * picker). Opening with a specific waypoint jumps straight to that waypoint's config.
  */
-public final class WaypointScreen extends Screen {
+public final class WaypointScreen extends Screen implements de.horizon.screen.render.HiDpiScreen {
     // Colors resolved at render time from theme
 
     private static final String[] TYPE_LABELS = { "Outlined", "Box", "Outline+Box" };
@@ -53,7 +53,7 @@ public final class WaypointScreen extends Screen {
 
     @Override
     protected void init() {
-        HiDpi.enter(Minecraft.getInstance());
+        HiDpi.sync(Minecraft.getInstance());
         fw = 360;
         fh = Math.min(height - 40, 320);
         fx = (width - fw) / 2;
@@ -62,7 +62,6 @@ public final class WaypointScreen extends Screen {
 
     @Override
     public void onClose() {
-        HiDpi.exit(Minecraft.getInstance());
         service.save();
         if (minecraft != null) minecraft.setScreen(parent);
     }

@@ -49,7 +49,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public final class PlayerProfileScreen extends Screen {
+public final class PlayerProfileScreen extends Screen implements de.horizon.screen.render.HiDpiScreen {
     private static final double[] DUNGEON_LEVEL_XP = {
         50, 75, 110, 160, 230, 330, 470, 670, 950, 1340,
         1890, 2665, 3760, 5260, 7380, 10300, 14400, 20000, 27600, 38000,
@@ -85,7 +85,7 @@ public final class PlayerProfileScreen extends Screen {
 
     @Override
     protected void init() {
-        HiDpi.enter(Minecraft.getInstance());
+        HiDpi.sync(Minecraft.getInstance());
         super.init();
         if (loadFuture != null) {
             return;
@@ -115,7 +115,6 @@ public final class PlayerProfileScreen extends Screen {
 
     @Override
     public void onClose() {
-        HiDpi.exit(Minecraft.getInstance());
         if (minecraft != null) {
             minecraft.setScreen(parent);
         }

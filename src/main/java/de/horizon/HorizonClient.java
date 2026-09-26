@@ -415,6 +415,7 @@ public final class HorizonClient implements ClientModInitializer {
     }
 
     private void onClientTick(Minecraft client) {
+        de.horizon.screen.render.HiDpi.sync(client);
         if (pendingScreen != null) {
             Screen nextScreen = pendingScreen;
             pendingScreen = null;

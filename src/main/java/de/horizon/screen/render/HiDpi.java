@@ -4,6 +4,18 @@ import com.mojang.blaze3d.platform.Window;
 import de.horizon.mixin.WindowAccessor;
 import net.minecraft.client.Minecraft;
 
+/**
+ * Tick-driven Hi-DPI GUI scale manager.
+ *
+ * Static state ({@code applied}, {@code originalScale}) is authoritative and driven exclusively by
+ * {@link #sync(Minecraft)}, which is called from the client tick and from the {@code init()} of
+ * every fine-scale screen. The old enter/exit pair has been replaced by this single method so that
+ * screen-to-screen transitions (which never call {@code onClose()}) are handled correctly.
+ *
+ * Screens that want the fine scale must implement {@link HiDpiScreen}; screens that must run at the
+ * user's real scale (e.g. HudLayoutScreen) must NOT implement the interface — calling sync() from
+ * their init() will immediately restore the user scale.
+ */
 public final class HiDpi {
     private static boolean applied = false;
     private static int originalScale = -1;
@@ -23,30 +35,31 @@ public final class HiDpi {
         return Math.max(1, Math.min(target, current));
     }
 
-    public static void enter(Minecraft mc) {
-        if (applied || mc == null || mc.getWindow() == null) return;
+    /**
+     * Single entry-point: call from the client tick and from every relevant screen's init().
+     * Applies fine scale when the active screen implements HiDpiScreen; restores user scale otherwise.
+     */
+    public static void sync(Minecraft mc) {
+        if (mc == null || mc.getWindow() == null) return;
+        boolean wantFine = mc.screen instanceof HiDpiScreen;
         Window w = mc.getWindow();
-        int current = ((WindowAccessor) (Object) w).getGuiScale();
-        int target = targetScale(w);
-        originalScale = current;
-        applied = true;
-        if (target == current) return;
-        w.setGuiScale(target);
-        ((WindowAccessor) (Object) w).setGuiScaledWidth((int) Math.ceil((double) w.getWidth() / target));
-        ((WindowAccessor) (Object) w).setGuiScaledHeight((int) Math.ceil((double) w.getHeight() / target));
-        if (mc.screen != null) {
-            mc.screen.resize(w.getGuiScaledWidth(), w.getGuiScaledHeight());
+        if (wantFine && !applied) {
+            int current = ((WindowAccessor) (Object) w).getGuiScale();
+            int target = targetScale(w);
+            originalScale = current;
+            applied = true;
+            if (target != current) {
+                w.setGuiScale(target);
+                ((WindowAccessor) (Object) w).setGuiScaledWidth((int) Math.ceil((double) w.getWidth() / target));
+                ((WindowAccessor) (Object) w).setGuiScaledHeight((int) Math.ceil((double) w.getHeight() / target));
+                if (mc.screen != null) mc.screen.resize(w.getGuiScaledWidth(), w.getGuiScaledHeight());
+            }
+        } else if (!wantFine && applied) {
+            if (originalScale > 0) w.setGuiScale(originalScale);
+            applied = false;
+            originalScale = -1;
+            mc.resizeGui();
         }
-    }
-
-    public static void exit(Minecraft mc) {
-        if (!applied || mc == null || mc.getWindow() == null) { applied = false; return; }
-        Window w = mc.getWindow();
-        if (originalScale > 0) {
-            w.setGuiScale(originalScale);
-        }
-        applied = false;
-        originalScale = -1;
-        mc.resizeGui(); // restores guiScaledWidth/Height + re-lays any active screen from options
+        // wantFine&&applied or !wantFine&&!applied → no-op
     }
 }

@@ -30,6 +30,15 @@ public final class HudLayoutScreen extends Screen {
     }
 
     @Override
+    protected void init() {
+        // HudLayoutScreen is a WYSIWYG editor — it must render at the user's real GUI scale.
+        // Calling sync() here (without implementing HiDpiScreen) immediately restores the user scale
+        // if the config screen was open before this editor was opened via setScreen.
+        de.horizon.screen.render.HiDpi.sync(net.minecraft.client.Minecraft.getInstance());
+        super.init();
+    }
+
+    @Override
     public void onClose() {
         horizonClient.getConfigManager().save();
         if (minecraft != null) {
