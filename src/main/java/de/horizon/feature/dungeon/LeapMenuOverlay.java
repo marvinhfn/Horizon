@@ -75,8 +75,7 @@ public final class LeapMenuOverlay {
         refreshFromTablist(mc, config);
 
         Theme theme = ThemeManager.current();
-        // Opaque backdrop
-        ctx.fill(0, 0, screen.width, screen.height, 0xFF000000 | (theme.background & 0xFFFFFF));
+        // No full-screen backdrop — the quadrant boxes float over the dimmed screen.
         int halfW = screen.width / 2;
         int halfH = screen.height / 2;
 
