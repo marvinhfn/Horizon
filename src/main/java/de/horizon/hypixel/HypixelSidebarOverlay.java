@@ -67,10 +67,10 @@ public final class HypixelSidebarOverlay {
                 suffix = "";
             }
 
-            context.text(textRenderer, Fonts.of(content), x, baseline, index == 0 ? HudStyle.accent() : HudStyle.text(), true);
+            context.text(textRenderer, Fonts.hud(content), x, baseline, index == 0 ? HudStyle.accent() : HudStyle.text(), true);
             x += contentWidth;
             if (!suffix.isEmpty()) {
-                context.text(textRenderer, Fonts.of(suffix), x, baseline, HudStyle.muted(), true);
+                context.text(textRenderer, Fonts.hud(suffix), x, baseline, HudStyle.muted(), true);
                 x += textRenderer.width(suffix);
             }
         }

@@ -78,17 +78,17 @@ public final class DungeonScoreHudElement implements HudElement {
 
         ctx.fill(x - 1, y - 1, x + 91, y + 25, 0x80000000);
         if (mc.font != null) {
-            ctx.text(mc.font, Fonts.of("Score: " + total), x + 2, y + 2, 0xFFFFFFFF, true);
-            ctx.text(mc.font, Fonts.of(grade), x + 70, y + 2, gradeColor, true);
+            ctx.text(mc.font, Fonts.hud("Score: " + total), x + 2, y + 2, 0xFFFFFFFF, true);
+            ctx.text(mc.font, Fonts.hud(grade), x + 70, y + 2, gradeColor, true);
             if (!editMode) {
                 int sk = scoreService.getSkillScore(floor, master, inBoss);
                 int ex = scoreService.getExplorationScore(floor, master, inBoss);
                 int sp = scoreService.getSpeedScore(floor, master);
                 int bn = scoreService.getBonusScore(floor, master);
                 String detail = sk + "/" + ex + "/" + sp + "/" + bn;
-                ctx.text(mc.font, Fonts.of(detail), x + 2, y + 14, 0xFFAAAAAA, true);
+                ctx.text(mc.font, Fonts.hud(detail), x + 2, y + 14, 0xFFAAAAAA, true);
             } else {
-                ctx.text(mc.font, Fonts.of("100/85/95/5"), x + 2, y + 14, 0xFFAAAAAA, true);
+                ctx.text(mc.font, Fonts.hud("100/85/95/5"), x + 2, y + 14, 0xFFAAAAAA, true);
             }
         }
     }

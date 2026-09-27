@@ -56,7 +56,7 @@ public final class TimeHudElement implements HudElement {
         drawContext.pose().pushMatrix();
         drawContext.pose().translate(position.resolveX(guiW), position.resolveY(guiH));
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
-        drawContext.text(client.font, Fonts.of(text), 0, 0, HudStyle.accent(), true);
+        drawContext.text(client.font, Fonts.hud(text), 0, 0, HudStyle.accent(), true);
         drawContext.pose().popMatrix();
     }
 }

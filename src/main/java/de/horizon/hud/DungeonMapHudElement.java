@@ -209,7 +209,7 @@ public final class DungeonMapHudElement implements HudElement {
                     int yo = (cz >> 1) * CELL;
                     ctx.fill(xo, yo, xo + ROOM_SIZE, yo + ROOM_SIZE, UNKNOWN_ROOM_COLOR);
                     if (mc != null) {
-                        ctx.centeredText(mc.font, Fonts.of("?"), xo + ROOM_SIZE / 2,
+                        ctx.centeredText(mc.font, Fonts.hud("?"), xo + ROOM_SIZE / 2,
                             yo + ROOM_SIZE / 2 - mc.font.lineHeight / 2, UNKNOWN_MARK_COLOR);
                     }
                 }
@@ -319,7 +319,7 @@ public final class DungeonMapHudElement implements HudElement {
             ctx.pose().pushMatrix();
             ctx.pose().translate(cx, startY + i * lineH);
             ctx.pose().scale(tscale, tscale);
-            ctx.centeredText(mc.font, Fonts.of(lines[i]), 0, 0, color);
+            ctx.centeredText(mc.font, Fonts.hud(lines[i]), 0, 0, color);
             ctx.pose().popMatrix();
         }
     }
@@ -382,8 +382,8 @@ public final class DungeonMapHudElement implements HudElement {
                 ctx.pose().pushMatrix();
                 ctx.pose().translate(left + 1.5f, top + 1.5f);
                 ctx.pose().scale(0.5f, 0.5f);
-                ctx.text(mc.font, Fonts.of(label), 1, 1, 0xFF000000, false);
-                ctx.text(mc.font, Fonts.of(label), 0, 0, 0xFFFFFF55, false);
+                ctx.text(mc.font, Fonts.hud(label), 1, 1, 0xFF000000, false);
+                ctx.text(mc.font, Fonts.hud(label), 0, 0, 0xFFFFFF55, false);
                 ctx.pose().popMatrix();
             }
         }
@@ -521,7 +521,7 @@ public final class DungeonMapHudElement implements HudElement {
             ctx.pose().pushMatrix();
             ctx.pose().translate(x - half, y + 5);
             ctx.pose().scale(0.5f, 0.5f);
-            ctx.text(mc.font, Fonts.of(name), 0, 0, 0xFFFFFFFF, true);
+            ctx.text(mc.font, Fonts.hud(name), 0, 0, 0xFFFFFFFF, true);
             ctx.pose().popMatrix();
         }
     }

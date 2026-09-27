@@ -62,8 +62,8 @@ public final class SystemStatsHudElement implements HudElement {
         drawContext.pose().pushMatrix();
         drawContext.pose().translate(position.resolveX(guiW), position.resolveY(guiH));
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
-        drawContext.text(client.font, Fonts.of(cpuText), 0, 0, HudStyle.accent(), true);
-        drawContext.text(client.font, Fonts.of(gpuText), 0, client.font.lineHeight + 4, HudStyle.muted(), true);
+        drawContext.text(client.font, Fonts.hud(cpuText), 0, 0, HudStyle.accent(), true);
+        drawContext.text(client.font, Fonts.hud(gpuText), 0, client.font.lineHeight + 4, HudStyle.muted(), true);
         drawContext.pose().popMatrix();
     }
 

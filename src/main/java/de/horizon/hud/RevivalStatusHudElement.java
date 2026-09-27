@@ -134,12 +134,12 @@ public final class RevivalStatusHudElement implements HudElement {
                 drawContext.fill(badgeX, badgeY, badgeX + badgeWidth, badgeY + BADGE_HEIGHT, badgeColor);
             }
             if (ready) {
-                drawContext.text(renderer, Fonts.of(valueText), badgeX + 3, badgeY - 1, textColor);
-                drawContext.text(renderer, Fonts.of(valueText), badgeX + 4, badgeY - 1, textColor);
-                drawContext.text(renderer, Fonts.of(valueText), badgeX + 3, badgeY, textColor);
-                drawContext.text(renderer, Fonts.of(valueText), badgeX + 4, badgeY, textColor);
+                drawContext.text(renderer, Fonts.hud(valueText), badgeX + 3, badgeY - 1, textColor);
+                drawContext.text(renderer, Fonts.hud(valueText), badgeX + 4, badgeY - 1, textColor);
+                drawContext.text(renderer, Fonts.hud(valueText), badgeX + 3, badgeY, textColor);
+                drawContext.text(renderer, Fonts.hud(valueText), badgeX + 4, badgeY, textColor);
             } else {
-                drawContext.centeredText(renderer, Fonts.of(valueText), badgeX + (badgeWidth / 2), badgeY + 2, textColor);
+                drawContext.centeredText(renderer, Fonts.hud(valueText), badgeX + (badgeWidth / 2), badgeY + 2, textColor);
             }
             lineY += ROW_HEIGHT + ROW_GAP;
         }

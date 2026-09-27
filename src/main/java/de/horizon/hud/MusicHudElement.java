@@ -99,7 +99,7 @@ public final class MusicHudElement implements HudElement {
             ctx.pose().popMatrix();
         } else {
             ctx.fill(ART_X, ART_Y, ART_X + ART_SIZE, ART_Y + ART_SIZE, HudStyle.panel());
-            ctx.centeredText(mc.font, Fonts.of("♪"), ART_X + ART_SIZE / 2, ART_Y + ART_SIZE / 2 - 4, HudStyle.muted());
+            ctx.centeredText(mc.font, Fonts.hud("♪"), ART_X + ART_SIZE / 2, ART_Y + ART_SIZE / 2 - 4, HudStyle.muted());
         }
 
         Font font = mc.font;
@@ -107,8 +107,8 @@ public final class MusicHudElement implements HudElement {
         int contentRight = iconX - 4;
 
         // Track title + artist
-        ctx.text(font, Fonts.of(truncate(font, track, contentRight - CONTENT_X)), CONTENT_X, 7, HudStyle.text(), true);
-        ctx.text(font, Fonts.of(truncate(font, artist, BASE_W - 8 - CONTENT_X)), CONTENT_X, 20, HudStyle.muted(), true);
+        ctx.text(font, Fonts.hud(truncate(font, track, contentRight - CONTENT_X)), CONTENT_X, 7, HudStyle.text(), true);
+        ctx.text(font, Fonts.hud(truncate(font, artist, BASE_W - 8 - CONTENT_X)), CONTENT_X, 20, HudStyle.muted(), true);
 
         // Play / pause indicator (top-right)
         if (playing) {
@@ -119,7 +119,7 @@ public final class MusicHudElement implements HudElement {
 
         // Time labels
         String times = formatTime(progress) + " / " + formatTime(duration);
-        ctx.text(font, Fonts.of(times), CONTENT_X, 33, HudStyle.muted(), true);
+        ctx.text(font, Fonts.hud(times), CONTENT_X, 33, HudStyle.muted(), true);
 
         // Progress bar
         int barX = CONTENT_X;
