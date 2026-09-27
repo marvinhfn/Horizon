@@ -1,0 +1,17 @@
+[16:20:21] [Render thread/INFO]: [I4] player=(75,112,39) active=false onPlate<=2.25
+[16:20:23] [Render thread/INFO]: [I4] player=(65,111,37) active=false onPlate<=2.25
+[16:20:23] [Render thread/INFO]: [System] [CHAT] §9Party §8> §b[MVP§d+§b] AGAlN_§f: Leaped to e3ao!
+[16:20:25] [Render thread/INFO]: [System] [CHAT] §9Party §8> §b[MVP§f+§b] flluh§f: leaping to e3ao
+[16:20:25] [Render thread/INFO]: [System] [CHAT] §9Party §8> §6[MVP§4++§6] hael6§f: Shalom, e3ao!
+[16:20:25] [Render thread/INFO]: [I4] player=(64,142,37) active=false onPlate<=2.25
+[16:20:27] [Render thread/INFO]: [System] [CHAT] §2Guild > §b[MVP§9+§b] Ponethana §2[Chimp]§f: 6 times
+[16:20:27] [Render thread/INFO]: [I4] player=(63,127,35) active=false onPlate<=2.25
+[16:20:29] [Render thread/INFO]: [I4] player=(63,127,35) active=false onPlate<=2.25
+[16:20:29] [Render thread/INFO]: [I4]   entity.minecraft.armor_stand @(63,126,34) name='Inactive'
+[16:20:29] [Render thread/INFO]: [I4]   entity.minecraft.armor_stand @(63,125,34) name='Device'
+[16:20:29] [Render thread/INFO]: [I4]   entity.minecraft.armor_stand @(72,114,47) name='Inactive Terminal'
+[16:20:29] [Render thread/INFO]: [I4]   entity.minecraft.armor_stand @(72,113,47) name='CLICK HERE'
+[16:20:29] [Render thread/INFO]: [I4]   entity.minecraft.armor_stand @(80,122,40) name='﴾  Goldor ﴿'
+[16:20:29] [Render thread/INFO]: [I4]   entity.minecraft.armor_stand @(84,121,34) name='Not Activated'
+[16:20:29] [Render thread/INFO]: [I4]   entity.minecraft.armor_stand @(80,123,40) name='Who dares trespass into my domain?'
+[16:20:29] [Render thread/INFO]: [I4]   entity.minecraft.armor_stand @(86,128,46) name='Not Activated'
