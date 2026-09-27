@@ -731,10 +731,12 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             for (int index = 0; index < DungeonSection.values().length; index++) {
                 boolean active = DungeonSection.values()[index] == activeDungeonSection;
                 Rect rect = subTabRect(bar, index, DungeonSection.values().length);
+                String label = DungeonSection.values()[index].label;
                 if (active) {
-                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                    int lw = font.width(label);
+                    Ui.pill(context, rect.x - 6, rect.y - 3, lw + 12, LINE_HEIGHT + 6, theme().accent);
                 }
-                drawTextLine(context, rect.x, rect.y, DungeonSection.values()[index].label, active ? theme().onAccent : theme().textMuted);
+                drawTextLine(context, rect.x, rect.y, label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -743,10 +745,12 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             for (int index = 0; index < MusicSection.values().length; index++) {
                 boolean active = MusicSection.values()[index] == activeMusicSection;
                 Rect rect = subTabRect(bar, index, MusicSection.values().length);
+                String label = MusicSection.values()[index].label;
                 if (active) {
-                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                    int lw = font.width(label);
+                    Ui.pill(context, rect.x - 6, rect.y - 3, lw + 12, LINE_HEIGHT + 6, theme().accent);
                 }
-                drawTextLine(context, rect.x, rect.y, MusicSection.values()[index].label, active ? theme().onAccent : theme().textMuted);
+                drawTextLine(context, rect.x, rect.y, label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -755,10 +759,12 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             for (int index = 0; index < ChatSection.values().length; index++) {
                 boolean active = ChatSection.values()[index] == activeChatSection;
                 Rect rect = subTabRect(bar, index, ChatSection.values().length);
+                String label = ChatSection.values()[index].label;
                 if (active) {
-                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                    int lw = font.width(label);
+                    Ui.pill(context, rect.x - 6, rect.y - 3, lw + 12, LINE_HEIGHT + 6, theme().accent);
                 }
-                drawTextLine(context, rect.x, rect.y, ChatSection.values()[index].label, active ? theme().onAccent : theme().textMuted);
+                drawTextLine(context, rect.x, rect.y, label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -767,10 +773,12 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             for (int index = 0; index < DisplaySection.values().length; index++) {
                 boolean active = DisplaySection.values()[index] == activeDisplaySection;
                 Rect rect = subTabRect(bar, index, DisplaySection.values().length);
+                String label = DisplaySection.values()[index].label();
                 if (active) {
-                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                    int lw = font.width(label);
+                    Ui.pill(context, rect.x - 6, rect.y - 3, lw + 12, LINE_HEIGHT + 6, theme().accent);
                 }
-                drawTextLine(context, rect.x, rect.y, DisplaySection.values()[index].label(), active ? theme().onAccent : theme().textMuted);
+                drawTextLine(context, rect.x, rect.y, label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -779,10 +787,12 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             for (int index = 0; index < InventorySection.values().length; index++) {
                 boolean active = InventorySection.values()[index] == activeInventorySection;
                 Rect rect = subTabRect(bar, index, InventorySection.values().length);
+                String label = InventorySection.values()[index].label;
                 if (active) {
-                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                    int lw = font.width(label);
+                    Ui.pill(context, rect.x - 6, rect.y - 3, lw + 12, LINE_HEIGHT + 6, theme().accent);
                 }
-                drawTextLine(context, rect.x, rect.y, InventorySection.values()[index].label, active ? theme().onAccent : theme().textMuted);
+                drawTextLine(context, rect.x, rect.y, label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
@@ -790,17 +800,20 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             Rect bar = scoreboardSubTabBarRect(frame);
             Rect genRect = scoreboardSubTabRect(bar, 0);
             if (scoreboardGeneralActive) {
-                Ui.pill(context, genRect.x - 2, genRect.y - 1, genRect.width + 4, genRect.height + 2, theme().accent);
+                int lw = font.width("General");
+                Ui.pill(context, genRect.x - 6, genRect.y - 3, lw + 12, LINE_HEIGHT + 6, theme().accent);
             }
             drawTextLine(context, genRect.x, genRect.y, "General", scoreboardGeneralActive ? theme().onAccent : theme().textMuted);
             SkyBlockIsland[] islands = SkyBlockIsland.knownIslands();
             for (int index = 0; index < islands.length; index++) {
                 boolean active = !scoreboardGeneralActive && islands[index] == activeScoreboardIsland;
                 Rect rect = scoreboardSubTabRect(bar, index + 1);
+                String label = islands[index].label();
                 if (active) {
-                    Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
+                    int lw = font.width(label);
+                    Ui.pill(context, rect.x - 6, rect.y - 3, lw + 12, LINE_HEIGHT + 6, theme().accent);
                 }
-                drawTextLine(context, rect.x, rect.y, islands[index].label(), active ? theme().onAccent : theme().textMuted);
+                drawTextLine(context, rect.x, rect.y, label, active ? theme().onAccent : theme().textMuted);
             }
         }
 
