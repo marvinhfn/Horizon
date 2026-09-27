@@ -4,6 +4,7 @@ import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
 import de.horizon.feature.dungeon.DungeonScoreService;
 import de.horizon.feature.dungeon.DungeonStateService;
+import de.horizon.screen.render.Fonts;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -74,17 +75,17 @@ public final class DungeonScoreHudElement implements HudElement {
 
         ctx.fill(x - 1, y - 1, x + 91, y + 25, 0x80000000);
         if (mc.font != null) {
-            ctx.text(mc.font, "Score: " + total, x + 2, y + 2, 0xFFFFFFFF);
-            ctx.text(mc.font, grade, x + 70, y + 2, gradeColor);
+            ctx.text(mc.font, Fonts.of("Score: " + total), x + 2, y + 2, 0xFFFFFFFF, true);
+            ctx.text(mc.font, Fonts.of(grade), x + 70, y + 2, gradeColor, true);
             if (!editMode) {
                 int sk = scoreService.getSkillScore(floor, master, inBoss);
                 int ex = scoreService.getExplorationScore(floor, master, inBoss);
                 int sp = scoreService.getSpeedScore(floor, master);
                 int bn = scoreService.getBonusScore(floor, master);
                 String detail = sk + "/" + ex + "/" + sp + "/" + bn;
-                ctx.text(mc.font, detail, x + 2, y + 14, 0xFFAAAAAA);
+                ctx.text(mc.font, Fonts.of(detail), x + 2, y + 14, 0xFFAAAAAA, true);
             } else {
-                ctx.text(mc.font, "100/85/95/5", x + 2, y + 14, 0xFFAAAAAA);
+                ctx.text(mc.font, Fonts.of("100/85/95/5"), x + 2, y + 14, 0xFFAAAAAA, true);
             }
         }
     }

@@ -2,6 +2,7 @@ package de.horizon.hud;
 
 import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
+import de.horizon.screen.render.Fonts;
 import de.horizon.spotify.AlbumArtCache;
 import de.horizon.spotify.SpotifyPlaybackState;
 import de.horizon.spotify.SpotifyService;
@@ -95,7 +96,7 @@ public final class MusicHudElement implements HudElement {
             ctx.pose().popMatrix();
         } else {
             ctx.fill(ART_X, ART_Y, ART_X + ART_SIZE, ART_Y + ART_SIZE, HudStyle.panel());
-            ctx.centeredText(mc.font, "♪", ART_X + ART_SIZE / 2, ART_Y + ART_SIZE / 2 - 4, HudStyle.muted());
+            ctx.centeredText(mc.font, Fonts.of("♪"), ART_X + ART_SIZE / 2, ART_Y + ART_SIZE / 2 - 4, HudStyle.muted());
         }
 
         Font font = mc.font;
@@ -103,8 +104,8 @@ public final class MusicHudElement implements HudElement {
         int contentRight = iconX - 4;
 
         // Track title + artist
-        ctx.text(font, truncate(font, track, contentRight - CONTENT_X), CONTENT_X, 7, HudStyle.text());
-        ctx.text(font, truncate(font, artist, BASE_W - 8 - CONTENT_X), CONTENT_X, 20, HudStyle.muted());
+        ctx.text(font, Fonts.of(truncate(font, track, contentRight - CONTENT_X)), CONTENT_X, 7, HudStyle.text(), true);
+        ctx.text(font, Fonts.of(truncate(font, artist, BASE_W - 8 - CONTENT_X)), CONTENT_X, 20, HudStyle.muted(), true);
 
         // Play / pause indicator (top-right)
         if (playing) {
@@ -115,7 +116,7 @@ public final class MusicHudElement implements HudElement {
 
         // Time labels
         String times = formatTime(progress) + " / " + formatTime(duration);
-        ctx.text(font, times, CONTENT_X, 33, HudStyle.muted());
+        ctx.text(font, Fonts.of(times), CONTENT_X, 33, HudStyle.muted(), true);
 
         // Progress bar
         int barX = CONTENT_X;

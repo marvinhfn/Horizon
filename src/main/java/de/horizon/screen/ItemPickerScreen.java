@@ -2,6 +2,7 @@ package de.horizon.screen;
 
 import de.horizon.feature.inventory.InventoryButtonItems;
 import de.horizon.feature.inventory.SkyBlockHeadCache;
+import de.horizon.screen.render.Fonts;
 import de.horizon.screen.render.HiDpi;
 import de.horizon.screen.render.Ui;
 import de.horizon.theme.Theme;
@@ -170,7 +171,7 @@ public final class ItemPickerScreen extends Screen implements de.horizon.screen.
 
         // Title
         context.text(font,
-                Component.literal("Item waehlen"), PAD, 10, theme.accent);
+                Fonts.of("Item waehlen"), PAD, 10, theme.accent, false);
 
         // Search field
         String cursor = ((System.currentTimeMillis() / 400L) % 2L == 0L) ? "_" : "";
@@ -179,7 +180,7 @@ public final class ItemPickerScreen extends Screen implements de.horizon.screen.
                 : searchInput + cursor;
         int fieldColor = searchInput.isEmpty() ? theme.textMuted : theme.text;
         context.text(font,
-                Component.literal("Suche: " + display), PAD, 28, fieldColor);
+                Fonts.of("Suche: " + display), PAD, 28, fieldColor, false);
         // underline
         context.fill(PAD, 40, width - PAD, 41, theme.borderSubtle);
 
@@ -189,7 +190,7 @@ public final class ItemPickerScreen extends Screen implements de.horizon.screen.
                     : SkyBlockHeadCache.hasFailed()  ? "Fehler beim Laden der SkyBlock Items."
                     : "";
             if (!status.isEmpty()) {
-                context.text(font, Component.literal(status), PAD, 44, theme.textMuted);
+                context.text(font, Fonts.of(status), PAD, 44, theme.textMuted, false);
             }
         }
 
@@ -228,8 +229,8 @@ public final class ItemPickerScreen extends Screen implements de.horizon.screen.
         }
 
         // Close hint
-        context.text(font, Component.literal("[X]"),
-                width - 20, 6, 0xFFFF7777);
+        context.text(font, Fonts.of("[X]"),
+                width - 20, 6, 0xFFFF7777, false);
 
         super.extractRenderState(context, mouseX, mouseY, delta);
     }

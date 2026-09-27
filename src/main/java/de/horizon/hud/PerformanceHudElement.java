@@ -3,6 +3,7 @@ package de.horizon.hud;
 import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
+import de.horizon.screen.render.Fonts;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -53,7 +54,7 @@ public final class PerformanceHudElement implements HudElement {
         drawContext.pose().pushMatrix();
         drawContext.pose().translate(position.getX(), position.getY());
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
-        drawContext.text(client.font, text, 0, 0, HudStyle.accent(), true);
+        drawContext.text(client.font, Fonts.of(text), 0, 0, HudStyle.accent(), true);
         drawContext.pose().popMatrix();
     }
 }

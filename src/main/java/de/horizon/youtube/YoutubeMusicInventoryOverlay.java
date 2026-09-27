@@ -1,6 +1,7 @@
 package de.horizon.youtube;
 
 import de.horizon.HorizonMod;
+import de.horizon.screen.render.Fonts;
 import de.horizon.theme.Theme;
 import de.horizon.theme.ThemeManager;
 import net.minecraft.client.Minecraft;
@@ -71,7 +72,7 @@ public final class YoutubeMusicInventoryOverlay {
             minimizeButton = new Rect(btnX, btnY, 22, 22);
             context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), theme.surface);
             context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, theme.borderSubtle);
-            context.centeredText(client.font, Component.literal("+"), minimizeButton.x + 11, minimizeButton.y + 7, theme.text);
+            context.centeredText(client.font, Fonts.of("+"), minimizeButton.x + 11, minimizeButton.y + 7, theme.text);
             buttons.clear();
             volumeSlider = new Rect(0, 0, 0, 0);
             playlistDropdown = new Rect(0, 0, 0, 0);
@@ -83,14 +84,14 @@ public final class YoutubeMusicInventoryOverlay {
         context.outline(x, y, PANEL_WIDTH, panelHeight, theme.borderSubtle);
         context.fill(x, y, x + PANEL_WIDTH, y + HEADER_HEIGHT, theme.surfaceAlt);
         context.fill(x + 16, y + 16, x + 172, y + 18, theme.accent);
-        context.text(client.font, Component.literal("YouTube Music Control"), x + 16, y + 24, theme.text);
+        context.text(client.font, Fonts.of("YouTube Music Control"), x + 16, y + 24, theme.text, false);
         minimizeButton = new Rect(x + PANEL_WIDTH - 26, y + 10, 18, 18);
         context.fill(minimizeButton.x, minimizeButton.y, minimizeButton.right(), minimizeButton.bottom(), theme.surfaceAlt);
         context.outline(minimizeButton.x, minimizeButton.y, minimizeButton.width, minimizeButton.height, theme.borderSubtle);
-        context.centeredText(client.font, Component.literal("-"), minimizeButton.x + 9, minimizeButton.y + 5, theme.text);
+        context.centeredText(client.font, Fonts.of("-"), minimizeButton.x + 9, minimizeButton.y + 5, theme.text);
 
         if (!youtubeService.auth().isLoggedIn()) {
-            context.text(client.font, Component.literal("Nicht verbunden"), x + 16, y + 54, theme.accent);
+            context.text(client.font, Fonts.of("Nicht verbunden"), x + 16, y + 54, theme.accent, false);
             drawWrapped(context, youtubeService.auth().getStatusMessage(), x + 16, y + 72, 268, theme.textMuted);
             return;
         }
@@ -98,8 +99,8 @@ public final class YoutubeMusicInventoryOverlay {
         // Track card — no API for current track; show service label
         context.fill(x + 16, y + TRACK_CARD_TOP, x + PANEL_WIDTH - 16, y + TRACK_CARD_TOP + TRACK_CARD_HEIGHT, theme.surfaceAlt);
         context.outline(x + 16, y + TRACK_CARD_TOP, PANEL_WIDTH - 32, TRACK_CARD_HEIGHT, theme.borderSubtle);
-        context.text(client.font, Component.literal("YouTube Music"), x + 28, y + 60, theme.text);
-        context.text(client.font, Component.literal(youtubeService.auth().getStatusMessage()), x + 28, y + 76, theme.textMuted);
+        context.text(client.font, Fonts.of("YouTube Music"), x + 28, y + 60, theme.text, false);
+        context.text(client.font, Fonts.of(youtubeService.auth().getStatusMessage()), x + 28, y + 76, theme.textMuted, false);
 
         // Playback controls (media keys)
         int btnY = y + CONTROLS_TOP;
@@ -115,35 +116,35 @@ public final class YoutubeMusicInventoryOverlay {
         int knobX = volumeSlider.x + Math.round((volumeSlider.width * localVolume) / 100.0F);
         context.fill(volumeSlider.x, volumeSlider.y, knobX, volumeSlider.bottom(), theme.accent);
         context.fill(knobX - 4, volumeSlider.y - 4, knobX + 4, volumeSlider.y + 9, theme.text);
-        context.text(client.font, Component.literal("Volume"), x + 16, y + VOLUME_LABEL_TOP, theme.textMuted);
-        context.text(client.font, Component.literal(localVolume + "%"), x + 246, y + 136, theme.textMuted);
+        context.text(client.font, Fonts.of("Volume"), x + 16, y + VOLUME_LABEL_TOP, theme.textMuted, false);
+        context.text(client.font, Fonts.of(localVolume + "%"), x + 246, y + 136, theme.textMuted, false);
 
         // Playlist dropdown (at same position as Spotify's device dropdown)
         int playlistY = y + PLAYLIST_DROPDOWN_TOP;
         playlistDropdown = new Rect(x + 16, playlistY, PANEL_WIDTH - 32, DROPDOWN_HEADER_HEIGHT);
         context.fill(playlistDropdown.x, playlistDropdown.y, playlistDropdown.right(), playlistDropdown.bottom(), theme.surfaceAlt);
         context.outline(playlistDropdown.x, playlistDropdown.y, playlistDropdown.width, playlistDropdown.height, playlistsOpen ? theme.accent : theme.borderSubtle);
-        context.text(client.font, Component.literal("YouTube Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, theme.text);
-        context.text(client.font, Component.literal(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, theme.textMuted);
+        context.text(client.font, Fonts.of("YouTube Playlisten"), playlistDropdown.x + 10, playlistDropdown.y + 7, theme.text, false);
+        context.text(client.font, Fonts.of(playlistsOpen ? "^" : "v"), playlistDropdown.right() - 16, playlistDropdown.y + 7, theme.textMuted, false);
 
         if (playlistsOpen) {
             youtubeService.requestPlaylistsRefresh(false);
             List<YoutubePlaylist> playlists = youtubeService.getPlaylists();
             if (playlists.isEmpty()) {
-                context.text(client.font, Component.literal("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, theme.textMuted);
+                context.text(client.font, Fonts.of("Keine Playlisten gefunden"), x + 26, playlistDropdown.bottom() + 12, theme.textMuted, false);
             }
             for (int i = 0; i < Math.min(visiblePlaylistRows, playlists.size()); i++) {
                 YoutubePlaylist playlist = playlists.get(i);
                 Rect row = playlistRowRect(x, playlistDropdown.bottom() + 6, i);
                 context.fill(row.x, row.y, row.right(), row.bottom(), row.contains(mouseX, mouseY) ? theme.surfaceHover : theme.surfaceAlt);
-                context.text(client.font, Component.literal(trim(client, playlist.title(), row.width - 20)), row.x + 10, row.y + 6, theme.text);
+                context.text(client.font, Fonts.of(trim(client, playlist.title(), row.width - 20)), row.x + 10, row.y + 6, theme.text, false);
             }
         }
 
         for (Button button : buttons) {
             context.fill(button.x, button.y, button.x + button.width, button.y + button.height, theme.surfaceAlt);
             context.outline(button.x, button.y, button.width, button.height, button.contains(mouseX, mouseY) ? theme.accent : theme.borderSubtle);
-            context.centeredText(client.font, Component.literal(button.label), button.x + (button.width / 2), button.y + 4, theme.text);
+            context.centeredText(client.font, Fonts.of(button.label), button.x + (button.width / 2), button.y + 4, theme.text);
         }
     }
 
@@ -334,7 +335,7 @@ public final class YoutubeMusicInventoryOverlay {
         }
         int lineY = y;
         for (String line : wrap(client, text, maxWidth)) {
-            context.text(client.font, Component.literal(line), x, lineY, color);
+            context.text(client.font, Fonts.of(line), x, lineY, color, false);
             lineY += 12;
         }
     }

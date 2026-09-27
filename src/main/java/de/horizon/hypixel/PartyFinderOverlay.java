@@ -1,6 +1,7 @@
 package de.horizon.hypixel;
 
 import de.horizon.HorizonClient;
+import de.horizon.screen.render.Fonts;
 import de.horizon.theme.Theme;
 import de.horizon.theme.ThemeManager;
 import net.minecraft.client.Minecraft;
@@ -47,11 +48,11 @@ public final class PartyFinderOverlay {
         Theme theme = ThemeManager.current();
         de.horizon.screen.render.Ui.roundedRect(context, x, y, width, height, 6, theme.surface);
         de.horizon.screen.render.Ui.outline(context, x, y, width, height, 6, 1, theme.borderSubtle);
-        context.text(client.font, Component.literal("Party Finder"), x + 12, y + 12, theme.accent);
-        context.text(client.font, Component.literal("Best S+ Zeiten"), x + 12, y + 26, theme.textMuted);
+        context.text(client.font, Fonts.of("Party Finder"), x + 12, y + 12, theme.accent, false);
+        context.text(client.font, Fonts.of("Best S+ Zeiten"), x + 12, y + 26, theme.textMuted, false);
 
         if (loading && cachedStats == null) {
-            context.text(client.font, Component.literal("Lade..."), x + 12, y + 48, theme.text);
+            context.text(client.font, Fonts.of("Lade..."), x + 12, y + 48, theme.text, false);
             return;
         }
 
@@ -64,13 +65,13 @@ public final class PartyFinderOverlay {
             return;
         }
 
-        context.text(client.font, Component.literal("Profil: " + cachedStats.selectedProfile()), x + 12, y + 46, theme.text);
+        context.text(client.font, Fonts.of("Profil: " + cachedStats.selectedProfile()), x + 12, y + 46, theme.text, false);
         int lineY = y + 64;
         for (int index = 0; index < FLOOR_KEYS.length; index++) {
             String label = FLOOR_LABELS[index];
             String time = formatTime(cachedStats.fastestSPlus(FLOOR_KEYS[index]));
-            context.text(client.font, Component.literal(label), x + 12, lineY, theme.text);
-            context.text(client.font, Component.literal(time), x + 54, lineY, theme.accent);
+            context.text(client.font, Fonts.of(label), x + 12, lineY, theme.text, false);
+            context.text(client.font, Fonts.of(time), x + 54, lineY, theme.accent, false);
             lineY += 14;
         }
     }
@@ -106,7 +107,7 @@ public final class PartyFinderOverlay {
         Theme theme = ThemeManager.current();
         de.horizon.screen.render.Ui.roundedRect(context, x, y, 148, 64, 6, theme.surface);
         de.horizon.screen.render.Ui.outline(context, x, y, 148, 64, 6, 1, theme.borderSubtle);
-        context.text(Minecraft.getInstance().font, Component.literal("Party Finder"), x + 12, y + 12, theme.accent);
+        context.text(Minecraft.getInstance().font, Fonts.of("Party Finder"), x + 12, y + 12, theme.accent, false);
         drawLines(context, x + 12, y + 32, message, 124, 0xFFFF9696);
     }
 
@@ -122,7 +123,7 @@ public final class PartyFinderOverlay {
         for (String word : words) {
             String candidate = current.isEmpty() ? word : current + " " + word;
             if (client.font.width(candidate) > maxWidth && !current.isEmpty()) {
-                context.text(client.font, Component.literal(current.toString()), x, lineY, color);
+                context.text(client.font, Fonts.of(current.toString()), x, lineY, color, false);
                 current = new StringBuilder(word);
                 lineY += 12;
             } else {
@@ -130,7 +131,7 @@ public final class PartyFinderOverlay {
             }
         }
         if (!current.isEmpty()) {
-            context.text(client.font, Component.literal(current.toString()), x, lineY, color);
+            context.text(client.font, Fonts.of(current.toString()), x, lineY, color, false);
         }
     }
 

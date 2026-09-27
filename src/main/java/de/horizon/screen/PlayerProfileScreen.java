@@ -13,6 +13,7 @@ import de.horizon.api.profile.HorizonSkill;
 import de.horizon.api.profile.HorizonSlayerBoss;
 import de.horizon.api.profile.HorizonStoragePage;
 import de.horizon.hud.HudStyle;
+import de.horizon.screen.render.Fonts;
 import de.horizon.screen.render.HiDpi;
 import de.horizon.theme.Theme;
 import de.horizon.theme.ThemeManager;
@@ -758,11 +759,11 @@ public final class PlayerProfileScreen extends Screen implements de.horizon.scre
     }
 
     private void drawText(GuiGraphicsExtractor context, int x, int y, String text, int color) {
-        context.text(font, Component.literal(text), x, y, color);
+        context.text(font, Fonts.of(text), x, y, color, false);
     }
 
     private void drawCenteredText(GuiGraphicsExtractor context, int centerX, int y, String text, int color) {
-        context.centeredText(font, Component.literal(text), centerX, y, color);
+        context.centeredText(font, Fonts.of(text), centerX, y, color);
     }
 
     private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame) {

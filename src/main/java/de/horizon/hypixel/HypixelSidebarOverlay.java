@@ -3,6 +3,7 @@ package de.horizon.hypixel;
 import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.hud.HudStyle;
+import de.horizon.screen.render.Fonts;
 import de.horizon.render.PillarboxState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -66,10 +67,10 @@ public final class HypixelSidebarOverlay {
                 suffix = "";
             }
 
-            context.text(textRenderer, content, x, baseline, index == 0 ? HudStyle.accent() : HudStyle.text());
+            context.text(textRenderer, Fonts.of(content), x, baseline, index == 0 ? HudStyle.accent() : HudStyle.text(), true);
             x += contentWidth;
             if (!suffix.isEmpty()) {
-                context.text(textRenderer, suffix, x, baseline, HudStyle.muted());
+                context.text(textRenderer, Fonts.of(suffix), x, baseline, HudStyle.muted(), true);
                 x += textRenderer.width(suffix);
             }
         }

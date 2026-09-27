@@ -2,6 +2,7 @@ package de.horizon.screen;
 
 import de.horizon.feature.waypoint.Waypoint;
 import de.horizon.feature.waypoint.WaypointService;
+import de.horizon.screen.render.Fonts;
 import de.horizon.screen.render.HiDpi;
 import de.horizon.screen.render.Ui;
 import de.horizon.theme.Theme;
@@ -215,7 +216,7 @@ public final class WaypointScreen extends Screen implements de.horizon.screen.re
         Ui.roundedRect(ctx, fx, fy, fw, 26, 8, theme.surfaceAlt);
         ctx.fill(fx, fy + 13, fx + fw, fy + 26, theme.surfaceAlt); // flatten bottom of header
         Ui.outline(ctx, fx, fy, fw, fh, 8, 1, theme.borderSubtle);
-        ctx.text(font, Component.literal("Waypoints"), fx + 12, fy + 9, theme.accent);
+        ctx.text(font, Fonts.of("Waypoints"), fx + 12, fy + 9, theme.accent, false);
         ctx.text(font, Component.literal("§c[X]"), fx + fw - 18, fy + 8, 0xFFCC3333);
 
         if (editing != null) { renderEdit(ctx, mouseX, mouseY); super.extractRenderState(ctx, mouseX, mouseY, delta); return; }
@@ -223,14 +224,14 @@ public final class WaypointScreen extends Screen implements de.horizon.screen.re
         int x = fx + 12, y = fy + 32;
         // Island dropdown
         Ui.roundedRect(ctx, x, y, fw - 24, 16, 4, theme.surfaceAlt);
-        ctx.text(font, Component.literal("Insel: " + WaypointService.islandLabel(islandId) + "  ▾"), x + 4, y + 4, theme.text);
+        ctx.text(font, Fonts.of("Insel: " + WaypointService.islandLabel(islandId) + "  ▾"), x + 4, y + 4, theme.text, false);
         if (islandDropdownOpen) {
             List<String> ids = service.knownIslandIds();
             int dy = y + 18;
             Ui.roundedRect(ctx, x, dy, fw - 24, ids.size() * 14, 4, theme.surfaceAlt);
             for (int i = 0; i < ids.size(); i++) {
                 boolean hov = in(mouseX, mouseY, x, dy + i * 14, fw - 24, 14);
-                ctx.text(font, Component.literal(WaypointService.islandLabel(ids.get(i))), x + 4, dy + i * 14 + 3, hov ? theme.accent : theme.text);
+                ctx.text(font, Fonts.of(WaypointService.islandLabel(ids.get(i))), x + 4, dy + i * 14 + 3, hov ? theme.accent : theme.text, false);
             }
             super.extractRenderState(ctx, mouseX, mouseY, delta);
             return;
@@ -243,7 +244,7 @@ public final class WaypointScreen extends Screen implements de.horizon.screen.re
 
         List<Waypoint> list = service.waypoints(islandId);
         if (list.isEmpty()) {
-            ctx.text(font, Component.literal("Keine Waypoints. Edit Mode an + Block rechtsklicken."), x, y, theme.textMuted);
+            ctx.text(font, Fonts.of("Keine Waypoints. Edit Mode an + Block rechtsklicken."), x, y, theme.textMuted, false);
         }
         for (String group : service.groups(islandId)) {
             List<Waypoint> inGroup = list.stream().filter(w -> group.equals(safeGroup(w))).toList();
@@ -257,7 +258,7 @@ public final class WaypointScreen extends Screen implements de.horizon.screen.re
                 if (hov) Ui.roundedRect(ctx, x, y, fw - 50, 12, 3, theme.surfaceHover);
                 ctx.text(font, Component.literal(w.name + " §8[" + w.x + "," + w.y + "," + w.z + "]"), x + 2, y + 2, w.color);
                 Ui.roundedRect(ctx, fx + fw - 30, y, 18, 12, 3, theme.danger);
-                ctx.text(font, Component.literal("✕"), fx + fw - 26, y + 2, theme.onAccent);
+                ctx.text(font, Fonts.of("✕"), fx + fw - 26, y + 2, theme.onAccent, false);
                 y += 14;
             }
         }
@@ -269,7 +270,7 @@ public final class WaypointScreen extends Screen implements de.horizon.screen.re
         int x = fx + 12, y = fy + 32;
         String cur = nameFocused && (System.currentTimeMillis() / 400 % 2 == 0) ? "_" : "";
         Ui.roundedRect(ctx, x, y, fw - 24, 16, 4, theme.surfaceAlt);
-        ctx.text(font, Component.literal("Name: " + editing.name + cur), x + 4, y + 4, theme.text);
+        ctx.text(font, Fonts.of("Name: " + editing.name + cur), x + 4, y + 4, theme.text, false);
         y += 22;
         drawBtn(ctx, theme, x, y, 170, "Typ: " + TYPE_LABELS[editing.type], true);
         y += 20;
@@ -299,7 +300,7 @@ public final class WaypointScreen extends Screen implements de.horizon.screen.re
 
     private void drawBtn(GuiGraphicsExtractor ctx, Theme theme, int x, int y, int w, String label, boolean on) {
         Ui.roundedRect(ctx, x, y, w, 16, 4, on ? theme.accent : theme.surfaceAlt);
-        ctx.text(font, Component.literal(label), x + 4, y + 4, on ? theme.onAccent : theme.text);
+        ctx.text(font, Fonts.of(label), x + 4, y + 4, on ? theme.onAccent : theme.text, false);
     }
 
     private static boolean in(int mx, int my, int x, int y, int w, int h) {

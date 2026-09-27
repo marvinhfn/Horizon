@@ -1,6 +1,7 @@
 package de.horizon.feature.dungeon;
 
 import de.horizon.config.HorizonConfig;
+import de.horizon.screen.render.Fonts;
 import de.horizon.theme.Theme;
 import de.horizon.theme.ThemeManager;
 import net.minecraft.ChatFormatting;
@@ -122,14 +123,14 @@ public final class LeapMenuOverlay {
                 // Name
                 int textX = boxX + 14 + faceSize;
                 int nameY = boxY + (int)(BOX_HEIGHT / 2.5) - mc.font.lineHeight / 2;
-                ctx.text(mc.font, player.name, textX, nameY, theme.text, true);
+                ctx.text(mc.font, Fonts.of(player.name), textX, nameY, theme.text, true);
 
                 // Class or DEAD
                 int classY = boxY + (int)(BOX_HEIGHT / 1.7) - mc.font.lineHeight / 2;
                 if (player.dead) {
-                    ctx.text(mc.font, "DEAD", textX, classY, DEAD_COLOR, true);
+                    ctx.text(mc.font, Fonts.of("DEAD"), textX, classY, DEAD_COLOR, true);
                 } else if (player.classIndex >= 0 && player.classIndex < CLASS_NAMES.length) {
-                    ctx.text(mc.font, CLASS_NAMES[player.classIndex], textX, classY, classColor, true);
+                    ctx.text(mc.font, Fonts.of(CLASS_NAMES[player.classIndex]), textX, classY, classColor, true);
                 }
             }
         }

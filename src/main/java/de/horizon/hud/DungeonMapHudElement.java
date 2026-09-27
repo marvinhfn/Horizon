@@ -3,6 +3,7 @@ package de.horizon.hud;
 import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
 import de.horizon.feature.dungeon.DungeonStateService;
+import de.horizon.screen.render.Fonts;
 import de.horizon.feature.dungeon.map.DoorType;
 import de.horizon.feature.dungeon.map.DungeonDoor;
 import de.horizon.feature.dungeon.map.DungeonInfo;
@@ -205,7 +206,7 @@ public final class DungeonMapHudElement implements HudElement {
                     int yo = (cz >> 1) * CELL;
                     ctx.fill(xo, yo, xo + ROOM_SIZE, yo + ROOM_SIZE, UNKNOWN_ROOM_COLOR);
                     if (mc != null) {
-                        ctx.centeredText(mc.font, "?", xo + ROOM_SIZE / 2,
+                        ctx.centeredText(mc.font, Fonts.of("?"), xo + ROOM_SIZE / 2,
                             yo + ROOM_SIZE / 2 - mc.font.lineHeight / 2, UNKNOWN_MARK_COLOR);
                     }
                 }
@@ -315,7 +316,7 @@ public final class DungeonMapHudElement implements HudElement {
             ctx.pose().pushMatrix();
             ctx.pose().translate(cx, startY + i * lineH);
             ctx.pose().scale(tscale, tscale);
-            ctx.centeredText(mc.font, lines[i], 0, 0, color);
+            ctx.centeredText(mc.font, Fonts.of(lines[i]), 0, 0, color);
             ctx.pose().popMatrix();
         }
     }
@@ -378,8 +379,8 @@ public final class DungeonMapHudElement implements HudElement {
                 ctx.pose().pushMatrix();
                 ctx.pose().translate(left + 1.5f, top + 1.5f);
                 ctx.pose().scale(0.5f, 0.5f);
-                ctx.text(mc.font, label, 1, 1, 0xFF000000);
-                ctx.text(mc.font, label, 0, 0, 0xFFFFFF55);
+                ctx.text(mc.font, Fonts.of(label), 1, 1, 0xFF000000, false);
+                ctx.text(mc.font, Fonts.of(label), 0, 0, 0xFFFFFF55, false);
                 ctx.pose().popMatrix();
             }
         }
@@ -517,7 +518,7 @@ public final class DungeonMapHudElement implements HudElement {
             ctx.pose().pushMatrix();
             ctx.pose().translate(x - half, y + 5);
             ctx.pose().scale(0.5f, 0.5f);
-            ctx.text(mc.font, name, 0, 0, 0xFFFFFFFF);
+            ctx.text(mc.font, Fonts.of(name), 0, 0, 0xFFFFFFFF, true);
             ctx.pose().popMatrix();
         }
     }

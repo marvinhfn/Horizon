@@ -13,6 +13,7 @@ import de.horizon.feature.chat.SpamFilterOption;
 import de.horizon.feature.particle.ParticleFilterService;
 import de.horizon.feature.revive.ReviveSource;
 import de.horizon.hud.HudStyle;
+import de.horizon.screen.render.Fonts;
 import de.horizon.screen.render.Ui;
 import de.horizon.spotify.SpotifyService;
 import de.horizon.youtube.YoutubeService;
@@ -1231,7 +1232,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
                     "#" + (i + 1), false, TITLE_ANNOUNCE_ENTRY_DESC);
             Rect rm = customRemoveRect(viewport.x, rowY);
             context.fill(rm.x, rm.y, rm.right(), rm.bottom(), 0xFF7A2A2A);
-            context.centeredText(font, Component.literal("✕"), rm.centerX(), rm.y + 4, 0xFFFFFFFF);
+            context.centeredText(font, Fonts.of("✕"), rm.centerX(), rm.y + 4, 0xFFFFFFFF);
         }
         y = drawFieldRow(context, viewport.x, y, Lang.t("Chat-Trigger", "Chat Trigger"),
                 titleAnnounceTriggerInput, inputFocus == InputFocus.TITLE_ANNOUNCE_TRIGGER, TITLE_ANNOUNCE_TRIGGER_DESC);
@@ -1795,7 +1796,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
                             CUSTOM_CMD_DESC);
                     Rect rm = customRemoveRect(viewport.x, rowY);
                     context.fill(rm.x, rm.y, rm.right(), rm.bottom(), 0xFF7A2A2A);
-                    context.centeredText(font, Component.literal("✕"), rm.centerX(), rm.y + 4, 0xFFFFFFFF);
+                    context.centeredText(font, Fonts.of("✕"), rm.centerX(), rm.y + 4, 0xFFFFFFFF);
                 }
                 drawFieldRow(context, viewport.x, y,
                         Lang.t("Command hinzufuegen", "Add Command"),
@@ -2089,7 +2090,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         drawSettingCard(context, x, y, rowHeight, active ? theme().accent : theme().surfaceAlt, false);
         Rect badge = cycleBadgeRect(x, y);
         Ui.pill(context, badge.x, badge.y, badge.width, badge.height, active ? theme().accent : theme().surfaceAlt);
-        context.centeredText(font, Component.literal(modeLabel), badge.centerX(), badge.y + 4, active ? theme().onAccent : theme().textMuted);
+        context.centeredText(font, Fonts.of(modeLabel), badge.centerX(), badge.y + 4, active ? theme().onAccent : theme().textMuted);
         int contentX = badge.right() + 10;
         int contentWidth = Math.max(80, CONTENT_ROW_WIDTH - (contentX - x) - 10);
         drawTextLine(context, contentX, y + CARD_PADDING_TOP, title, col_text());
@@ -2511,7 +2512,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
     }
 
     private void drawTextLine(GuiGraphicsExtractor context, int x, int y, String text, int color) {
-        context.text(font, Component.literal(text), x, y, color);
+        context.text(font, Fonts.of(text), x, y, color, false);
     }
 
     private String fieldValue(String value, boolean focused) {
@@ -4121,7 +4122,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
 
     private void drawInlineAction(GuiGraphicsExtractor context, Rect rect, String label) {
         context.fill(rect.x, rect.y, rect.right(), rect.bottom(), col_button());
-        context.centeredText(font, Component.literal(label), rect.centerX(), rect.y + 5, col_buttonText());
+        context.centeredText(font, Fonts.of(label), rect.centerX(), rect.y + 5, col_buttonText());
     }
 
     private int hudContentHeight() {
@@ -4510,9 +4511,9 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         Rect yes = confirmYesRect(frame);
         Rect no = confirmNoRect(frame);
         Ui.roundedRect(context, yes.x, yes.y, yes.width, yes.height, 4, theme().accent);
-        context.centeredText(font, Component.literal(Lang.t("JA", "YES")), yes.centerX(), yes.y + 5, theme().onAccent);
+        context.centeredText(font, Fonts.of(Lang.t("JA", "YES")), yes.centerX(), yes.y + 5, theme().onAccent);
         Ui.roundedRect(context, no.x, no.y, no.width, no.height, 4, theme().danger);
-        context.centeredText(font, Component.literal(Lang.t("NEIN", "NO")), no.centerX(), no.y + 5, theme().onAccent);
+        context.centeredText(font, Fonts.of(Lang.t("NEIN", "NO")), no.centerX(), no.y + 5, theme().onAccent);
     }
 
     private void drawReloadPopup(GuiGraphicsExtractor context, Rect frame, int accent) {
@@ -4525,7 +4526,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         drawTextLine(context, ox + 12, oy + 28, Lang.t("Konfiguration wurde neu geladen.", "Configuration reloaded successfully."), col_muted());
         int bw = 80, bx = ox + (w - bw) / 2, by = oy + h - 28;
         Ui.roundedRect(context, bx, by, bw, 18, 4, theme().accent);
-        context.centeredText(font, Component.literal("OK"), bx + bw / 2, by + 5, theme().onAccent);
+        context.centeredText(font, Fonts.of("OK"), bx + bw / 2, by + 5, theme().onAccent);
     }
 
     private Rect confirmYesRect(Rect frame) {

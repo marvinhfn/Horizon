@@ -4,6 +4,7 @@ import de.horizon.HorizonClient;
 import de.horizon.config.HorizonConfig;
 import de.horizon.config.HudPosition;
 import de.horizon.feature.misc.SystemStatsService;
+import de.horizon.screen.render.Fonts;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -58,8 +59,8 @@ public final class SystemStatsHudElement implements HudElement {
         drawContext.pose().pushMatrix();
         drawContext.pose().translate(position.getX(), position.getY());
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
-        drawContext.text(client.font, cpuText, 0, 0, HudStyle.accent(), true);
-        drawContext.text(client.font, gpuText, 0, client.font.lineHeight + 4, HudStyle.muted(), true);
+        drawContext.text(client.font, Fonts.of(cpuText), 0, 0, HudStyle.accent(), true);
+        drawContext.text(client.font, Fonts.of(gpuText), 0, client.font.lineHeight + 4, HudStyle.muted(), true);
         drawContext.pose().popMatrix();
     }
 

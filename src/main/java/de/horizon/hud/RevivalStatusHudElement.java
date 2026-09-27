@@ -6,6 +6,7 @@ import de.horizon.config.HudPosition;
 import de.horizon.feature.dungeon.DungeonStateService;
 import de.horizon.feature.revive.ReviveSource;
 import de.horizon.feature.revive.ReviveTracker;
+import de.horizon.screen.render.Fonts;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -130,12 +131,12 @@ public final class RevivalStatusHudElement implements HudElement {
                 drawContext.fill(badgeX, badgeY, badgeX + badgeWidth, badgeY + BADGE_HEIGHT, badgeColor);
             }
             if (ready) {
-                drawContext.text(renderer, Component.literal(valueText), badgeX + 3, badgeY - 1, textColor);
-                drawContext.text(renderer, Component.literal(valueText), badgeX + 4, badgeY - 1, textColor);
-                drawContext.text(renderer, Component.literal(valueText), badgeX + 3, badgeY, textColor);
-                drawContext.text(renderer, Component.literal(valueText), badgeX + 4, badgeY, textColor);
+                drawContext.text(renderer, Fonts.of(valueText), badgeX + 3, badgeY - 1, textColor);
+                drawContext.text(renderer, Fonts.of(valueText), badgeX + 4, badgeY - 1, textColor);
+                drawContext.text(renderer, Fonts.of(valueText), badgeX + 3, badgeY, textColor);
+                drawContext.text(renderer, Fonts.of(valueText), badgeX + 4, badgeY, textColor);
             } else {
-                drawContext.centeredText(renderer, valueText, badgeX + (badgeWidth / 2), badgeY + 2, textColor);
+                drawContext.centeredText(renderer, Fonts.of(valueText), badgeX + (badgeWidth / 2), badgeY + 2, textColor);
             }
             lineY += ROW_HEIGHT + ROW_GAP;
         }
