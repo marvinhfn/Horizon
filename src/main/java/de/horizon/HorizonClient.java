@@ -919,6 +919,13 @@ public final class HorizonClient implements ClientModInitializer {
         return false;
     }
 
+    /** True while the storage overview (grid of all pages) is open — used to block vanilla slot clicks. */
+    public boolean isStorageOverviewOpen(AbstractContainerScreen<?> screen) {
+        return configManager.getConfig().isStorageOverlayEnabled()
+            && storageOverlayService.isStorageMenu(screen)
+            && storageOverlayService.isOverviewOpen();
+    }
+
     /** True while the interactive storage-page overlay is active (relocates the real slots). */
     public boolean isStoragePageActive(AbstractContainerScreen<?> screen) {
         return configManager.getConfig().isStorageOverlayEnabled() && storageOverlayService.isStoragePage(screen);

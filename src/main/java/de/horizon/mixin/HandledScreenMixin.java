@@ -74,6 +74,21 @@ public abstract class HandledScreenMixin {
         h.onExperimentSlotClick((AbstractContainerScreen<?>) (Object) this, slotId, slot.getItem(), button);
     }
 
+    /**
+     * Block all vanilla slot interactions while the storage overview is open.
+     * Without this, clicking between overview cells reaches the underlying inventory slots
+     * and opens a backpack or ender chest.
+     */
+    @Inject(method = "slotClicked", at = @At("HEAD"), cancellable = true)
+    private void horizon$cancelSlotClickForStorageOverview(Slot slot, int slotId, int button, ContainerInput input, CallbackInfo ci) {
+        HorizonClient h = HorizonClient.getInstance();
+        if (h == null) return;
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        if (h.isStorageOverviewOpen(screen)) {
+            ci.cancel();
+        }
+    }
+
     private ItemStack horizon$modifyExperimentStack(Slot slot, ItemStack stack) {
         HorizonClient h = HorizonClient.getInstance();
         if (h == null) return stack;

@@ -375,7 +375,6 @@ public final class StorageOverlayService {
         int height = screen.height;
         Font font = Minecraft.getInstance().font;
 
-        ctx.fill(0, 0, width, height, backdrop());
         ctx.text(font, Component.literal("§bStorage"), 16, 10, accent());
         ctx.text(font, Component.literal("§8[X] / ESC → Menü"), 60, 12, muted());
 
@@ -547,7 +546,6 @@ public final class StorageOverlayService {
         pageNavPages.clear();
         for (Slot s : menu.slots) setPos(s, -9999, -9999); // park all; visible ones re-placed below
 
-        ctx.fill(0, 0, width, height, backdrop());
         ctx.text(font, Component.literal("§bStorage"), 16, 10, accent());
         String cursor = ((System.currentTimeMillis() / 400L) % 2L == 0L) ? "_" : "";
         ctx.text(font, Component.literal("§7Suche: §f" + (search.isEmpty() ? "..." : search + cursor)),
