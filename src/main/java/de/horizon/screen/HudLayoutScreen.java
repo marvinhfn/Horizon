@@ -78,8 +78,11 @@ public final class HudLayoutScreen extends Screen {
             selectedElement = hit;
             draggedElement = hit;
             HudPosition position = positionOf(hit);
-            dragOffsetX = (int) click.x() - position.getX();
-            dragOffsetY = (int) click.y() - position.getY();
+            int guiW = this.width;
+            int guiH = this.height;
+            position.migrateIfNeeded(guiW, guiH);
+            dragOffsetX = (int) click.x() - position.resolveX(guiW);
+            dragOffsetY = (int) click.y() - position.resolveY(guiH);
             return true;
         }
 
@@ -90,10 +93,13 @@ public final class HudLayoutScreen extends Screen {
     public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         if (click.button() == 0 && draggedElement != null && minecraft != null) {
             HudPosition position = positionOf(draggedElement);
-            int maxX = Math.max(0, width - draggedElement.width(minecraft, position));
-            int maxY = Math.max(0, height - draggedElement.height(minecraft, position));
-            position.setX(clamp((int) click.x() - dragOffsetX, 0, maxX));
-            position.setY(clamp((int) click.y() - dragOffsetY, 0, maxY));
+            int guiW = this.width;
+            int guiH = this.height;
+            int maxX = Math.max(0, guiW - draggedElement.width(minecraft, position));
+            int maxY = Math.max(0, guiH - draggedElement.height(minecraft, position));
+            int newX = clamp((int) click.x() - dragOffsetX, 0, maxX);
+            int newY = clamp((int) click.y() - dragOffsetY, 0, maxY);
+            position.setFromPixels(newX, newY, guiW, guiH);
             horizonClient.getConfigManager().save();
             return true;
         }
@@ -138,9 +144,12 @@ public final class HudLayoutScreen extends Screen {
             }
 
             HudPosition position = positionOf(element);
+            int guiW = this.width;
+            int guiH = this.height;
+            position.migrateIfNeeded(guiW, guiH);
             element.render(context, minecraftClient, position, true);
             if (element == selectedElement) {
-                context.outline(position.getX() - 2, position.getY() - 2, element.width(minecraftClient, position) + 4, element.height(minecraftClient, position) + 4, HudStyle.selected());
+                context.outline(position.resolveX(guiW) - 2, position.resolveY(guiH) - 2, element.width(minecraftClient, position) + 4, element.height(minecraftClient, position) + 4, HudStyle.selected());
             }
         }
 
@@ -191,8 +200,11 @@ public final class HudLayoutScreen extends Screen {
             }
 
             HudPosition position = positionOf(element);
-            int x = position.getX();
-            int y = position.getY();
+            int guiW = this.width;
+            int guiH = this.height;
+            position.migrateIfNeeded(guiW, guiH);
+            int x = position.resolveX(guiW);
+            int y = position.resolveY(guiH);
             int width = element.width(minecraftClient, position);
             int height = element.height(minecraftClient, position);
             if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {

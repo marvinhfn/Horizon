@@ -94,8 +94,11 @@ public final class RevivalStatusHudElement implements HudElement {
         Matrix3x2fStack matrices = drawContext.pose();
         Font renderer = client.font;
 
+        int guiW = client.getWindow().getGuiScaledWidth();
+        int guiH = client.getWindow().getGuiScaledHeight();
+        position.migrateIfNeeded(guiW, guiH);
         matrices.pushMatrix();
-        matrices.translate(position.getX(), position.getY());
+        matrices.translate(position.resolveX(guiW), position.resolveY(guiH));
         matrices.scale(scale, scale);
 
         int lineY = 0;

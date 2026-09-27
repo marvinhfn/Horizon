@@ -50,8 +50,11 @@ public final class TimeHudElement implements HudElement {
     @Override
     public void render(GuiGraphicsExtractor drawContext, Minecraft client, HudPosition position, boolean editorMode) {
         String text = editorMode ? "TIME 14:38:12" : "TIME " + LocalTime.now().format(FORMATTER);
+        int guiW = client.getWindow().getGuiScaledWidth();
+        int guiH = client.getWindow().getGuiScaledHeight();
+        position.migrateIfNeeded(guiW, guiH);
         drawContext.pose().pushMatrix();
-        drawContext.pose().translate(position.getX(), position.getY());
+        drawContext.pose().translate(position.resolveX(guiW), position.resolveY(guiH));
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
         drawContext.text(client.font, Fonts.of(text), 0, 0, HudStyle.accent(), true);
         drawContext.pose().popMatrix();

@@ -51,8 +51,11 @@ public final class PerformanceHudElement implements HudElement {
             ? "FPS 420 | TPS 20.0 | PING 12"
             : "FPS " + client.getFps() + " | TPS " + String.format("%.1f", HorizonClient.getInstance().getTpsTracker().getLastKnownTps()) + " | PING " + pingText;
 
+        int guiW = client.getWindow().getGuiScaledWidth();
+        int guiH = client.getWindow().getGuiScaledHeight();
+        position.migrateIfNeeded(guiW, guiH);
         drawContext.pose().pushMatrix();
-        drawContext.pose().translate(position.getX(), position.getY());
+        drawContext.pose().translate(position.resolveX(guiW), position.resolveY(guiH));
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
         drawContext.text(client.font, Fonts.of(text), 0, 0, HudStyle.accent(), true);
         drawContext.pose().popMatrix();

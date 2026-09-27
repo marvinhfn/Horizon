@@ -42,8 +42,11 @@ public final class BlessingHudElement implements HudElement {
             power = stateService.getPowerBlessing();
             time = stateService.getTimeBlessing();
         }
-        int x = pos.getX();
-        int y = pos.getY();
+        int guiW = mc.getWindow().getGuiScaledWidth();
+        int guiH = mc.getWindow().getGuiScaledHeight();
+        pos.migrateIfNeeded(guiW, guiH);
+        int x = pos.resolveX(guiW);
+        int y = pos.resolveY(guiH);
         boolean showTime = time > 0;
 
         int rows = showTime ? 2 : 1;

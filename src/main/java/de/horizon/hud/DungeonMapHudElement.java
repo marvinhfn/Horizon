@@ -103,8 +103,11 @@ public final class DungeonMapHudElement implements HudElement {
             ? de.horizon.HorizonClient.getInstance().getConfigManager().getConfig() : null;
 
         float scale = (float) pos.getScale();
-        float bx = pos.getX() / scale;
-        float by = pos.getY() / scale;
+        int guiW = mc.getWindow().getGuiScaledWidth();
+        int guiH = mc.getWindow().getGuiScaledHeight();
+        pos.migrateIfNeeded(guiW, guiH);
+        float bx = pos.resolveX(guiW) / scale;
+        float by = pos.resolveY(guiH) / scale;
 
         ctx.pose().pushMatrix();
         ctx.pose().scale(scale, scale);

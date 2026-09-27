@@ -34,8 +34,11 @@ public final class PurplePadTimerHudElement implements HudElement {
     public void render(GuiGraphicsExtractor drawContext, Minecraft client, HudPosition position, boolean editorMode) {
         if (!editorMode && !timerService.isActive()) return;
 
+        int guiW = client.getWindow().getGuiScaledWidth();
+        int guiH = client.getWindow().getGuiScaledHeight();
+        position.migrateIfNeeded(guiW, guiH);
         drawContext.pose().pushMatrix();
-        drawContext.pose().translate(position.getX(), position.getY());
+        drawContext.pose().translate(position.resolveX(guiW), position.resolveY(guiH));
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
 
         if (editorMode) {

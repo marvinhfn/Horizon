@@ -47,8 +47,11 @@ public final class DungeonScoreHudElement implements HudElement {
             if (!showInBoss && stateService.isBossFightStarted()) return;
         }
 
-        int x = pos.getX();
-        int y = pos.getY();
+        int guiW = mc.getWindow().getGuiScaledWidth();
+        int guiH = mc.getWindow().getGuiScaledHeight();
+        pos.migrateIfNeeded(guiW, guiH);
+        int x = pos.resolveX(guiW);
+        int y = pos.resolveY(guiH);
 
         int floor = stateService.getCurrentFloor();
         boolean master = stateService.isMasterMode();

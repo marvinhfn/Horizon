@@ -37,8 +37,11 @@ public final class DragonSpawnHudElement implements HudElement {
     public void render(GuiGraphicsExtractor drawContext, Minecraft client, HudPosition position, boolean editorMode) {
         if (!editorMode && !dragonService.isSpawnTimerActive(configManager.getConfig())) return;
 
+        int guiW = client.getWindow().getGuiScaledWidth();
+        int guiH = client.getWindow().getGuiScaledHeight();
+        position.migrateIfNeeded(guiW, guiH);
         drawContext.pose().pushMatrix();
-        drawContext.pose().translate(position.getX(), position.getY());
+        drawContext.pose().translate(position.resolveX(guiW), position.resolveY(guiH));
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
 
         String text = editorMode ? "§cPower §e2.5s" : dragonService.getSpawnTimerText(configManager.getConfig());

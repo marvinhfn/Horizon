@@ -56,8 +56,11 @@ public final class SystemStatsHudElement implements HudElement {
             ? "GPU 72% | 65C"
             : "GPU " + formatPercent(service.getGpuUsage()) + " | " + formatTemp(service.getGpuTemp());
 
+        int guiW = client.getWindow().getGuiScaledWidth();
+        int guiH = client.getWindow().getGuiScaledHeight();
+        position.migrateIfNeeded(guiW, guiH);
         drawContext.pose().pushMatrix();
-        drawContext.pose().translate(position.getX(), position.getY());
+        drawContext.pose().translate(position.resolveX(guiW), position.resolveY(guiH));
         drawContext.pose().scale((float) position.getScale(), (float) position.getScale());
         drawContext.text(client.font, Fonts.of(cpuText), 0, 0, HudStyle.accent(), true);
         drawContext.text(client.font, Fonts.of(gpuText), 0, client.font.lineHeight + 4, HudStyle.muted(), true);

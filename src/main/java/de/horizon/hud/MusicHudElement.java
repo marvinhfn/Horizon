@@ -76,9 +76,12 @@ public final class MusicHudElement implements HudElement {
             albumArt.ensure(artUrl);
         }
 
+        int guiW = mc.getWindow().getGuiScaledWidth();
+        int guiH = mc.getWindow().getGuiScaledHeight();
+        pos.migrateIfNeeded(guiW, guiH);
         float scale = (float) pos.getScale();
         ctx.pose().pushMatrix();
-        ctx.pose().translate(pos.getX(), pos.getY());
+        ctx.pose().translate(pos.resolveX(guiW), pos.resolveY(guiH));
         ctx.pose().scale(scale, scale);
 
         // Panel background
