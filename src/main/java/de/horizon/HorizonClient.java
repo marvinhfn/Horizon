@@ -909,11 +909,28 @@ public final class HorizonClient implements ClientModInitializer {
         return experimentTableSolver.modifyDisplayStack(slot.index, stack);
     }
 
-    /** Forwards an Experimentation Table slot click so the solver can advance its highlighted step. */
-    public void onExperimentSlotClick(AbstractContainerScreen<?> screen, int slotId,
-                                      net.minecraft.world.item.ItemStack stack, int button) {
+    /**
+     * Forwards an Experimentation Table slot click so the solver can advance its highlighted step.
+     * @return true if the click should be cancelled (Chronomatron/Ultrasequencer misclick prevention).
+     */
+    public boolean onExperimentSlotClick(AbstractContainerScreen<?> screen, int slotId,
+                                         net.minecraft.world.item.ItemStack stack, int button) {
+        if (!configManager.getConfig().isExperimentSolverEnabled()) return false;
+        return experimentTableSolver.onSlotClick(screen, slotId, stack, button);
+    }
+
+    /** Server container update (set-content / set-slot packet) — drives the addon-experiment reading. */
+    public void onExperimentInventoryUpdate() {
         if (!configManager.getConfig().isExperimentSolverEnabled()) return;
-        experimentTableSolver.onSlotClick(screen, slotId, stack, button);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return;
+        experimentTableSolver.onInventoryUpdated(mc.player.containerMenu);
+    }
+
+    /** Incoming sound packet — the level-up marks a finished Chronomatron round. */
+    public void onExperimentSound(String name, float pitch, float volume) {
+        if (!configManager.getConfig().isExperimentSolverEnabled()) return;
+        experimentTableSolver.onPlaySound(name, pitch, volume);
     }
 
     /**

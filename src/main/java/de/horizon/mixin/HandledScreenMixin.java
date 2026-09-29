@@ -67,11 +67,13 @@ public abstract class HandledScreenMixin {
         return horizon$modifyExperimentStack(this.hoveredSlot, stack);
     }
 
-    @Inject(method = "slotClicked", at = @At("HEAD"))
+    @Inject(method = "slotClicked", at = @At("HEAD"), cancellable = true)
     private void horizon$experimentSlotClick(Slot slot, int slotId, int button, ContainerInput input, CallbackInfo ci) {
         HorizonClient h = HorizonClient.getInstance();
         if (h == null || slot == null) return;
-        h.onExperimentSlotClick((AbstractContainerScreen<?>) (Object) this, slotId, slot.getItem(), button);
+        if (h.onExperimentSlotClick((AbstractContainerScreen<?>) (Object) this, slotId, slot.getItem(), button)) {
+            ci.cancel(); // misclick prevention: don't send the wrong click to the server
+        }
     }
 
     /**

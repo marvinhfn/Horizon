@@ -10,7 +10,10 @@ import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundTickingStatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 import net.minecraft.network.protocol.game.ClientboundTabListPacket;
@@ -131,6 +134,28 @@ public abstract class ClientPlayNetworkHandlerMixin {
         packet.runUpdates((pos, state) -> {
             client.onBlockUpdate(pos, state, null, mc);
         });
+    }
+
+    // Experimentation Table (Chronomatron / Ultrasequencer) reads server inventory updates.
+    @Inject(method = "handleContainerContent", at = @At("TAIL"))
+    private void horizon$onContainerContent(ClientboundContainerSetContentPacket packet, CallbackInfo ci) {
+        HorizonClient client = HorizonClient.getInstance();
+        if (client != null) client.onExperimentInventoryUpdate();
+    }
+
+    @Inject(method = "handleContainerSetSlot", at = @At("TAIL"))
+    private void horizon$onContainerSetSlot(ClientboundContainerSetSlotPacket packet, CallbackInfo ci) {
+        HorizonClient client = HorizonClient.getInstance();
+        if (client != null) client.onExperimentInventoryUpdate();
+    }
+
+    // Chronomatron round-complete sound.
+    @Inject(method = "handleSoundEvent", at = @At("HEAD"))
+    private void horizon$onSound(ClientboundSoundPacket packet, CallbackInfo ci) {
+        HorizonClient client = HorizonClient.getInstance();
+        if (client == null) return;
+        String name = packet.getSound().unwrapKey().map(k -> k.identifier().getPath()).orElse("");
+        client.onExperimentSound(name, packet.getPitch(), packet.getVolume());
     }
 
     @Inject(method = "handleEntityEvent", at = @At("HEAD"))
