@@ -91,6 +91,15 @@ public final class HorizonConfig {
     public boolean isMusicHudEnabled() { return hud.musicHudEnabled; }
     public void setMusicHudEnabled(boolean v) { hud.musicHudEnabled = v; }
 
+    public boolean isMiningAbilityTimerEnabled() { return hud.miningAbilityTimerEnabled; }
+    public void setMiningAbilityTimerEnabled(boolean v) { hud.miningAbilityTimerEnabled = v; }
+
+    public int getMiningAbilityReadyColor() { return hud.miningAbilityReadyColor; }
+    public void setMiningAbilityReadyColor(int v) { hud.miningAbilityReadyColor = v; }
+
+    public boolean isCommissionHudEnabled() { return hud.commissionHudEnabled; }
+    public void setCommissionHudEnabled(boolean v) { hud.commissionHudEnabled = v; }
+
     public Map<String, HudPosition> getHudPositions() { return hud.hudPositions; }
 
     // ── DUNGEON ───────────────────────────────────────────────────────────────

@@ -23,9 +23,17 @@ public abstract class MultiPlayerGameModeMixin {
     private void horizon$onBlockInteract(LocalPlayer player, InteractionHand hand, BlockHitResult hitResult, CallbackInfoReturnable<InteractionResult> cir) {
         HorizonClient horizon = HorizonClient.getInstance();
         if (horizon == null || hitResult == null) return;
+        if (player != null) horizon.onRightClickItem(player.getItemInHand(hand)); // mining ability (right-click on block)
         if (horizon.onBlockInteract(hitResult.getBlockPos())) {
             cir.setReturnValue(InteractionResult.FAIL); // Simon Says: block the wrong-button click
         }
+    }
+
+    // Right-click with an item in the air (mining abilities like Mining Speed Boost / Pickobulus).
+    @Inject(method = "useItem", at = @At("HEAD"))
+    private void horizon$onUseItem(Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+        HorizonClient horizon = HorizonClient.getInstance();
+        if (horizon != null && player != null) horizon.onRightClickItem(player.getItemInHand(hand));
     }
 
     // Waypoint edit mode: left-click (attack) a waypoint block opens its config instead of breaking it.

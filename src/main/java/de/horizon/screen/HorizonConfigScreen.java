@@ -197,6 +197,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
     private int activeMapColorIndex = -1;
     private int activeMobColorIndex = -1;
     private int activeTerminalColorIndex = -1;
+    private boolean miningColorExpanded = false;
     // Collapsible color "dropdowns" — keys of the currently-expanded groups (collapsed by default).
     private final java.util.Set<String> openDropdowns = new java.util.HashSet<>();
     private boolean colorPickerDragging = false;
@@ -1156,6 +1157,14 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         }
     }
 
+    private static final String MINING_ABILITY_DESC = Lang.t(
+        "Ladebalken unter dem Fadenkreuz fuer die Mining-Ability-Abklingzeit (Cooldown vom Tool).",
+        "Charge bar under the crosshair for the mining ability cooldown (read from the tool).");
+    private static final String COMMISSION_HUD_DESC = Lang.t(
+        "Zeigt aktive Commissions aus der Tab-Liste als verschiebbares HUD.",
+        "Shows active commissions from the tab list as a movable HUD.");
+    private static final String MINING_READY_COLOR_LABEL = Lang.t("Ready-Farbe", "Ready Color");
+
     private void renderMiscText(GuiGraphicsExtractor context, Rect viewport) {
         int y = viewport.y - contentScrollOffset;
         y = drawSectionTitle(context, viewport.x, y, "Misc");
@@ -1163,7 +1172,24 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         y = drawToggleRow(context, viewport.x, y, "FPS / TPS / Ping", config().isPerformanceHudEnabled(), Lang.t("Performance-Overlay.", "Performance overlay."));
         y = drawToggleRow(context, viewport.x, y, "System HUD", config().isSystemHudEnabled(), Lang.t("CPU / GPU / Temperaturen.", "CPU / GPU / Temperatures."));
         y = drawToggleRow(context, viewport.x, y, "Defense Bar", config().isHideDefenseBar(), Lang.t("Blendet die Vanilla-Ruestungsanzeige aus.", "Hides the vanilla armor display."));
-        drawToggleRow(context, viewport.x, y, Lang.t("Kompakte Herzen", "Compact Hearts"), config().isCompactHypixelHealthEnabled(), Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Kompakte Herzen", "Compact Hearts"), config().isCompactHypixelHealthEnabled(), Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Mining Ability Timer", "Mining Ability Timer"), config().isMiningAbilityTimerEnabled(), MINING_ABILITY_DESC);
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Commission Overlay", "Commission Overlay"), config().isCommissionHudEnabled(), COMMISSION_HUD_DESC);
+        drawMiningColorRow(context, viewport.x, y);
+    }
+
+    private int drawMiningColorRow(GuiGraphicsExtractor context, int x, int y) {
+        int color = config().getMiningAbilityReadyColor();
+        int rowHeight = miningColorExpanded ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+        drawSettingCard(context, x, y, rowHeight, color | 0xFF000000, false);
+        int swatchX = x + 4;
+        int swatchY = y + CARD_PADDING_TOP;
+        drawColorPreviewSwatch(context, swatchX, swatchY, 12, color);
+        drawTextLine(context, swatchX + 16, swatchY, MINING_READY_COLOR_LABEL + ": " + colorLabelHex(color), col_text());
+        if (miningColorExpanded) {
+            drawColorPickerFields(context, x + 4, y + CARD_PADDING_TOP + LINE_HEIGHT + 4, color);
+        }
+        return y + rowHeight;
     }
 
     private static final String EXPERIMENT_SOLVER_DESC = Lang.t(
@@ -3400,6 +3426,29 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             horizonClient.getConfigManager().save();
             return true;
         }
+        y += toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMiningAbilityTimerEnabled(!config().isMiningAbilityTimerEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(MINING_ABILITY_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setCommissionHudEnabled(!config().isCommissionHudEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(COMMISSION_HUD_DESC);
+        int miningRowH = miningColorExpanded ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+        if (rowRect(viewport.x, y, miningRowH).contains(mouseX, mouseY)) {
+            if (miningColorExpanded && handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 0,
+                    i -> config().getMiningAbilityReadyColor(),
+                    (i, c) -> config().setMiningAbilityReadyColor(c))) {
+                return true;
+            }
+            miningColorExpanded = !miningColorExpanded;
+            return true;
+        }
         return false;
     }
 
@@ -4333,7 +4382,10 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             + toggleRowHeight(Lang.t("Performance-Overlay.", "Performance overlay."))
             + toggleRowHeight(Lang.t("CPU / GPU / Temperaturen.", "CPU / GPU / Temperatures."))
             + toggleRowHeight(Lang.t("Blendet die Vanilla-Ruestungsanzeige aus.", "Hides the vanilla armor display."))
-            + toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
+            + toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."))
+            + toggleRowHeight(MINING_ABILITY_DESC)
+            + toggleRowHeight(COMMISSION_HUD_DESC)
+            + (miningColorExpanded ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT);
     }
 
     private static final String FISH_ALERT_DESC        = Lang.t("Title + Sound wenn ein Elusive Sea Creature erkannt wird.", "Title + sound when an Elusive Sea Creature is detected.");

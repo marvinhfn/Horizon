@@ -152,6 +152,8 @@ public final class HorizonClient implements ClientModInitializer {
     private final DungeonMapService dungeonMapService = new DungeonMapService();
     private final DoorEspService doorEspService = new DoorEspService();
     private final TeammateGlowService teammateGlowService = new TeammateGlowService();
+    private final de.horizon.feature.mining.MiningAbilityTimerService miningAbilityTimerService = new de.horizon.feature.mining.MiningAbilityTimerService();
+    private final de.horizon.feature.mining.CommissionService commissionService = new de.horizon.feature.mining.CommissionService();
     private final de.horizon.feature.skyblock.MayorService mayorService = new de.horizon.feature.skyblock.MayorService();
     private final de.horizon.feature.skyblock.SkyblockPriceService priceService = new de.horizon.feature.skyblock.SkyblockPriceService();
     private final de.horizon.feature.dungeon.ChestProfitService chestProfitService = new de.horizon.feature.dungeon.ChestProfitService(priceService);
@@ -198,6 +200,7 @@ public final class HorizonClient implements ClientModInitializer {
         hudRegistry.register(new SpiritBearTimerHudElement(spiritBearService));
         hudRegistry.register(new de.horizon.hud.DragonSpawnHudElement(dragonService, configManager));
         hudRegistry.register(new de.horizon.hud.MusicHudElement(spotifyService, albumArtCache));
+        hudRegistry.register(new de.horizon.hud.CommissionHudElement(commissionService));
         openConfigKeyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.horizon.open_config",
             InputConstants.Type.KEYSYM,
@@ -462,6 +465,7 @@ public final class HorizonClient implements ClientModInitializer {
         pingService.tick(client);
         reviveTracker.tick();
         fishingAlertService.tick(client, configManager.getConfig());
+        if (configManager.getConfig().isCommissionHudEnabled()) commissionService.tick(client);
         announceService.tick(client, configManager.getConfig());
         inventoryButtonService.tick(client);
         while (openConfigKeyBinding != null && openConfigKeyBinding.consumeClick()) {
@@ -675,6 +679,13 @@ public final class HorizonClient implements ClientModInitializer {
             .append(net.minecraft.network.chat.Component.literal(
                 lookCoordsEnabled ? "LookCoords aktiviert — rechtsklicke einen Block." : "LookCoords deaktiviert.")
                 .withStyle(ChatFormatting.WHITE)));
+    }
+
+    /** Right-click with an item in hand (air or block) — drives the mining ability cooldown timer. */
+    public void onRightClickItem(net.minecraft.world.item.ItemStack held) {
+        if (configManager.getConfig().isMiningAbilityTimerEnabled()) {
+            miningAbilityTimerService.onRightClick(held);
+        }
     }
 
     /** @return true if the block interaction should be cancelled (Simon Says block-wrong-clicks). */
@@ -1066,6 +1077,7 @@ public final class HorizonClient implements ClientModInitializer {
         if (configManager.getConfig().isCustomScoreboardEnabled()) {
             hypixelSidebarOverlay.render(drawContext, client);
         }
+        miningAbilityTimerService.render(drawContext, client, configManager.getConfig());
 
         if (barScaled > 0) {
             drawContext.pose().popMatrix();
