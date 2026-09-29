@@ -20,6 +20,7 @@ public final class HudConfig {
     boolean systemHudEnabled = false;
     boolean musicHudEnabled = false;
     boolean miningAbilityTimerEnabled = false;
+    boolean miningAbilityReadyTitleEnabled = false;
     int miningAbilityReadyColor = 0xFFFF66AA; // rose
     boolean commissionHudEnabled = false;
     Map<String, HudPosition> hudPositions = new HashMap<>();

@@ -443,6 +443,20 @@ public final class FeatureRegistry {
             "kompakte herzen hypixel health herz absorption reihe",
             "compact hearts hypixel health absorption row");
 
+        // ── MINING ─────────────────────────────────────────────────────────────────
+        add("Mining Ability Timer", "Mining Ability Timer", "Mining", Tab.MINING, null,
+            "mining ability timer drill spitzhacke pickaxe cooldown balken fadenkreuz crosshair",
+            "mining ability timer drill pickaxe cooldown bar crosshair");
+        add("Ability Ready Title", "Ability Ready Title", "Mining", Tab.MINING, null,
+            "mining ability ready title bereit benachrichtigung drill spitzhacke",
+            "mining ability ready title notification drill pickaxe");
+        add("Commission Overlay", "Commission Overlay", "Mining", Tab.MINING, null,
+            "commission overlay hud tab liste dwarven mines auftraege",
+            "commission overlay hud tab list dwarven mines");
+        add("Ready-Farbe", "Ready Color", "Mining", Tab.MINING, null,
+            "ready farbe mining ability timer rose color picker",
+            "ready color mining ability timer rose color picker");
+
         // ── DISPLAY / PARTICLE ─────────────────────────────────────────────────────
         add("Break Particles", "Break Particles", "Anzeige / Particle", Tab.DISPLAY, null,
             "break particles block abbauen partikel anzeige",

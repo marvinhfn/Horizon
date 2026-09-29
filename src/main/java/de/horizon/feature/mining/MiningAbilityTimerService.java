@@ -3,6 +3,7 @@ package de.horizon.feature.mining;
 import de.horizon.config.HorizonConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -35,6 +36,7 @@ public final class MiningAbilityTimerService {
     private String activeToolName = "";
     private long cooldownStartMs = 0L;
     private long cooldownTotalMs = 0L;
+    private boolean readyTitleShown = true;
 
     /** Right-click with a held item. Starts the timer if it is a mining tool with an ability cooldown. */
     public void onRightClick(ItemStack held) {
@@ -51,6 +53,19 @@ public final class MiningAbilityTimerService {
         activeToolName = name;
         cooldownStartMs = now;
         cooldownTotalMs = (long) (seconds * 1000.0);
+        readyTitleShown = false;
+    }
+
+    /** Fires a "Ability Ready!" title once, when the cooldown finishes (if the toggle is on). */
+    public void tick(Minecraft mc, HorizonConfig config) {
+        if (cooldownTotalMs <= 0 || readyTitleShown) return;
+        if (System.currentTimeMillis() < cooldownStartMs + cooldownTotalMs) return;
+        readyTitleShown = true;
+        if (!config.isMiningAbilityReadyTitleEnabled()) return;
+        if (mc == null || mc.gui == null) return;
+        mc.gui.setTitle(Component.literal("Ability Ready!").withStyle(ChatFormatting.LIGHT_PURPLE));
+        mc.gui.setSubtitle(Component.empty());
+        mc.gui.setTimes(0, 30, 10);
     }
 
     public void render(GuiGraphicsExtractor ctx, Minecraft mc, HorizonConfig config) {

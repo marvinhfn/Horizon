@@ -94,6 +94,9 @@ public final class HorizonConfig {
     public boolean isMiningAbilityTimerEnabled() { return hud.miningAbilityTimerEnabled; }
     public void setMiningAbilityTimerEnabled(boolean v) { hud.miningAbilityTimerEnabled = v; }
 
+    public boolean isMiningAbilityReadyTitleEnabled() { return hud.miningAbilityReadyTitleEnabled; }
+    public void setMiningAbilityReadyTitleEnabled(boolean v) { hud.miningAbilityReadyTitleEnabled = v; }
+
     public int getMiningAbilityReadyColor() { return hud.miningAbilityReadyColor; }
     public void setMiningAbilityReadyColor(int v) { hud.miningAbilityReadyColor = v; }
 

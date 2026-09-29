@@ -387,6 +387,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             case SCOREBOARD -> handleScoreboardClick(click.x(), click.y(), frame);
             case INVENTORY -> handleInventoryClick(click.x(), click.y(), frame);
             case FISHING -> handleFishingClick(click.x(), click.y(), frame);
+            case MINING -> handleMiningClick(click.x(), click.y(), frame);
         } || super.mouseClicked(click, doubled);
     }
 
@@ -833,6 +834,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
                 case SCOREBOARD -> renderScoreboardText(context, viewport);
                 case INVENTORY -> renderInventoryText(context, viewport);
                 case FISHING -> renderFishingText(context, viewport);
+                case MINING -> renderMiningText(context, viewport);
             }
         }
         context.disableScissor();
@@ -1172,10 +1174,63 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         y = drawToggleRow(context, viewport.x, y, "FPS / TPS / Ping", config().isPerformanceHudEnabled(), Lang.t("Performance-Overlay.", "Performance overlay."));
         y = drawToggleRow(context, viewport.x, y, "System HUD", config().isSystemHudEnabled(), Lang.t("CPU / GPU / Temperaturen.", "CPU / GPU / Temperatures."));
         y = drawToggleRow(context, viewport.x, y, "Defense Bar", config().isHideDefenseBar(), Lang.t("Blendet die Vanilla-Ruestungsanzeige aus.", "Hides the vanilla armor display."));
-        y = drawToggleRow(context, viewport.x, y, Lang.t("Kompakte Herzen", "Compact Hearts"), config().isCompactHypixelHealthEnabled(), Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
+        drawToggleRow(context, viewport.x, y, Lang.t("Kompakte Herzen", "Compact Hearts"), config().isCompactHypixelHealthEnabled(), Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
+    }
+
+    // ── Mining tab ───────────────────────────────────────────────────────────────
+    private static final String MINING_TITLE_DESC = Lang.t(
+        "Zeigt einen Title, sobald die Mining-Ability wieder bereit ist.",
+        "Shows a title as soon as the mining ability is ready again.");
+
+    private void renderMiningText(GuiGraphicsExtractor context, Rect viewport) {
+        int y = viewport.y - contentScrollOffset;
+        y = drawSectionTitle(context, viewport.x, y, "Mining");
         y = drawToggleRow(context, viewport.x, y, Lang.t("Mining Ability Timer", "Mining Ability Timer"), config().isMiningAbilityTimerEnabled(), MINING_ABILITY_DESC);
+        y = drawToggleRow(context, viewport.x, y, Lang.t("Ability Ready Title", "Ability Ready Title"), config().isMiningAbilityReadyTitleEnabled(), MINING_TITLE_DESC);
         y = drawToggleRow(context, viewport.x, y, Lang.t("Commission Overlay", "Commission Overlay"), config().isCommissionHudEnabled(), COMMISSION_HUD_DESC);
         drawMiningColorRow(context, viewport.x, y);
+    }
+
+    private int miningContentHeight() {
+        return 24
+            + toggleRowHeight(MINING_ABILITY_DESC)
+            + toggleRowHeight(MINING_TITLE_DESC)
+            + toggleRowHeight(COMMISSION_HUD_DESC)
+            + (miningColorExpanded ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT);
+    }
+
+    private boolean handleMiningClick(double mouseX, double mouseY, Rect frame) {
+        Rect viewport = contentViewportRect(frame);
+        int y = viewport.y - contentScrollOffset + 24;
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMiningAbilityTimerEnabled(!config().isMiningAbilityTimerEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(MINING_ABILITY_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setMiningAbilityReadyTitleEnabled(!config().isMiningAbilityReadyTitleEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(MINING_TITLE_DESC);
+        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
+            config().setCommissionHudEnabled(!config().isCommissionHudEnabled());
+            horizonClient.getConfigManager().save();
+            return true;
+        }
+        y += toggleRowHeight(COMMISSION_HUD_DESC);
+        int miningRowH = miningColorExpanded ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
+        if (rowRect(viewport.x, y, miningRowH).contains(mouseX, mouseY)) {
+            if (miningColorExpanded && handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 0,
+                    i -> config().getMiningAbilityReadyColor(),
+                    (i, c) -> config().setMiningAbilityReadyColor(c))) {
+                return true;
+            }
+            miningColorExpanded = !miningColorExpanded;
+            return true;
+        }
+        return false;
     }
 
     private int drawMiningColorRow(GuiGraphicsExtractor context, int x, int y) {
@@ -3426,29 +3481,6 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             horizonClient.getConfigManager().save();
             return true;
         }
-        y += toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setMiningAbilityTimerEnabled(!config().isMiningAbilityTimerEnabled());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight(MINING_ABILITY_DESC);
-        if (rowRect(viewport.x, y).contains(mouseX, mouseY)) {
-            config().setCommissionHudEnabled(!config().isCommissionHudEnabled());
-            horizonClient.getConfigManager().save();
-            return true;
-        }
-        y += toggleRowHeight(COMMISSION_HUD_DESC);
-        int miningRowH = miningColorExpanded ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT;
-        if (rowRect(viewport.x, y, miningRowH).contains(mouseX, mouseY)) {
-            if (miningColorExpanded && handleGenericColorPickerClick(mouseX, mouseY, viewport.x + 4, y, 0,
-                    i -> config().getMiningAbilityReadyColor(),
-                    (i, c) -> config().setMiningAbilityReadyColor(c))) {
-                return true;
-            }
-            miningColorExpanded = !miningColorExpanded;
-            return true;
-        }
         return false;
     }
 
@@ -3946,6 +3978,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             case SCOREBOARD -> scoreboardContentHeight();
             case INVENTORY -> inventoryContentHeight();
             case FISHING -> fishingContentHeight();
+            case MINING -> miningContentHeight();
         };
         return Math.max(0, contentHeight - viewport.height);
     }
@@ -4382,10 +4415,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             + toggleRowHeight(Lang.t("Performance-Overlay.", "Performance overlay."))
             + toggleRowHeight(Lang.t("CPU / GPU / Temperaturen.", "CPU / GPU / Temperatures."))
             + toggleRowHeight(Lang.t("Blendet die Vanilla-Ruestungsanzeige aus.", "Hides the vanilla armor display."))
-            + toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."))
-            + toggleRowHeight(MINING_ABILITY_DESC)
-            + toggleRowHeight(COMMISSION_HUD_DESC)
-            + (miningColorExpanded ? COLOR_PICKER_EXPANDED_HEIGHT : COLOR_SWATCH_ROW_HEIGHT);
+            + toggleRowHeight(Lang.t("Fasst Hypixel-Herzen kompakt in einer Reihe zusammen.", "Compacts Hypixel hearts into a single row."));
     }
 
     private static final String FISH_ALERT_DESC        = Lang.t("Title + Sound wenn ein Elusive Sea Creature erkannt wird.", "Title + sound when an Elusive Sea Creature is detected.");
@@ -4644,7 +4674,8 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         MUSIC_CONTROL("Music Control", "Music Control"),
         SCOREBOARD("Scoreboard", "Scoreboard"),
         INVENTORY("Inventory", "Inventory"),
-        FISHING("Fishing", "Fishing");
+        FISHING("Fishing", "Fishing"),
+        MINING("Mining", "Mining");
 
         private final String labelDe;
         private final String labelEn;

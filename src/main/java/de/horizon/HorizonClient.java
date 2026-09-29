@@ -465,6 +465,7 @@ public final class HorizonClient implements ClientModInitializer {
         pingService.tick(client);
         reviveTracker.tick();
         fishingAlertService.tick(client, configManager.getConfig());
+        if (configManager.getConfig().isMiningAbilityTimerEnabled() || configManager.getConfig().isMiningAbilityReadyTitleEnabled()) miningAbilityTimerService.tick(client, configManager.getConfig());
         if (configManager.getConfig().isCommissionHudEnabled()) commissionService.tick(client);
         announceService.tick(client, configManager.getConfig());
         inventoryButtonService.tick(client);
@@ -683,7 +684,8 @@ public final class HorizonClient implements ClientModInitializer {
 
     /** Right-click with an item in hand (air or block) — drives the mining ability cooldown timer. */
     public void onRightClickItem(net.minecraft.world.item.ItemStack held) {
-        if (configManager.getConfig().isMiningAbilityTimerEnabled()) {
+        var cfg = configManager.getConfig();
+        if (cfg.isMiningAbilityTimerEnabled() || cfg.isMiningAbilityReadyTitleEnabled()) {
             miningAbilityTimerService.onRightClick(held);
         }
     }
