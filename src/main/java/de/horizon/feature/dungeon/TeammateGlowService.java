@@ -16,9 +16,13 @@ import java.util.regex.Pattern;
  * Provides class-based glow colors for teammate ESP.
  */
 public final class TeammateGlowService {
-    // Tablist regex: [42] [VIP+] PlayerName ... (Mage XXIV)
-    private static final Pattern TABLIST_REGEX = Pattern.compile(
-        "^\\[(\\d+)] (?:\\[\\w+] )*(\\w+) .*?\\((\\w+)(?:\\s+(\\w+))*\\)$"
+    // Dungeon party tab lines end with the member's class + level in parentheses, e.g.
+    //   "[184] [MVP++] PlayerName (Archer 50)"  or  "[184] PlayerName (Healer XI)"  or  "... (DEAD)".
+    // The old full-line regex broke on rank tags containing '+' (\w doesn't match '+') and on the
+    // varied level formats, so it matched nothing → no glow. We now only extract the trailing class
+    // group and rely on the PlayerInfo's own profile name (never the parsed tab text) to find self.
+    private static final Pattern CLASS_SUFFIX = Pattern.compile(
+        "\\(([A-Za-z]+)(?:\\s+[^)]*)?\\)\\s*$"
     );
 
     public enum DungeonClass {
@@ -75,13 +79,19 @@ public final class TeammateGlowService {
             String tabLine = ChatFormatting.stripFormatting(info.getTabListDisplayName().getString());
             if (tabLine == null) continue;
 
-            Matcher m = TABLIST_REGEX.matcher(tabLine.trim());
-            if (!m.matches()) continue;
+            // A dungeon-party line has a trailing "(Class Level)" / "(DEAD)" group.
+            Matcher m = CLASS_SUFFIX.matcher(tabLine.trim());
+            if (!m.find()) continue;
 
-            String name = m.group(2);
-            String classStr = m.group(3);
+            String classStr = m.group(1);
             boolean dead = "DEAD".equalsIgnoreCase(classStr);
             DungeonClass dc = dead ? null : DungeonClass.fromName(classStr);
+            // Not a real party class ("EMPTY" slot etc.) and not dead → skip: not a teammate row.
+            if (!dead && dc == null) continue;
+
+            // Use the profile's real name, not the parsed tab text (which carries ranks/emblems).
+            String name = info.getProfile().name();
+            if (name == null || name.isEmpty()) name = tabLine;
 
             // Remember the local player's own class separately (kept out of the glow map).
             if (name.equalsIgnoreCase(selfName)) {

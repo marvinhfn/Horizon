@@ -94,16 +94,23 @@ public final class DungeonStateService {
             || normalized.contains("dungeon buff")
             || normalized.contains("blessing of");
 
-        // Any current sign we're still inside a dungeon (inBoss self-sustains the boss room, whose
-        // sidebar carries no "catacombs" line).
-        if (positiveDungeon || bossDetected || inBoss) {
+        // ARM inDungeon ONLY on positive catacombs signals. Generic boss-name words like "storm",
+        // "boss", "thorn" appear on plenty of non-dungeon scoreboards (other minigames, hub events),
+        // so they must NOT arm the state on their own — that was leaking dungeon features (score HUD,
+        // hide-non-starred mobs) into areas outside the Catacombs.
+        if (positiveDungeon) {
             inDungeon = true;
         }
 
-        // LATCH: only count "we left" when the sidebar is actually LOADED and shows no dungeon/boss
-        // signal at all. An empty sidebar (warp/loading) or a blood "kill mobs" phase doesn't count,
-        // so the state survives those transitions. Real exits (hub) clear within ~6s.
-        boolean loadedNonDungeon = loaded && !positiveDungeon && !bossDetected;
+        // SUSTAIN through the boss room (its sidebar lacks catacombs keywords) — but only when we
+        // were ALREADY inside a dungeon. A stray boss word on some other scoreboard can't keep us
+        // "in dungeon" because inDungeon would already be false there.
+        boolean dungeonSignal = positiveDungeon || (inDungeon && (bossDetected || inBoss));
+
+        // LATCH: only count "we left" when the sidebar is actually LOADED and shows no dungeon signal
+        // at all. An empty sidebar (warp/loading) or a blood "kill mobs" phase doesn't count, so the
+        // state survives those transitions. Real exits (hub) clear within ~6s.
+        boolean loadedNonDungeon = loaded && !dungeonSignal;
         if (loadedNonDungeon) {
             ticksSinceDungeonSeen++;
         } else {

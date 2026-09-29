@@ -1,10 +1,12 @@
 package de.horizon.feature.fishing;
 
+import de.horizon.HorizonClient;
 import de.horizon.HorizonSounds;
 import de.horizon.config.HorizonConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
@@ -65,6 +67,7 @@ public final class FishingAlertService {
 
     public void handleChatMessage(String raw, HorizonConfig config) {
         if (!config.isFishingRareAlertEnabled()) return;
+        if (isInDungeon()) return; // fishing can't happen in dungeons — kills F7 "Storm/Thunder" false triggers
         String plain = FORMATTING_STRIP.matcher(raw).replaceAll("").toLowerCase(Locale.ROOT);
         // Trophy frog/fish catches can share names with elusive creatures (e.g. Puddle Jumper).
         // Exclude them from triggering an alert – the entity scan will still catch the real spawn.
@@ -144,11 +147,15 @@ public final class FishingAlertService {
     public void tick(Minecraft mc, HorizonConfig config) {
         if (!config.isFishingRareAlertEnabled()) return;
         if (mc == null || mc.player == null || mc.level == null) return;
+        if (isInDungeon()) return; // no fishing in dungeons — avoids Storm/Thunder etc. false positives
         if (++tickCount % SCAN_INTERVAL_TICKS != 0) return;
 
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity == mc.player) continue;
+            // Only a REAL sea-creature mob counts. Armor-stand displays (e.g. the museum "Water Hydra
+            // Head") carry a matching name but are not living mobs, and must never trigger the alert.
+            if (!(entity instanceof Mob)) continue;
             if (Math.abs(entity.getX() - px) > SCAN_RADIUS
                     || Math.abs(entity.getY() - py) > SCAN_RADIUS
                     || Math.abs(entity.getZ() - pz) > SCAN_RADIUS) continue;
@@ -191,6 +198,11 @@ public final class FishingAlertService {
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────
+
+    private static boolean isInDungeon() {
+        HorizonClient hz = HorizonClient.getInstance();
+        return hz != null && hz.getDungeonStateService().isInDungeon();
+    }
 
     private void markNearbyEntitiesAsAlerted(ElusiveSeaCreature creature) {
         Minecraft mc = Minecraft.getInstance();
