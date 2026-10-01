@@ -64,6 +64,29 @@ public final class Ui {
         }
     }
 
+    /** Apple-style frosted panel: translucent base + top sheen + subtle accent rim. Theme-driven. */
+    public static void glassPanel(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius, Theme theme) {
+        glassPanel(ctx, x, y, w, h, radius, withAlpha(theme.surface, 0xD2), withAlpha(theme.accent, 0x66));
+    }
+
+    public static void glassPanel(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius,
+                                  int baseArgb, int accentArgb) {
+        if (w <= 0 || h <= 0) return;
+        // 1) translucent frosted base
+        roundedRect(ctx, x, y, w, h, radius, baseArgb);
+        // 2) top sheen — a soft highlight fading downward (the "glass" catch-light)
+        int sheenH = Math.max(2, Math.min(h / 2, 18));
+        int sheenTop = withAlpha(0xFFFFFF, 0x3A);
+        int sheenBot = withAlpha(0xFFFFFF, 0x00);
+        verticalGradient(ctx, x + radius, y + 1, w - radius * 2, sheenH, sheenTop, sheenBot);
+        // 3) subtle accent rim
+        outline(ctx, x, y, w, h, radius, 1, accentArgb);
+    }
+
+    private static int withAlpha(int rgb, int alpha) {
+        return (alpha << 24) | (rgb & 0x00FFFFFF);
+    }
+
     private static int lerp(int a, int b, float t) {
         int aa = (int) (((a >>> 24) & 0xFF) + (((b >>> 24) & 0xFF) - ((a >>> 24) & 0xFF)) * t);
         int ar = (int) (((a >>> 16) & 0xFF) + (((b >>> 16) & 0xFF) - ((a >>> 16) & 0xFF)) * t);
