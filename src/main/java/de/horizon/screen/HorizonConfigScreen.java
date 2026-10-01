@@ -4641,9 +4641,8 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
     private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame, Rect viewport, int accent) {
         // full-screen dim scrim
         context.fill(0, 0, width, height, 0x88000000);
-        // window background + border
-        Ui.roundedRect(context, frame.x, frame.y, frame.width, frame.height, 10, col_window());
-        Ui.outline(context, frame.x, frame.y, frame.width, frame.height, 10, 1, theme().borderSubtle);
+        // window background — Apple-style frosted glass with theme-accent rim
+        Ui.glassPanel(context, frame.x, frame.y, frame.width, frame.height, 10, theme());
         // header strip as a vertical gradient
         Ui.verticalGradient(context, frame.x, frame.y, frame.width, 34, theme().surface, theme().surfaceAlt);
         // search field as a pill

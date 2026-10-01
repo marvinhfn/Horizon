@@ -78,6 +78,8 @@ public final class StorageOverlayService {
     private final List<int[]> hubNav = new ArrayList<>(); // {x, y, w, h, enderPageNumber}
     private final List<int[]> pageNav = new ArrayList<>(); // page-overlay nav rects {x, y, w, h}
     private final List<Page> pageNavPages = new ArrayList<>(); // parallel to pageNav: the page each rect opens
+    // Cells of slots that are live + visible this frame (full 18px cell, screen coords).
+    private final List<int[]> liveSlotCells = new ArrayList<>(); // {x, y} of the CELL top-left (size = CELL)
 
     // Shared state (one scroll value so the hub overview and page overlay stay at the same position)
     private String search = "";
@@ -375,6 +377,14 @@ public final class StorageOverlayService {
         int height = screen.height;
         Font font = Minecraft.getInstance().font;
 
+        // Overview is read-only: park ALL vanilla slots (incl. the player inventory) off-screen so the
+        // Minecraft inventory is hidden the moment the "Storage" menu opens, not only on a page.
+        for (Slot s : screen.getMenu().slots) setPos(s, -9999, -9999);
+
+        de.horizon.screen.render.Ui.glassPanel(ctx, 8, 4, width - 16, height - 8, 10,
+            de.horizon.theme.ThemeManager.current());
+        de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 4, width, height - 8);
+
         ctx.text(font, Component.literal("§bStorage"), 16, 10, accent());
         ctx.text(font, Component.literal("§8[X] / ESC → Menü"), 60, 12, muted());
 
@@ -540,10 +550,15 @@ public final class StorageOverlayService {
         acc.setImageWidth(width);
         acc.setImageHeight(height);
 
+        de.horizon.screen.render.Ui.glassPanel(ctx, 8, 4, width - 16, height - 8, 10,
+            de.horizon.theme.ThemeManager.current());
+        de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 4, width, height - 8);
+
         String curKey = pageKeyOf(screen);
         String query = search.trim().toLowerCase(Locale.ROOT);
         pageNav.clear();
         pageNavPages.clear();
+        liveSlotCells.clear();
         for (Slot s : menu.slots) setPos(s, -9999, -9999); // park all; visible ones re-placed below
 
         ctx.text(font, Component.literal("§bStorage"), 16, 10, accent());
@@ -566,6 +581,7 @@ public final class StorageOverlayService {
             int cy = invTop + 12 + row * CELL + (cs < 9 ? 4 : 0);
             drawCellBg(ctx, cx, cy, matches(s.getItem(), query));
             setPos(s, cx + 1, cy + 1);
+            liveSlotCells.add(new int[]{cx, cy});
         }
 
         // Storage pages (scroll area, 3 across).
@@ -621,6 +637,7 @@ public final class StorageOverlayService {
                         Slot s = storageSlots.get(i);
                         drawCellBg(ctx, cx, cy, matches(s.getItem(), query));
                         setPos(s, cx + 1, cy + 1); // real slot → vanilla renders + handles it
+                        liveSlotCells.add(new int[]{cx, cy});
                     } else if (placeholder) {
                         ctx.fill(cx, cy, cx + CELL, cy + CELL, 0x40FFFFFF);
                     } else {
@@ -653,10 +670,12 @@ public final class StorageOverlayService {
 
     /** @return true if consumed. Real slots are left to vanilla; cached pages navigate; empty swallows. */
     public boolean onPageClick(AbstractContainerScreen<?> screen, double mx, double my) {
-        AbstractContainerMenu menu = screen.getMenu();
-        for (Slot s : menu.slots) {
-            if (s.x > -1000 && mx >= s.x && mx < s.x + 16 && my >= s.y && my < s.y + 16) {
-                return false; // a real (relocated) slot → vanilla handles it natively
+        // Forward to vanilla ONLY when the click lands inside the full drawn cell (CELL px) of a
+        // slot that is live + visible this frame. Gaps, headers and empty space are swallowed so
+        // nothing falls through to the hidden vanilla layer behind the overlay.
+        for (int[] c : liveSlotCells) {
+            if (mx >= c[0] && mx < c[0] + CELL && my >= c[1] && my < c[1] + CELL) {
+                return false; // real (relocated) slot → vanilla handles it natively
             }
         }
         for (int i = 0; i < pageNav.size() && i < pageNavPages.size(); i++) {
@@ -666,7 +685,7 @@ public final class StorageOverlayService {
                 return true;
             }
         }
-        return true; // empty overlay space → swallow (prevents a vanilla drop/close)
+        return true; // empty overlay space → swallow (prevents a vanilla drop/close/click-through)
     }
 
     public boolean onPageScroll(AbstractContainerScreen<?> screen, double vertical) {
