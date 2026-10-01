@@ -50,6 +50,10 @@ public final class ExperimentTableSolver {
     private static final Set<String> PLACEHOLDER_NAMES = Set.of(
         "click any button!", "click a second button!", "?", "");
 
+    private static final Set<String> LORENZ_COLOR_NAMES = Set.of(
+        "BLACK", "DARK_BLUE", "DARK_GREEN", "DARK_AQUA", "DARK_RED", "DARK_PURPLE", "GOLD", "GRAY",
+        "DARK_GRAY", "BLUE", "GREEN", "AQUA", "RED", "LIGHT_PURPLE", "YELLOW", "WHITE");
+
     private static final int GREEN = 0xFF44FF44;  // next click
     private static final int YELLOW = 0xFFFFFF44;  // the click after
 
@@ -166,7 +170,7 @@ public final class ExperimentTableSolver {
         List<String> activeColors = new ArrayList<>();
         for (ItemStack st : items.values()) {
             if (!isTerracotta(st)) continue;
-            String c = colorName(st);
+            String c = lorenzColorKeyOrNull(st);
             if (c != null && !activeColors.contains(c)) activeColors.add(c);
         }
 
@@ -189,10 +193,13 @@ public final class ExperimentTableSolver {
 
         boolean shouldReadLastReplicate = oldPhase == HelperPhase.READ || hypixelSizeNow < currentChronomatronRound;
         boolean isReadingReady = oldPhase == null || oldPhase == HelperPhase.READ;
-        boolean shouldNotReadYet = switch (currentAddonPhase) {
-            case REPLICATE -> !shouldReadLastReplicate;
-            case READ -> !isReadingReady;
-        };
+        boolean shouldNotReadYet;
+        switch (currentAddonPhase) {
+            case REPLICATE -> shouldNotReadYet = !shouldReadLastReplicate;
+            case READ -> shouldNotReadYet = !isReadingReady;
+            default -> shouldNotReadYet =
+                userSizeNow < hypixelSizeNow || (lastChronomatronSound == FAR_PAST && chronomatronSequenceIndex != 0);
+        }
         if (shouldNotReadYet) return;
 
         if (chronomatronSequenceIndex == hypixelSizeNow) {
@@ -226,12 +233,15 @@ public final class ExperimentTableSolver {
         ordered.sort((a, b) -> Integer.compare(a.sequenceNumber, b.sequenceNumber));
 
         boolean isOld = currentUltraSequencerRound != ordered.size();
-        boolean alreadyKnown = hypixelUltrasequencerData.size() == ordered.size();
+        // SkyHanni uses hypixelChronomatronData.size() here on purpose (≈0 during Ultrasequencer) so the
+        // board is RE-READ every inventory update and the order is always current. Do NOT "fix" this to
+        // the ultrasequencer list — that locks in the first (often partial) read and highlights the wrong order.
+        boolean alreadyKnown = hypixelChronomatronData.size() == ordered.size();
         if (isOld || alreadyKnown) return;
 
         hypixelUltrasequencerData.clear();
         userUltrasequencerProgress.clear();
-        for (UltraSlot s : ordered) hypixelUltrasequencerData.add(s.slotIndex);
+        for (UltraSlot s : ordered) hypixelUltrasequencerData.add(s.slotIndex());
     }
 
     // ── Slot clicks (advance the replicate phase) ───────────────────────────────
@@ -247,7 +257,7 @@ public final class ExperimentTableSolver {
     private boolean handleChronomatronClick(ItemStack stack) {
         if (userChronomatronProgress.size() == hypixelChronomatronData.size()) return false;
         String expected = hypixelChronomatronData.get(userChronomatronProgress.size());
-        String clicked = colorName(stack);
+        String clicked = lorenzColorKeyOrNull(stack);
         if (clicked == null || !clicked.equals(expected)) return PREVENT_MISCLICKS;
         userChronomatronProgress.add(clicked);
         return false;
@@ -274,7 +284,7 @@ public final class ExperimentTableSolver {
         if (game == Game.CHRONOMATRON) {
             String next = hypixelChronomatronData.size() > userChronomatronProgress.size()
                     ? hypixelChronomatronData.get(userChronomatronProgress.size()) : null;
-            String c = colorName(original);
+            String c = lorenzColorKeyOrNull(original);
             if (next != null && next.equals(c)) {
                 ItemStack copy = original.copy();
                 copy.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
@@ -336,7 +346,7 @@ public final class ExperimentTableSolver {
                 ? hypixelChronomatronData.get(userChronomatronProgress.size() + 1) : null;
         if (next == null && nextNext == null) return;
         for (Map.Entry<Integer, Slot> e : board.entrySet()) {
-            String c = colorName(e.getValue().getItem());
+            String c = lorenzColorKeyOrNull(e.getValue().getItem());
             if (c == null) continue;
             if (c.equals(next)) highlights.put(e.getKey(), GREEN);
             else if (c.equals(nextNext)) highlights.put(e.getKey(), YELLOW);
@@ -345,11 +355,23 @@ public final class ExperimentTableSolver {
 
     private void highlightUltrasequencer(Map<Integer, Slot> board, Map<Integer, Integer> highlights) {
         if (!HIGHLIGHT_NEXT_CLICK || currentAddonPhase != HelperPhase.REPLICATE || currentUltraSequencerRound < 1) return;
-        int nextPos = userUltrasequencerProgress.size();
-        Integer nextSlot = nextPos < hypixelUltrasequencerData.size() ? hypixelUltrasequencerData.get(nextPos) : null;
-        Integer nextNextSlot = nextPos + 1 < hypixelUltrasequencerData.size() ? hypixelUltrasequencerData.get(nextPos + 1) : null;
-        if (nextSlot != null && board.containsKey(nextSlot)) highlights.put(nextSlot, GREEN);
-        if (nextNextSlot != null && board.containsKey(nextNextSlot)) highlights.put(nextNextSlot, YELLOW);
+        // Remaining slots in sequence order, starting at the next one the user must click.
+        List<Integer> remaining = new ArrayList<>();
+        for (int i = userUltrasequencerProgress.size(); i < hypixelUltrasequencerData.size(); i++) {
+            int slotIdx = hypixelUltrasequencerData.get(i);
+            if (board.containsKey(slotIdx)) remaining.add(slotIdx);
+        }
+        for (int order = 0; order < remaining.size(); order++) {
+            int slotIdx = remaining.get(order);
+            int color;
+            if (order == 0) {
+                color = GREEN; // next click, full colour
+            } else {
+                int alpha = 255 / order; // SkyHanni: addAlpha(255 / slotIndex) falloff
+                color = (alpha << 24) | (YELLOW & 0x00FFFFFF);
+            }
+            highlights.put(slotIdx, color);
+        }
     }
 
     // ── Superpairs (unchanged behaviour: learn + re-show revealed rewards) ───────
@@ -387,10 +409,21 @@ public final class ExperimentTableSolver {
         return id.endsWith("_terracotta") || id.equals("stained_hardened_clay");
     }
 
-    /** Cleaned single-word display name, or null when empty. Used as the Chronomatron colour key. */
-    private static String colorName(ItemStack stack) {
-        String s = colorNameRaw(stack);
-        return s.isEmpty() ? null : s;
+    /** SkyHanni's SafeItemStack.getLorenzColorOrNull(): canonical colour key, or null. */
+    private static String lorenzColorKeyOrNull(ItemStack stack) {
+        String clean = colorNameRaw(stack);
+        if (clean.isEmpty()) return null;
+        switch (clean) {
+            case "Green":  return "DARK_GREEN";
+            case "Lime":   return "GREEN";
+            case "Pink":   return "LIGHT_PURPLE";
+            case "Cyan":   return "DARK_AQUA";
+            case "Orange": return "GOLD";
+            case "Purple": return "DARK_PURPLE";
+            default:
+                String up = clean.toUpperCase(Locale.ROOT);
+                return LORENZ_COLOR_NAMES.contains(up) ? up : null; // runCatching { valueOf } getOrNull
+        }
     }
 
     private static String colorNameRaw(ItemStack stack) {
