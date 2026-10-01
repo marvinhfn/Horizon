@@ -336,8 +336,9 @@ public final class TerminalSolverService {
         ctx.pose().scale(s, s);
 
         drawCenteredString(ctx, font, currentType.label(), offsetX + width / 2f, offsetY - 15f, config.getTermColorTitle(), 1.2f);
-        drawRect(ctx, offsetX, offsetY, width, height, config.getTermColorBackground());
-        drawBorder(ctx, offsetX, offsetY, width, height, config.getTermColorBorder(), 1);
+        de.horizon.screen.render.Ui.glassPanel(ctx, (int) offsetX - 6, (int) offsetY - 6, width + 12, height + 12, 8,
+            de.horizon.theme.ThemeManager.current());
+        de.horizon.screen.render.CherryBlossom.renderSides(ctx, (int) offsetX - 96, (int) offsetY - 6, (int) (offsetX + width) + 96, height + 12);
 
         int baseColor = solutionColor(config);
         for (int index = 0; index < solution.size(); index++) {

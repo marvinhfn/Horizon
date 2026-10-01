@@ -85,8 +85,7 @@ public final class MusicHudElement implements HudElement {
         ctx.pose().scale(scale, scale);
 
         // Panel background
-        ctx.fill(0, 0, BASE_W, BASE_H, HudStyle.backdrop());
-        ctx.fill(0, 0, BASE_W, 1, HudStyle.accent());
+        de.horizon.screen.render.Ui.glassPanel(ctx, 0, 0, BASE_W, BASE_H, 8, de.horizon.theme.ThemeManager.current());
 
         // Album cover (or placeholder)
         if (!editMode && albumArt.isReady(artUrl)) {

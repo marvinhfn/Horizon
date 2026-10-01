@@ -381,6 +381,10 @@ public final class StorageOverlayService {
         // Minecraft inventory is hidden the moment the "Storage" menu opens, not only on a page.
         for (Slot s : screen.getMenu().slots) setPos(s, -9999, -9999);
 
+        de.horizon.screen.render.Ui.glassPanel(ctx, 8, 4, width - 16, height - 8, 10,
+            de.horizon.theme.ThemeManager.current());
+        de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 4, width, height - 8);
+
         ctx.text(font, Component.literal("§bStorage"), 16, 10, accent());
         ctx.text(font, Component.literal("§8[X] / ESC → Menü"), 60, 12, muted());
 
@@ -545,6 +549,10 @@ public final class StorageOverlayService {
         acc.setTopPos(0);
         acc.setImageWidth(width);
         acc.setImageHeight(height);
+
+        de.horizon.screen.render.Ui.glassPanel(ctx, 8, 4, width - 16, height - 8, 10,
+            de.horizon.theme.ThemeManager.current());
+        de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 4, width, height - 8);
 
         String curKey = pageKeyOf(screen);
         String query = search.trim().toLowerCase(Locale.ROOT);
