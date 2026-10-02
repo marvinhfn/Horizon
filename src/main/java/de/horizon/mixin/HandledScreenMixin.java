@@ -130,6 +130,7 @@ public abstract class HandledScreenMixin {
     @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true)
     private void horizon$cancelLabelsForStorage(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
         HorizonClient h = HorizonClient.getInstance();
-        if (h != null && h.isStoragePageActive((AbstractContainerScreen<?>) (Object) this)) ci.cancel();
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        if (h != null && (h.isStoragePageActive(screen) || h.isStorageOverviewOpen(screen))) ci.cancel();
     }
 }

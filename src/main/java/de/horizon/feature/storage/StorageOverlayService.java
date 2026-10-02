@@ -86,7 +86,6 @@ public final class StorageOverlayService {
     private int scrollOffset = 0;
     private int contentHeight = 0;
     private boolean overviewOpen = true;
-    private boolean diagLogged = false; // one-shot screen-class diagnostic
     private static final int BTN_X = 4, BTN_Y = 4, BTN_W = 78, BTN_H = 14;
 
     // Interactive page state
@@ -382,21 +381,6 @@ public final class StorageOverlayService {
         // Minecraft inventory is hidden the moment the "Storage" menu opens, not only on a page.
         for (Slot s : screen.getMenu().slots) setPos(s, -9999, -9999);
 
-        // One-shot diagnostic: log the real screen class + detection flags so the vanilla panel can be
-        // cancelled for this exact class (the ContainerScreen background-cancel mixin may not catch it).
-        if (!diagLogged) {
-            diagLogged = true;
-            Minecraft mcd = Minecraft.getInstance();
-            if (mcd != null && mcd.player != null) {
-                mcd.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "§b[HRZN diag] storage screen=§f" + screen.getClass().getName()
-                        + " §btitle=§f'" + strip(screen.getTitle().getString()).strip() + "'"
-                        + " §bisMenu=§f" + isStorageMenu(screen) + " §boverview=§f" + overviewOpen));
-            }
-        }
-        // Stopgap dim until the exact screen class is known (see diagnostic): strongly dims the vanilla
-        // menu that leaks behind the translucent glass, without fully hiding the game like an opaque fill.
-        ctx.fill(0, 0, width, height, 0x99000000);
         de.horizon.screen.render.Ui.glassPanel(ctx, 8, 4, width - 16, height - 8, 10,
             de.horizon.theme.ThemeManager.current());
         de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 0, width, height);
@@ -591,11 +575,10 @@ public final class StorageOverlayService {
         for (Slot s : menu.slots) {
             if (!(s.container instanceof Inventory)) continue;
             int cs = s.getContainerSlot();
-            if (cs < 9) continue; // hide the hotbar row entirely while in the storage overlay (stays parked)
-            int col = (cs - 9) % 9;
-            int row = (cs - 9) / 9;
+            int col = cs < 9 ? cs : (cs - 9) % 9;
+            int row = cs < 9 ? 3 : (cs - 9) / 9;
             int cx = invOx + col * CELL;
-            int cy = invTop + 12 + row * CELL;
+            int cy = invTop + 12 + row * CELL + (cs < 9 ? 4 : 0);
             drawCellBg(ctx, cx, cy, matches(s.getItem(), query));
             setPos(s, cx + 1, cy + 1);
             liveSlotCells.add(new int[]{cx, cy});

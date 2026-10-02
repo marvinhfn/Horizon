@@ -4052,7 +4052,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         int left = sidebarRect(frame).right() + 18;
         int top;
         if (activeTab == Tab.DUNGEON || activeTab == Tab.MUSIC_CONTROL
-                || activeTab == Tab.CHAT || activeTab == Tab.INVENTORY) {
+                || activeTab == Tab.CHAT || activeTab == Tab.INVENTORY || activeTab == Tab.DISPLAY) {
             top = frame.y + 62;
         } else if (activeTab == Tab.SCOREBOARD) {
             top = frame.y + 80;
@@ -4647,31 +4647,35 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         return new Rect(ox + 198, oy + 58, 110, 22);
     }
 
+    private static final int HEADER_H = 34; // header band height
+
     private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame, Rect viewport, int accent, int mouseX, int mouseY) {
         // full-screen dim scrim
-        context.fill(0, 0, width, height, 0xB0000000);
-        // window background — opaque readable surface with a smooth AA border + a faint top sheen
-        Ui.card(context, frame.x, frame.y, frame.width, frame.height, 12,
-            theme().background | 0xFF000000, blend(theme().accent, theme().borderSubtle, 0.5f));
-        Ui.verticalGradient(context, frame.x + 12, frame.y + 1, frame.width - 24, 12,
-            withAlpha(0xFFFFFF, 0x12), withAlpha(0xFFFFFF, 0x00));
-
-        // header: wordmark + accent dot, then a soft divider flush under it
-        int dotY = frame.y + 15;
-        Ui.roundedRect(context, frame.x + 14, dotY, 6, 6, 3, accent);
-        drawTextLine(context, frame.x + 26, frame.y + 12, "HORIZON", accent);
-        Ui.softDivider(context, frame.x + 12, frame.y + 30, frame.width - 24, withAlpha(accent, 0x55));
-
-        drawSearchField(context, frame, accent);
-        drawCloseButton(context, frame, mouseX, mouseY);
+        context.fill(0, 0, width, height, 0xB4000000);
+        // window body — frosted glass: translucent-but-readable surface + top sheen + accent rim
+        Ui.glassPanel(context, frame.x, frame.y, frame.width, frame.height, 12,
+            withAlpha(theme().surface, 0xEE), withAlpha(theme().accent, 0x99));
+        drawHeader(context, frame, accent, mouseX, mouseY);
     }
 
+    /** Re-drawn after the content so scrolled rows never bleed over the header band. */
     private void drawHeaderMask(GuiGraphicsExtractor context, Rect frame, int accent, int mouseX, int mouseY) {
-        // opaque band hiding any content scrolled under the header (inset to respect the rounded border)
-        context.fill(frame.x + 2, frame.y + 1, frame.right() - 2, frame.y + 31, theme().background | 0xFF000000);
-        Ui.roundedRect(context, frame.x + 14, frame.y + 15, 6, 6, 3, accent);
-        drawTextLine(context, frame.x + 26, frame.y + 12, "HORIZON", accent);
-        Ui.softDivider(context, frame.x + 12, frame.y + 30, frame.width - 24, withAlpha(accent, 0x55));
+        drawHeader(context, frame, accent, mouseX, mouseY);
+    }
+
+    /** A distinct, opaque, accent-tinted header band with a rounded top (also masks scrolled content). */
+    private void drawHeader(GuiGraphicsExtractor context, Rect frame, int accent, int mouseX, int mouseY) {
+        // opaque band with the window's rounded top corners (scissor so only the band height shows)
+        context.enableScissor(frame.x, frame.y, frame.right(), frame.y + HEADER_H);
+        Ui.roundedRect(context, frame.x, frame.y, frame.width, frame.height, 12,
+            blend(theme().background, theme().accent, 0.16f));
+        Ui.verticalGradient(context, frame.x + 2, frame.y + 1, frame.width - 4, HEADER_H - 2,
+            withAlpha(theme().accent, 0x1E), withAlpha(theme().accent, 0x06));
+        context.disableScissor();
+        // wordmark (accent dot + title), soft divider flush at the band's bottom edge
+        Ui.roundedRect(context, frame.x + 14, frame.y + 14, 6, 6, 3, accent);
+        drawTextLine(context, frame.x + 26, frame.y + 11, "HORIZON", accent);
+        Ui.softDivider(context, frame.x + 10, frame.y + HEADER_H - 1, frame.width - 20, withAlpha(accent, 0x66));
         drawSearchField(context, frame, accent);
         drawCloseButton(context, frame, mouseX, mouseY);
     }
