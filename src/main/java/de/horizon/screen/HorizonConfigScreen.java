@@ -717,15 +717,12 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         Rect contentClip = contentClipRect(frame);
         int accent = accentColor();
 
-        drawWindowChrome(context, frame, viewport, accent);
+        drawWindowChrome(context, frame, viewport, accent, mouseX, mouseY);
 
         for (int index = 0; index < Tab.values().length; index++) {
             boolean active = Tab.values()[index] == activeTab;
             Rect rect = sidebarTabRect(sidebar, index);
-            if (active) {
-                Ui.pill(context, rect.x - 2, rect.y - 1, rect.width + 4, rect.height + 2, theme().accent);
-            }
-            drawTextLine(context, rect.x, rect.y, (active ? "> " : "  ") + Tab.values()[index].label(), active ? theme().onAccent : theme().textMuted);
+            drawSidebarTab(context, rect, Tab.values()[index].label(), active, mouseX, mouseY);
         }
 
         if (activeTab == Tab.DUNGEON) {
@@ -844,7 +841,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         if (showReloadPopup) {
             drawReloadPopup(context, frame, accent);
         }
-        drawHeaderMask(context, frame, accent);
+        drawHeaderMask(context, frame, accent, mouseX, mouseY);
 
         super.extractRenderState(context, mouseX, mouseY, delta);
     }
@@ -906,10 +903,10 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
             int cy = y;
             Rect chipRect = new Rect(cx, cy, chipSize, chipSize);
             themeChipRects.add(chipRect);
-            Ui.roundedRect(context, cx, cy, chipSize, chipSize, 5, f.chip());
             if (f == de.horizon.theme.ThemeManager.family()) {
-                Ui.outline(context, cx - 2, cy - 2, chipSize + 4, chipSize + 4, 6, 2, theme().accent);
+                Ui.roundedRect(context, cx - 3, cy - 3, chipSize + 6, chipSize + 6, 8, theme().accent);
             }
+            Ui.roundedRect(context, cx, cy, chipSize, chipSize, 5, f.chip());
         }
         y += 30; // chip row height
         // Dark mode toggle row
@@ -2600,13 +2597,25 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         int right = x + CONTENT_ROW_WIDTH + 1;
         int w = right - left;
         int h = bottom - top;
-        Ui.roundedRect(context, left, top, w, h, 6, focused ? col_cardFocused() : col_card());
-        Ui.outline(context, left, top, w, h, 6, 1, theme().borderSubtle);
-        context.fill(left, top, left + 3, bottom, markerColor);
+        Ui.card(context, left, top, w, h, 6, focused ? col_cardFocused() : col_card(),
+            focused ? withAlpha(theme().accent, 0x99) : withAlpha(theme().borderSubtle, 0xCC));
+        Ui.roundedRect(context, left, top, 3, h, 0, markerColor);
     }
 
     private void drawTextLine(GuiGraphicsExtractor context, int x, int y, String text, int color) {
         context.text(font, Fonts.of(text), x, y, color, false);
+    }
+
+    /** Modern sidebar tab: filled accent pill when active, faint pill on hover, muted when idle. */
+    private void drawSidebarTab(GuiGraphicsExtractor context, Rect rect, String label, boolean active, int mx, int my) {
+        int px = rect.x - 8, py = rect.y - 3, pw = rect.width + 16, ph = LINE_HEIGHT + 6;
+        boolean hover = mx >= px && mx < px + pw && my >= py && my < py + ph;
+        if (active) {
+            Ui.roundedRect(context, px, py, pw, ph, 6, theme().accent);
+        } else if (hover) {
+            Ui.roundedRect(context, px, py, pw, ph, 6, withAlpha(theme().surface, 0xCC));
+        }
+        drawTextLine(context, rect.x, rect.y, label, active ? theme().onAccent : (hover ? col_text() : col_muted()));
     }
 
     private String fieldValue(String value, boolean focused) {
@@ -4081,7 +4090,9 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
     }
 
     private int accentColor() {
-        return HudStyle.accent(config());
+        // The config screen reflects the SELECTED theme family (header, search, tabs, X, toggles all
+        // recolour together) — not the separate HUD accent override.
+        return theme().accent;
     }
 
     private de.horizon.theme.Theme theme() { return de.horizon.theme.ThemeManager.current(); }
@@ -4599,8 +4610,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         int w = 320, h = 94;
         int ox = frame.x + (frame.width - w) / 2;
         int oy = frame.y + (frame.height - h) / 2;
-        Ui.roundedRect(context, ox, oy, w, h, 8, col_card());
-        Ui.outline(context, ox, oy, w, h, 8, 1, theme().borderSubtle);
+        Ui.card(context, ox, oy, w, h, 8, col_card(), withAlpha(theme().accent, 0x66));
         drawTextLine(context, ox + 12, oy + 12, Lang.t("Globale Aenderung", "Global Change"), col_text());
         drawTextLine(context, ox + 12, oy + 28, "\"" + pendingGlobalToggleLabel + "\"" + Lang.t(" fuer alle Islands toggeln?", " toggle for all islands?"), col_muted());
         Rect yes = confirmYesRect(frame);
@@ -4615,8 +4625,7 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         int w = 280, h = 82;
         int ox = frame.x + (frame.width - w) / 2;
         int oy = frame.y + (frame.height - h) / 2;
-        Ui.roundedRect(context, ox, oy, w, h, 8, col_card());
-        Ui.outline(context, ox, oy, w, h, 8, 1, theme().borderSubtle);
+        Ui.card(context, ox, oy, w, h, 8, col_card(), withAlpha(theme().accent, 0x66));
         drawTextLine(context, ox + 12, oy + 12, Lang.t("Config Reload", "Config Reload"), col_text());
         drawTextLine(context, ox + 12, oy + 28, Lang.t("Konfiguration wurde neu geladen.", "Configuration reloaded successfully."), col_muted());
         int bw = 80, bx = ox + (w - bw) / 2, by = oy + h - 28;
@@ -4638,29 +4647,65 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         return new Rect(ox + 198, oy + 58, 110, 22);
     }
 
-    private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame, Rect viewport, int accent) {
+    private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame, Rect viewport, int accent, int mouseX, int mouseY) {
         // full-screen dim scrim
-        context.fill(0, 0, width, height, 0x88000000);
-        // window background — Apple-style frosted glass with theme-accent rim
-        Ui.glassPanel(context, frame.x, frame.y, frame.width, frame.height, 10, theme());
-        // header strip as a vertical gradient
-        Ui.verticalGradient(context, frame.x, frame.y, frame.width, 34, theme().surface, theme().surfaceAlt);
-        // search field as a pill
-        Rect search = searchRect(frame);
-        Ui.pill(context, search.x - 4, search.y - 3, search.width + 8, search.height + 4, theme().surfaceAlt);
-        drawTextLine(context, search.x, search.y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : col_text());
-        drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
-        drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", col_warning());
+        context.fill(0, 0, width, height, 0xB0000000);
+        // window background — opaque readable surface with a smooth AA border + a faint top sheen
+        Ui.card(context, frame.x, frame.y, frame.width, frame.height, 12,
+            theme().background | 0xFF000000, blend(theme().accent, theme().borderSubtle, 0.5f));
+        Ui.verticalGradient(context, frame.x + 12, frame.y + 1, frame.width - 24, 12,
+            withAlpha(0xFFFFFF, 0x12), withAlpha(0xFFFFFF, 0x00));
+
+        // header: wordmark + accent dot, then a soft divider flush under it
+        int dotY = frame.y + 15;
+        Ui.roundedRect(context, frame.x + 14, dotY, 6, 6, 3, accent);
+        drawTextLine(context, frame.x + 26, frame.y + 12, "HORIZON", accent);
+        Ui.softDivider(context, frame.x + 12, frame.y + 30, frame.width - 24, withAlpha(accent, 0x55));
+
+        drawSearchField(context, frame, accent);
+        drawCloseButton(context, frame, mouseX, mouseY);
     }
 
-    private void drawHeaderMask(GuiGraphicsExtractor context, Rect frame, int accent) {
-        Ui.verticalGradient(context, frame.x, frame.y, frame.width, 34, theme().surface, theme().surfaceAlt);
-        Ui.outline(context, frame.x, frame.y, frame.width, frame.height, 10, 1, theme().borderSubtle);
-        drawTextLine(context, frame.x + 12, frame.y + 12, "HORIZON", accent);
-        Rect search = searchRect(frame);
-        Ui.pill(context, search.x - 4, search.y - 3, search.width + 8, search.height + 4, theme().surfaceAlt);
-        drawTextLine(context, search.x, search.y + 2, Lang.t("Suche: ", "Search: ") + fieldValue(globalSearchInput, inputFocus == InputFocus.GLOBAL_SEARCH), inputFocus == InputFocus.GLOBAL_SEARCH ? accent : col_text());
-        drawTextLine(context, closeRect(frame).x, closeRect(frame).y + 2, "[X]", col_warning());
+    private void drawHeaderMask(GuiGraphicsExtractor context, Rect frame, int accent, int mouseX, int mouseY) {
+        // opaque band hiding any content scrolled under the header (inset to respect the rounded border)
+        context.fill(frame.x + 2, frame.y + 1, frame.right() - 2, frame.y + 31, theme().background | 0xFF000000);
+        Ui.roundedRect(context, frame.x + 14, frame.y + 15, 6, 6, 3, accent);
+        drawTextLine(context, frame.x + 26, frame.y + 12, "HORIZON", accent);
+        Ui.softDivider(context, frame.x + 12, frame.y + 30, frame.width - 24, withAlpha(accent, 0x55));
+        drawSearchField(context, frame, accent);
+        drawCloseButton(context, frame, mouseX, mouseY);
+    }
+
+    /** Modern search field: rounded pill, muted placeholder (no "<leer>"), accent focus ring. */
+    private void drawSearchField(GuiGraphicsExtractor context, Rect frame, int accent) {
+        Rect s = searchRect(frame);
+        boolean focus = inputFocus == InputFocus.GLOBAL_SEARCH;
+        Ui.pillBordered(context, s.x - 8, s.y - 4, s.width + 16, s.height + 7, theme().surface,
+            focus ? accent : withAlpha(theme().borderSubtle, 0xAA));
+        boolean empty = globalSearchInput == null || globalSearchInput.isBlank();
+        String text = empty && !focus ? Lang.t("Suche …", "Search …")
+            : globalSearchInput + (focus && (System.currentTimeMillis() / 400L) % 2L == 0L ? "_" : "");
+        drawTextLine(context, s.x, s.y + 2, text, empty && !focus ? col_muted() : col_text());
+    }
+
+    /** Modern close button: rounded square, warm danger tint on hover, × glyph. */
+    private void drawCloseButton(GuiGraphicsExtractor context, Rect frame, int mouseX, int mouseY) {
+        Rect c = closeRect(frame);
+        boolean hover = mouseX >= c.x - 4 && mouseX < c.x + 16 && mouseY >= c.y - 3 && mouseY < c.y + 17;
+        Ui.card(context, c.x - 4, c.y - 3, 20, 20, 6,
+            hover ? withAlpha(theme().danger, 0x33) : theme().surface,
+            hover ? theme().danger : withAlpha(theme().borderSubtle, 0xAA));
+        context.centeredText(font, net.minecraft.network.chat.Component.literal("✕"),
+            c.x + 6, c.y + 3, hover ? theme().danger : col_muted());
+    }
+
+    private static int withAlpha(int rgb, int alpha) { return (alpha << 24) | (rgb & 0x00FFFFFF); }
+
+    private static int blend(int a, int b, float t) {
+        int ar = (a >>> 16) & 0xFF, ag = (a >>> 8) & 0xFF, ab = a & 0xFF;
+        int br = (b >>> 16) & 0xFF, bg = (b >>> 8) & 0xFF, bb = b & 0xFF;
+        int r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+        return 0xFF000000 | (r << 16) | (g << 8) | bl;
     }
 
     enum Tab {

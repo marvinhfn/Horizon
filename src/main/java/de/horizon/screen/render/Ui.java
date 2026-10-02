@@ -50,6 +50,27 @@ public final class Ui {
         roundedRect(ctx, x, y, w, h, h / 2, color);
     }
 
+    /** Filled rounded rect with a smooth 1px AA border (no pixel-steppy corners). */
+    public static void card(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius, int fill, int border) {
+        roundedRect(ctx, x, y, w, h, radius, border);
+        roundedRect(ctx, x + 1, y + 1, w - 2, h - 2, Math.max(0, radius - 1), fill);
+    }
+
+    /** Filled pill with a smooth 1px AA border. */
+    public static void pillBordered(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int fill, int border) {
+        card(ctx, x, y, w, h, h / 2, fill, border);
+    }
+
+    /** A soft horizontal hairline that fades at both ends (modern divider). */
+    public static void softDivider(GuiGraphicsExtractor ctx, int x, int y, int w, int color) {
+        int mid = w / 2;
+        for (int i = 0; i < w; i++) {
+            float t = 1f - Math.abs(i - mid) / (float) Math.max(1, mid); // 0 at ends, 1 at middle
+            int a = (int) (((color >>> 24) & 0xFF) * t);
+            ctx.fill(x + i, y, x + i + 1, y + 1, (a << 24) | (color & 0xFFFFFF));
+        }
+    }
+
     public static void toggle(GuiGraphicsExtractor ctx, int x, int y, int w, int h, boolean on, Theme theme) {
         pill(ctx, x, y, w, h, on ? theme.toggleOn : theme.toggleOff);
         int knob = h - 4;

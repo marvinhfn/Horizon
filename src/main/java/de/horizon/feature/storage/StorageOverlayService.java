@@ -86,6 +86,7 @@ public final class StorageOverlayService {
     private int scrollOffset = 0;
     private int contentHeight = 0;
     private boolean overviewOpen = true;
+    private boolean diagLogged = false; // one-shot screen-class diagnostic
     private static final int BTN_X = 4, BTN_Y = 4, BTN_W = 78, BTN_H = 14;
 
     // Interactive page state
@@ -381,13 +382,24 @@ public final class StorageOverlayService {
         // Minecraft inventory is hidden the moment the "Storage" menu opens, not only on a page.
         for (Slot s : screen.getMenu().slots) setPos(s, -9999, -9999);
 
-        // Full-screen opaque backdrop FIRST (like the Leap menu): the vanilla chest panel + player
-        // inventory are drawn in the extract phase BEFORE this overlay runs, and their background-cancel
-        // mixin doesn't reliably catch this screen — so cover them unconditionally here.
-        ctx.fill(0, 0, width, height, de.horizon.theme.ThemeManager.current().background | 0xFF000000);
+        // One-shot diagnostic: log the real screen class + detection flags so the vanilla panel can be
+        // cancelled for this exact class (the ContainerScreen background-cancel mixin may not catch it).
+        if (!diagLogged) {
+            diagLogged = true;
+            Minecraft mcd = Minecraft.getInstance();
+            if (mcd != null && mcd.player != null) {
+                mcd.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "§b[HRZN diag] storage screen=§f" + screen.getClass().getName()
+                        + " §btitle=§f'" + strip(screen.getTitle().getString()).strip() + "'"
+                        + " §bisMenu=§f" + isStorageMenu(screen) + " §boverview=§f" + overviewOpen));
+            }
+        }
+        // Stopgap dim until the exact screen class is known (see diagnostic): strongly dims the vanilla
+        // menu that leaks behind the translucent glass, without fully hiding the game like an opaque fill.
+        ctx.fill(0, 0, width, height, 0x99000000);
         de.horizon.screen.render.Ui.glassPanel(ctx, 8, 4, width - 16, height - 8, 10,
             de.horizon.theme.ThemeManager.current());
-        de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 4, width, height - 8);
+        de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 0, width, height);
 
         ctx.text(font, Component.literal("§bStorage"), 16, 10, accent());
         ctx.text(font, Component.literal("§8[X] / ESC → Menü"), 60, 12, muted());
@@ -556,7 +568,7 @@ public final class StorageOverlayService {
 
         de.horizon.screen.render.Ui.glassPanel(ctx, 8, 4, width - 16, height - 8, 10,
             de.horizon.theme.ThemeManager.current());
-        de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 4, width, height - 8);
+        de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 0, width, height);
 
         String curKey = pageKeyOf(screen);
         String query = search.trim().toLowerCase(Locale.ROOT);

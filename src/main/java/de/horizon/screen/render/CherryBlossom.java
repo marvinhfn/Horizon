@@ -23,22 +23,26 @@ public final class CherryBlossom {
     private static final Identifier WOOD_L = tex("cherry_branch_wood_l");
 
     private static final int TEX_W = 256, TEX_H = 1024;
-    private static final int BRANCH_W = 96, BRANCH_H = 384; // on-screen size (keeps the 1:4 aspect)
     private static final int WOOD_TINT = 0xD8FFFFFF; // keep the baked bark colour, ~85% alpha
 
-    /** Draws a branch flush to the left (mirrored) and right of the given region. */
+    /**
+     * Draws a branch flush to the left (mirrored) and right of the region, spanning its FULL height so
+     * the trunk reaches the bottom edge (the authored texture has its base at the very bottom).
+     */
     public static void renderSides(GuiGraphicsExtractor ctx, int left, int top, int right, int height) {
         int accent = de.horizon.theme.ThemeManager.current().accent;
         int petalTint = (0xC8 << 24) | (accent & 0x00FFFFFF); // theme accent, ~78% alpha
-        int y = top + Math.max(0, (height - BRANCH_H) / 2);
-        drawBranch(ctx, right - BRANCH_W, y, WOOD, PETALS, petalTint);   // right (texture as authored)
-        drawBranch(ctx, left, y, WOOD_L, PETALS_L, petalTint);           // left (pre-mirrored)
+        int bh = Math.max(1, height);
+        int bw = Math.max(48, Math.round(bh * (float) TEX_W / TEX_H)); // keep the 1:4 aspect
+        drawBranch(ctx, right - bw, top, bw, bh, WOOD, PETALS, petalTint);   // right (texture as authored)
+        drawBranch(ctx, left, top, bw, bh, WOOD_L, PETALS_L, petalTint);     // left (pre-mirrored)
     }
 
-    private static void drawBranch(GuiGraphicsExtractor ctx, int x, int y, Identifier wood, Identifier petals, int petalTint) {
+    private static void drawBranch(GuiGraphicsExtractor ctx, int x, int y, int w, int h,
+                                   Identifier wood, Identifier petals, int petalTint) {
         ctx.pose().pushMatrix();
         ctx.pose().translate(x, y);
-        ctx.pose().scale((float) BRANCH_W / TEX_W, (float) BRANCH_H / TEX_H);
+        ctx.pose().scale((float) w / TEX_W, (float) h / TEX_H);
         ctx.blit(RenderPipelines.GUI_TEXTURED, wood, 0, 0, 0f, 0f, TEX_W, TEX_H, TEX_W, TEX_H, WOOD_TINT);
         ctx.blit(RenderPipelines.GUI_TEXTURED, petals, 0, 0, 0f, 0f, TEX_W, TEX_H, TEX_W, TEX_H, petalTint);
         ctx.pose().popMatrix();
