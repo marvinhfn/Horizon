@@ -66,20 +66,24 @@ public final class Ui {
 
     /** Apple-style frosted panel: translucent base + top sheen + subtle accent rim. Theme-driven. */
     public static void glassPanel(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius, Theme theme) {
-        glassPanel(ctx, x, y, w, h, radius, withAlpha(theme.surface, 0xD2), withAlpha(theme.accent, 0x66));
+        glassPanel(ctx, x, y, w, h, radius, withAlpha(theme.surface, 0x66), withAlpha(theme.accent, 0x99));
     }
 
     public static void glassPanel(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius,
                                   int baseArgb, int accentArgb) {
         if (w <= 0 || h <= 0) return;
-        // 1) translucent frosted base
+        // 1) translucent frosted base — low alpha so the backdrop reads through (real glass)
         roundedRect(ctx, x, y, w, h, radius, baseArgb);
-        // 2) top sheen — a soft highlight fading downward (the "glass" catch-light)
-        int sheenH = Math.max(2, Math.min(h / 2, 18));
-        int sheenTop = withAlpha(0xFFFFFF, 0x3A);
-        int sheenBot = withAlpha(0xFFFFFF, 0x00);
-        verticalGradient(ctx, x + radius, y + 1, w - radius * 2, sheenH, sheenTop, sheenBot);
-        // 3) subtle accent rim
+        // 2) full-height frost sheen: bright at the top, fading to nothing — the Apple catch-light
+        verticalGradient(ctx, x + radius, y + 1, w - radius * 2, Math.max(2, h - 2),
+            withAlpha(0xFFFFFF, 0x30), withAlpha(0xFFFFFF, 0x06));
+        // 3) a crisp specular highlight hugging the very top edge
+        verticalGradient(ctx, x + radius, y + 1, w - radius * 2, Math.max(2, Math.min(h / 3, 14)),
+            withAlpha(0xFFFFFF, 0x4D), withAlpha(0xFFFFFF, 0x00));
+        // 4) subtle inner floor shadow for depth
+        verticalGradient(ctx, x + radius, y + h - Math.max(2, Math.min(h / 4, 16)) - 1, w - radius * 2,
+            Math.max(2, Math.min(h / 4, 16)), withAlpha(0x000000, 0x00), withAlpha(0x000000, 0x24));
+        // 5) accent rim
         outline(ctx, x, y, w, h, radius, 1, accentArgb);
     }
 

@@ -575,10 +575,11 @@ public final class StorageOverlayService {
         for (Slot s : menu.slots) {
             if (!(s.container instanceof Inventory)) continue;
             int cs = s.getContainerSlot();
-            int col = cs < 9 ? cs : (cs - 9) % 9;
-            int row = cs < 9 ? 3 : (cs - 9) / 9;
+            if (cs < 9) continue; // hide the hotbar row entirely while in the storage overlay (stays parked)
+            int col = (cs - 9) % 9;
+            int row = (cs - 9) / 9;
             int cx = invOx + col * CELL;
-            int cy = invTop + 12 + row * CELL + (cs < 9 ? 4 : 0);
+            int cy = invTop + 12 + row * CELL;
             drawCellBg(ctx, cx, cy, matches(s.getItem(), query));
             setPos(s, cx + 1, cy + 1);
             liveSlotCells.add(new int[]{cx, cy});
