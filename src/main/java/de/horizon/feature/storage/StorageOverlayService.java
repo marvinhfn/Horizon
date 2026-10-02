@@ -381,6 +381,10 @@ public final class StorageOverlayService {
         // Minecraft inventory is hidden the moment the "Storage" menu opens, not only on a page.
         for (Slot s : screen.getMenu().slots) setPos(s, -9999, -9999);
 
+        // Full-screen opaque backdrop FIRST (like the Leap menu): the vanilla chest panel + player
+        // inventory are drawn in the extract phase BEFORE this overlay runs, and their background-cancel
+        // mixin doesn't reliably catch this screen — so cover them unconditionally here.
+        ctx.fill(0, 0, width, height, de.horizon.theme.ThemeManager.current().background | 0xFF000000);
         de.horizon.screen.render.Ui.glassPanel(ctx, 8, 4, width - 16, height - 8, 10,
             de.horizon.theme.ThemeManager.current());
         de.horizon.screen.render.CherryBlossom.renderSides(ctx, 0, 4, width, height - 8);

@@ -192,7 +192,14 @@ public final class ExperimentTableSolver {
         if (clickedColor == null) return;
 
         boolean shouldReadLastReplicate = oldPhase == HelperPhase.READ || hypixelSizeNow < currentChronomatronRound;
-        boolean isReadingReady = oldPhase == null || oldPhase == HelperPhase.READ;
+        // SkyHanni relies on an empty-board inventory update to flip oldPhase REPLICATE→READ before the
+        // first flash of a new round. Horizon fires per-packet and may NOT get that empty update, so the
+        // round-2+ first flash arrives with oldPhase==REPLICATE and was wrongly skipped (isReadingReady
+        // false) → seqIndex desynced → the sequence never grew past 1 (only green, never yellow, freeze).
+        // A genuine READ flash shows exactly ONE active colour; the stale REPLICATE palette shows several,
+        // so treat a single-colour board as ready-to-read even when entering from REPLICATE.
+        boolean isReadingReady = oldPhase == null || oldPhase == HelperPhase.READ
+                || (oldPhase == HelperPhase.REPLICATE && activeColors.size() == 1);
         boolean shouldNotReadYet;
         switch (currentAddonPhase) {
             case REPLICATE -> shouldNotReadYet = !shouldReadLastReplicate;
