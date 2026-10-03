@@ -113,19 +113,46 @@ public final class Ui {
     public static void glassPanel(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius,
                                   int baseArgb, int accentArgb) {
         if (w <= 0 || h <= 0) return;
-        // 1) translucent frosted base — low alpha so the backdrop reads through (real glass)
-        roundedRect(ctx, x, y, w, h, radius, baseArgb);
-        // 2) full-height frost sheen: bright at the top, fading to nothing — the Apple catch-light
-        verticalGradient(ctx, x + radius, y + 1, w - radius * 2, Math.max(2, h - 2),
-            withAlpha(0xFFFFFF, 0x30), withAlpha(0xFFFFFF, 0x06));
-        // 3) a crisp specular highlight hugging the very top edge
-        verticalGradient(ctx, x + radius, y + 1, w - radius * 2, Math.max(2, Math.min(h / 3, 14)),
-            withAlpha(0xFFFFFF, 0x4D), withAlpha(0xFFFFFF, 0x00));
-        // 4) subtle inner floor shadow for depth
-        verticalGradient(ctx, x + radius, y + h - Math.max(2, Math.min(h / 4, 16)) - 1, w - radius * 2,
-            Math.max(2, Math.min(h / 4, 16)), withAlpha(0x000000, 0x00), withAlpha(0x000000, 0x24));
-        // 5) complete accent rim (traces the rounded corners too — a closed frame, no gaps)
+        int baseAlpha = (baseArgb >>> 24) & 0xFF;
+        // frosted glass fill as a vertical gradient that follows the rounded shape to EVERY edge:
+        // a brighter, slightly more opaque tint at the top fading to the base at the bottom.
+        int topArgb = withAlpha(mixRgb(baseArgb, 0xFFFFFF, 0.22f), Math.min(0xFF, baseAlpha + 0x1A));
+        roundedVGradient(ctx, x, y, w, h, radius, topArgb, baseArgb);
+        // a crisp specular catch-light hugging the top edge (also rounded-clipped, full width)
+        int specH = Math.max(2, Math.min(h / 3, 12));
+        roundedVGradient(ctx, x, y, w, specH + radius, radius, withAlpha(0xFFFFFF, 0x3C), withAlpha(0xFFFFFF, 0x00));
+        // complete accent rim (traces the rounded corners too — a closed frame, no gaps)
         roundedBorder(ctx, x, y, w, h, radius, accentArgb);
+    }
+
+    /** Fills a rounded-rect area with a vertical gradient, reaching every edge (corners follow the arc). */
+    public static void roundedVGradient(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius,
+                                        int topColor, int botColor) {
+        if (w <= 0 || h <= 0) return;
+        int r = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
+        for (int row = 0; row < h; row++) {
+            float t = h <= 1 ? 0f : (float) row / (h - 1);
+            int color = lerp(topColor, botColor, t);
+            int inset;
+            if (row < r) {
+                double exact = Math.sqrt((double) r * r - (r - 1 - row) * (r - 1 - row));
+                inset = r - (int) Math.floor(exact);
+            } else if (row >= h - r) {
+                int dy = h - 1 - row;
+                double exact = Math.sqrt((double) r * r - (r - 1 - dy) * (r - 1 - dy));
+                inset = r - (int) Math.floor(exact);
+            } else {
+                inset = 0;
+            }
+            ctx.fill(x + inset, y + row, x + w - inset, y + row + 1, color);
+        }
+    }
+
+    private static int mixRgb(int a, int b, float t) {
+        int ar = (a >>> 16) & 0xFF, ag = (a >>> 8) & 0xFF, ab = a & 0xFF;
+        int br = (b >>> 16) & 0xFF, bg = (b >>> 8) & 0xFF, bb = b & 0xFF;
+        int r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+        return (r << 16) | (g << 8) | bl;
     }
 
     private static int withAlpha(int rgb, int alpha) {

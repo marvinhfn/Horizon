@@ -4652,9 +4652,8 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
     private void drawWindowChrome(GuiGraphicsExtractor context, Rect frame, Rect viewport, int accent, int mouseX, int mouseY) {
         // full-screen dim scrim
         context.fill(0, 0, width, height, 0xB4000000);
-        // window body — frosted glass: translucent-but-readable surface + top sheen + accent rim
-        Ui.glassPanel(context, frame.x, frame.y, frame.width, frame.height, 12,
-            withAlpha(theme().surface, 0xEE), withAlpha(theme().accent, 0x99));
+        // window body — the same frosted glass as the overlays (fade reaches every edge)
+        Ui.glassPanel(context, frame.x, frame.y, frame.width, frame.height, 12, theme());
         drawHeader(context, frame, accent, mouseX, mouseY);
     }
 

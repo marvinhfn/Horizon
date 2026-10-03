@@ -86,9 +86,11 @@ public final class SpotifyInventoryOverlay {
             localVolume = state.volumePercent();
         }
         buttons.clear();
-        context.fill(x, y, x + panelWidth, y + panelHeight, theme.surface);
-        context.outline(x, y, panelWidth, panelHeight, theme.borderSubtle);
-        context.fill(x, y, x + panelWidth, y + HEADER_HEIGHT, theme.surfaceAlt);
+        // frosted glass panel (fade to every edge + complete accent rim) — same look as the other overlays
+        de.horizon.screen.render.Ui.glassPanel(context, x, y, panelWidth, panelHeight, 10, theme);
+        // subtle header separator (rounded-clipped so it never pokes the rounded top corners)
+        de.horizon.screen.render.Ui.roundedVGradient(context, x + 1, y + 1, panelWidth - 2, HEADER_HEIGHT - 1, 9,
+            (0x33 << 24) | (theme.accent & 0xFFFFFF), (0x00 << 24) | (theme.accent & 0xFFFFFF));
         context.fill(x + 16, y + 16, x + 108, y + 18, theme.accent);
         context.text(client.font, Fonts.of("Spotify Control"), x + 16, y + 24, theme.text, false);
         minimizeButton = new Rect(x + panelWidth - 26, y + 10, 18, 18);
