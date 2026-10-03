@@ -4678,6 +4678,8 @@ public final class HorizonConfigScreen extends Screen implements de.horizon.scre
         Ui.softDivider(context, frame.x + 10, frame.y + HEADER_H - 1, frame.width - 20, withAlpha(accent, 0x66));
         drawSearchField(context, frame, accent);
         drawCloseButton(context, frame, mouseX, mouseY);
+        // the header band covers the body's top rim — redraw the complete accent frame on top so it closes
+        Ui.roundedBorder(context, frame.x, frame.y, frame.width, frame.height, 12, withAlpha(theme().accent, 0xCC));
     }
 
     /** Modern search field: rounded pill, muted placeholder (no "<leer>"), accent focus ring. */

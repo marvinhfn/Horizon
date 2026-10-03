@@ -38,6 +38,26 @@ public final class Ui {
         }
     }
 
+    /** A complete AA rounded border ring (traces the corner arcs too — no gaps), drawn on top. */
+    public static void roundedBorder(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius, int color) {
+        if (w <= 0 || h <= 0) return;
+        int r = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
+        // straight edges between the corner radii
+        ctx.fill(x + r, y, x + w - r, y + 1, color);               // top
+        ctx.fill(x + r, y + h - 1, x + w - r, y + h, color);       // bottom
+        ctx.fill(x, y + r, x + 1, y + h - r, color);               // left
+        ctx.fill(x + w - 1, y + r, x + w, y + h - r, color);       // right
+        // corner arc pixels, matching roundedRect's fill edge so the ring hugs the fill
+        for (int dy = 0; dy < r; dy++) {
+            double exact = Math.sqrt((double) r * r - (r - 1 - dy) * (r - 1 - dy));
+            int dxFull = r - (int) Math.floor(exact);
+            ctx.fill(x + dxFull, y + dy, x + dxFull + 1, y + dy + 1, color);                 // top-left
+            ctx.fill(x + w - dxFull - 1, y + dy, x + w - dxFull, y + dy + 1, color);         // top-right
+            ctx.fill(x + dxFull, y + h - 1 - dy, x + dxFull + 1, y + h - dy, color);         // bottom-left
+            ctx.fill(x + w - dxFull - 1, y + h - 1 - dy, x + w - dxFull, y + h - dy, color); // bottom-right
+        }
+    }
+
     public static void outline(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius, int t, int color) {
         // top, bottom, left, right thin strips inset by radius on the rounded ends
         ctx.fill(x + radius, y, x + w - radius, y + t, color);
@@ -87,7 +107,7 @@ public final class Ui {
 
     /** Apple-style frosted panel: translucent base + top sheen + subtle accent rim. Theme-driven. */
     public static void glassPanel(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius, Theme theme) {
-        glassPanel(ctx, x, y, w, h, radius, withAlpha(theme.surface, 0x66), withAlpha(theme.accent, 0x99));
+        glassPanel(ctx, x, y, w, h, radius, withAlpha(theme.surface, 0x82), withAlpha(theme.accent, 0xCC));
     }
 
     public static void glassPanel(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int radius,
@@ -104,8 +124,8 @@ public final class Ui {
         // 4) subtle inner floor shadow for depth
         verticalGradient(ctx, x + radius, y + h - Math.max(2, Math.min(h / 4, 16)) - 1, w - radius * 2,
             Math.max(2, Math.min(h / 4, 16)), withAlpha(0x000000, 0x00), withAlpha(0x000000, 0x24));
-        // 5) accent rim
-        outline(ctx, x, y, w, h, radius, 1, accentArgb);
+        // 5) complete accent rim (traces the rounded corners too — a closed frame, no gaps)
+        roundedBorder(ctx, x, y, w, h, radius, accentArgb);
     }
 
     private static int withAlpha(int rgb, int alpha) {
